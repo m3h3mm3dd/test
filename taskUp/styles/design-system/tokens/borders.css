@@ -1,0 +1,358 @@
+/* =========================================
+   BORDER SYSTEM - TASKUP
+   Apple-inspired border styles
+   ========================================= */
+
+   :root {
+    /* Border Radius Scale */
+    --border-radius-none: 0;
+    --border-radius-xs: 2px;     /* Tight corners */
+    --border-radius-sm: 4px;     /* Subtle rounding */
+    --border-radius-md: 8px;     /* Standard rounding */
+    --border-radius-lg: 12px;    /* Card-level rounding */
+    --border-radius-xl: 16px;    /* Panel-level rounding */
+    --border-radius-2xl: 20px;   /* Large component rounding */
+    --border-radius-3xl: 24px;   /* Sheet-level rounding */
+    --border-radius-full: 9999px; /* Pill/circular shape */
+    
+    /* Border Widths */
+    --border-width-0: 0px;
+    --border-width-1: 1px;
+    --border-width-2: 2px;
+    --border-width-4: 4px;
+    --border-width-8: 8px;
+    
+    /* Border Styles */
+    --border-style-solid: solid;
+    --border-style-dashed: dashed;
+    --border-style-dotted: dotted;
+    --border-style-double: double;
+    --border-style-none: none;
+    
+    /* Border Colors - using color tokens */
+    --border-color-default: var(--color-border);
+    --border-color-hover: var(--color-border-hover);
+    --border-color-active: var(--color-border-active);
+    --border-color-focus: var(--color-primary);
+    --border-color-error: var(--color-error);
+    --border-color-success: var(--color-success);
+    --border-color-warning: var(--color-warning);
+    
+    /* Component-Specific Border Radius */
+    --border-radius-button: var(--border-radius-md);
+    --border-radius-input: var(--border-radius-md);
+    --border-radius-card: var(--border-radius-lg);
+    --border-radius-dialog: var(--border-radius-xl);
+    --border-radius-popup: var(--border-radius-lg);
+    --border-radius-badge: var(--border-radius-full);
+    --border-radius-tag: var(--border-radius-full);
+    --border-radius-avatar: var(--border-radius-full);
+    --border-radius-tooltip: var(--border-radius-sm);
+    
+    /* Apple-Specific Border Radiuses */
+    --border-radius-apple-sm: 6px;     /* Small iOS-style rounding */
+    --border-radius-apple-md: 10px;    /* Medium iOS-style rounding */
+    --border-radius-apple-lg: 14px;    /* Large iOS-style rounding */
+    --border-radius-apple-xl: 18px;    /* Extra large iOS-style rounding */
+    
+    /* Standard Border Definitions */
+    --border-default: var(--border-width-1) var(--border-style-solid) var(--border-color-default);
+    --border-hover: var(--border-width-1) var(--border-style-solid) var(--border-color-hover);
+    --border-active: var(--border-width-1) var(--border-style-solid) var(--border-color-active);
+    --border-focus: var(--border-width-1) var(--border-style-solid) var(--border-color-focus);
+    --border-error: var(--border-width-1) var(--border-style-solid) var(--border-color-error);
+    --border-success: var(--border-width-1) var(--border-style-solid) var(--border-color-success);
+    --border-warning: var(--border-width-1) var(--border-style-solid) var(--border-color-warning);
+    
+    /* Divider Styles */
+    --divider-color: var(--color-border);
+    --divider-width: var(--border-width-1);
+    --divider-style: var(--border-style-solid);
+    --divider: var(--divider-width) var(--divider-style) var(--divider-color);
+  }
+  
+  /* Border Radius Utility Classes */
+  .rounded-none {
+    border-radius: var(--border-radius-none);
+  }
+  
+  .rounded-xs {
+    border-radius: var(--border-radius-xs);
+  }
+  
+  .rounded-sm {
+    border-radius: var(--border-radius-sm);
+  }
+  
+  .rounded-md {
+    border-radius: var(--border-radius-md);
+  }
+  
+  .rounded-lg {
+    border-radius: var(--border-radius-lg);
+  }
+  
+  .rounded-xl {
+    border-radius: var(--border-radius-xl);
+  }
+  
+  .rounded-2xl {
+    border-radius: var(--border-radius-2xl);
+  }
+  
+  .rounded-3xl {
+    border-radius: var(--border-radius-3xl);
+  }
+  
+  .rounded-full {
+    border-radius: var(--border-radius-full);
+  }
+  
+  .rounded-apple-sm {
+    border-radius: var(--border-radius-apple-sm);
+  }
+  
+  .rounded-apple-md {
+    border-radius: var(--border-radius-apple-md);
+  }
+  
+  .rounded-apple-lg {
+    border-radius: var(--border-radius-apple-lg);
+  }
+  
+  .rounded-apple-xl {
+    border-radius: var(--border-radius-apple-xl);
+  }
+  
+  /* Individual Corner Border Radius Utility Classes */
+  .rounded-t-none {
+    border-top-left-radius: var(--border-radius-none);
+    border-top-right-radius: var(--border-radius-none);
+  }
+  
+  .rounded-r-none {
+    border-top-right-radius: var(--border-radius-none);
+    border-bottom-right-radius: var(--border-radius-none);
+  }
+  
+  .rounded-b-none {
+    border-bottom-right-radius: var(--border-radius-none);
+    border-bottom-left-radius: var(--border-radius-none);
+  }
+  
+  .rounded-l-none {
+    border-top-left-radius: var(--border-radius-none);
+    border-bottom-left-radius: var(--border-radius-none);
+  }
+  
+  .rounded-t-md {
+    border-top-left-radius: var(--border-radius-md);
+    border-top-right-radius: var(--border-radius-md);
+  }
+  
+  .rounded-r-md {
+    border-top-right-radius: var(--border-radius-md);
+    border-bottom-right-radius: var(--border-radius-md);
+  }
+  
+  .rounded-b-md {
+    border-bottom-right-radius: var(--border-radius-md);
+    border-bottom-left-radius: var(--border-radius-md);
+  }
+  
+  .rounded-l-md {
+    border-top-left-radius: var(--border-radius-md);
+    border-bottom-left-radius: var(--border-radius-md);
+  }
+  
+  .rounded-t-lg {
+    border-top-left-radius: var(--border-radius-lg);
+    border-top-right-radius: var(--border-radius-lg);
+  }
+  
+  .rounded-r-lg {
+    border-top-right-radius: var(--border-radius-lg);
+    border-bottom-right-radius: var(--border-radius-lg);
+  }
+  
+  .rounded-b-lg {
+    border-bottom-right-radius: var(--border-radius-lg);
+    border-bottom-left-radius: var(--border-radius-lg);
+  }
+  
+  .rounded-l-lg {
+    border-top-left-radius: var(--border-radius-lg);
+    border-bottom-left-radius: var(--border-radius-lg);
+  }
+  
+  /* Border Width Utility Classes */
+  .border-0 {
+    border-width: var(--border-width-0);
+  }
+  
+  .border {
+    border-width: var(--border-width-1);
+  }
+  
+  .border-2 {
+    border-width: var(--border-width-2);
+  }
+  
+  .border-4 {
+    border-width: var(--border-width-4);
+  }
+  
+  .border-8 {
+    border-width: var(--border-width-8);
+  }
+  
+  .border-t-0 {
+    border-top-width: var(--border-width-0);
+  }
+  
+  .border-r-0 {
+    border-right-width: var(--border-width-0);
+  }
+  
+  .border-b-0 {
+    border-bottom-width: var(--border-width-0);
+  }
+  
+  .border-l-0 {
+    border-left-width: var(--border-width-0);
+  }
+  
+  .border-t {
+    border-top-width: var(--border-width-1);
+  }
+  
+  .border-r {
+    border-right-width: var(--border-width-1);
+  }
+  
+  .border-b {
+    border-bottom-width: var(--border-width-1);
+  }
+  
+  .border-l {
+    border-left-width: var(--border-width-1);
+  }
+  
+  /* Border Style Utility Classes */
+  .border-solid {
+    border-style: var(--border-style-solid);
+  }
+  
+  .border-dashed {
+    border-style: var(--border-style-dashed);
+  }
+  
+  .border-dotted {
+    border-style: var(--border-style-dotted);
+  }
+  
+  .border-double {
+    border-style: var(--border-style-double);
+  }
+  
+  .border-none {
+    border-style: var(--border-style-none);
+  }
+  
+  /* Border Color Utility Classes */
+  .border-default {
+    border-color: var(--border-color-default);
+  }
+  
+  .border-hover {
+    border-color: var(--border-color-hover);
+  }
+  
+  .border-active {
+    border-color: var(--border-color-active);
+  }
+  
+  .border-focus {
+    border-color: var(--border-color-focus);
+  }
+  
+  .border-error {
+    border-color: var(--border-color-error);
+  }
+  
+  .border-success {
+    border-color: var(--border-color-success);
+  }
+  
+  .border-warning {
+    border-color: var(--border-color-warning);
+  }
+  
+  /* Combined Border Utility Classes */
+  .border-default-1 {
+    border: var(--border-default);
+  }
+  
+  .border-focus-2 {
+    border: var(--border-width-2) var(--border-style-solid) var(--border-color-focus);
+  }
+  
+  .border-error-1 {
+    border: var(--border-error);
+  }
+  
+  .border-success-1 {
+    border: var(--border-success);
+  }
+  
+  /* Divider Utility Classes */
+  .divider-horizontal {
+    height: var(--divider-width);
+    background-color: var(--divider-color);
+    width: 100%;
+  }
+  
+  .divider-vertical {
+    width: var(--divider-width);
+    background-color: var(--divider-color);
+    height: 100%;
+  }
+  
+  .border-b-divider {
+    border-bottom: var(--divider);
+  }
+  
+  .border-t-divider {
+    border-top: var(--divider);
+  }
+  
+  .border-l-divider {
+    border-left: var(--divider);
+  }
+  
+  .border-r-divider {
+    border-right: var(--divider);
+  }
+  
+  /* Special Apple-style borders */
+  .border-apple-thin {
+    border: 0.5px solid var(--border-color-default);
+  }
+  
+  .border-apple-hairline {
+    box-shadow: inset 0 0 0 0.5px var(--border-color-default);
+  }
+  
+  /* Focus ring - Apple style */
+  .focus-ring {
+    outline: none;
+    box-shadow: 0 0 0 4px var(--color-primary-surface);
+    transition: box-shadow 0.2s ease-in-out;
+  }
+  
+  /* Dark mode adjustments */
+  @media (prefers-color-scheme: dark) {
+    .border-apple-hairline {
+      box-shadow: inset 0 0 0 0.5px var(--border-color-default);
+    }
+  }

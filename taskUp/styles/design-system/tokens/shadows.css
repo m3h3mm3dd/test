@@ -1,0 +1,148 @@
+/* =========================================
+   SHADOW SYSTEM - TASKUP
+   Apple-inspired subtle elevations
+   ========================================= */
+
+   @import 'shadows/light.css';
+   @import 'shadows/dark.css';
+   
+   :root {
+     /* Base shadow properties */
+     --shadow-color: var(--color-shadow);
+     --shadow-color-dark: var(--color-shadow-dark);
+     
+     /* Base shadow values (light mode defaults) */
+     --shadow-xs: 0 1px 2px var(--shadow-color);
+     --shadow-sm: 0 1px 3px var(--shadow-color), 0 1px 2px var(--shadow-color-dark);
+     --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px var(--shadow-color-dark);
+     --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color-dark);
+     --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px var(--shadow-color-dark);
+     --shadow-2xl: 0 25px 50px -12px var(--shadow-color-dark);
+     --shadow-inner: inset 0 2px 4px 0 var(--shadow-color);
+     
+     /* Apple-specific elevation shadows */
+     --shadow-apple-1: 0 1px 2px 0 var(--shadow-color);
+     --shadow-apple-2: 0 2px 4px 0 var(--shadow-color), 0 1px 2px 0 var(--shadow-color-dark);
+     --shadow-apple-3: 0 4px 8px 0 var(--shadow-color), 0 2px 4px 0 var(--shadow-color-dark);
+     --shadow-apple-4: 0 8px 16px 0 var(--shadow-color), 0 4px 8px 0 var(--shadow-color-dark);
+     --shadow-apple-5: 0 16px 32px 0 var(--shadow-color), 0 8px 16px 0 var(--shadow-color-dark);
+     
+     /* Component-specific shadows */
+     --shadow-card: var(--shadow-apple-2);
+     --shadow-card-hover: var(--shadow-apple-3);
+     --shadow-card-active: var(--shadow-apple-4);
+     
+     --shadow-dropdown: var(--shadow-apple-3);
+     --shadow-popover: var(--shadow-apple-3);
+     --shadow-tooltip: var(--shadow-apple-2);
+     
+     --shadow-button: var(--shadow-xs);
+     --shadow-button-hover: var(--shadow-sm);
+     --shadow-button-active: var(--shadow-inner);
+     
+     --shadow-modal: var(--shadow-apple-4);
+     --shadow-dialog: var(--shadow-apple-4);
+     --shadow-drawer: var(--shadow-apple-4);
+     
+     --shadow-header: var(--shadow-apple-1);
+     --shadow-navbar: var(--shadow-apple-2);
+     --shadow-sidebar: var(--shadow-apple-3);
+     
+     --shadow-input: var(--shadow-inner);
+     --shadow-input-focus: 0 0 0 2px var(--color-primary-surface), var(--shadow-xs);
+     
+     /* Interactive shadows with transitions */
+     --shadow-interactive-default: var(--shadow-apple-2);
+     --shadow-interactive-hover: var(--shadow-apple-3);
+     --shadow-interactive-active: var(--shadow-apple-1);
+   }
+   
+   /* Shadow utility classes */
+   .shadow-none {
+     box-shadow: none !important;
+   }
+   
+   .shadow-xs {
+     box-shadow: var(--shadow-xs);
+   }
+   
+   .shadow-sm {
+     box-shadow: var(--shadow-sm);
+   }
+   
+   .shadow-md {
+     box-shadow: var(--shadow-md);
+   }
+   
+   .shadow-lg {
+     box-shadow: var(--shadow-lg);
+   }
+   
+   .shadow-xl {
+     box-shadow: var(--shadow-xl);
+   }
+   
+   .shadow-2xl {
+     box-shadow: var(--shadow-2xl);
+   }
+   
+   .shadow-inner {
+     box-shadow: var(--shadow-inner);
+   }
+   
+   .shadow-apple-1 {
+     box-shadow: var(--shadow-apple-1);
+   }
+   
+   .shadow-apple-2 {
+     box-shadow: var(--shadow-apple-2);
+   }
+   
+   .shadow-apple-3 {
+     box-shadow: var(--shadow-apple-3);
+   }
+   
+   .shadow-apple-4 {
+     box-shadow: var(--shadow-apple-4);
+   }
+   
+   .shadow-apple-5 {
+     box-shadow: var(--shadow-apple-5);
+   }
+   
+   /* Component shadow classes */
+   .shadow-card {
+     box-shadow: var(--shadow-card);
+   }
+   
+   .shadow-dropdown {
+     box-shadow: var(--shadow-dropdown);
+   }
+   
+   .shadow-button {
+     box-shadow: var(--shadow-button);
+   }
+   
+   .shadow-modal {
+     box-shadow: var(--shadow-modal);
+   }
+   
+   .shadow-header {
+     box-shadow: var(--shadow-header);
+   }
+   
+   /* Interactive shadow transition */
+   .shadow-interactive {
+     box-shadow: var(--shadow-interactive-default);
+     transition: box-shadow 0.2s ease-in-out, transform 0.2s ease-in-out;
+   }
+   
+   .shadow-interactive:hover {
+     box-shadow: var(--shadow-interactive-hover);
+     transform: translateY(-2px);
+   }
+   
+   .shadow-interactive:active {
+     box-shadow: var(--shadow-interactive-active);
+     transform: translateY(0);
+   }

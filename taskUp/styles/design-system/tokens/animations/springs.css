@@ -1,0 +1,225 @@
+/* =========================================
+   SPRING ANIMATIONS - TASKUP
+   Apple-inspired spring physics animations
+   ========================================= */
+
+   :root {
+    /* 
+     * Spring physics animation presets
+     * Inspired by Apple's spring animations
+     * These are cubic-bezier approximations of spring physics
+     */
+    
+    /* Light Spring - subtle bounce, quick settle */
+    --spring-light: cubic-bezier(0.25, 0.1, 0.25, 1);
+    
+    /* Standard Spring - moderate bounce, nice feel for most UI elements */
+    --spring-standard: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    /* Responsive Spring - feels connected to user input, snappy */
+    --spring-responsive: cubic-bezier(0.5, 1.25, 0.75, 1.25);
+    
+    /* Bouncy Spring - playful bounce, good for attention-grabbing animations */
+    --spring-bouncy: cubic-bezier(0.5, 1.5, 0.5, 0.8);
+    
+    /* Energetic Spring - very bouncy, use sparingly for special interactions */
+    --spring-energetic: cubic-bezier(0.5, 2, 0.5, 0.5);
+  
+    /* 
+     * Spring parameters for JavaScript animations
+     * For use with spring physics libraries 
+     */
+    --spring-js-light-stiffness: 170;
+    --spring-js-light-damping: 26;
+    --spring-js-light-mass: 1;
+  
+    --spring-js-standard-stiffness: 200;
+    --spring-js-standard-damping: 22;
+    --spring-js-standard-mass: 1;
+    
+    --spring-js-responsive-stiffness: 240;
+    --spring-js-responsive-damping: 24;
+    --spring-js-responsive-mass: 1;
+    
+    --spring-js-bouncy-stiffness: 300;
+    --spring-js-bouncy-damping: 10;
+    --spring-js-bouncy-mass: 1;
+    
+    --spring-js-energetic-stiffness: 400;
+    --spring-js-energetic-damping: 8;
+    --spring-js-energetic-mass: 1;
+    
+    /*
+     * Spring animation durations
+     * These are approximate, as spring animations technically run indefinitely
+     * but these values represent when the animation is visually "settled"
+     */
+    --spring-duration-short: 350ms;
+    --spring-duration-medium: 500ms;
+    --spring-duration-long: 750ms;
+    
+    /*
+     * Component-specific spring animations
+     */
+    
+    /* Button springs */
+    --spring-button-press: var(--spring-responsive);
+    --spring-button-release: var(--spring-light);
+    
+    /* Modal/dialog springs */
+    --spring-modal-in: var(--spring-standard);
+    --spring-modal-out: var(--spring-light);
+    
+    /* Card hover springs */
+    --spring-card-hover: var(--spring-standard);
+    --spring-card-press: var(--spring-responsive);
+    
+    /* Menu/dropdown springs */
+    --spring-menu-in: var(--spring-standard);
+    --spring-menu-out: var(--spring-light);
+    
+    /* Toggle/switch springs */
+    --spring-toggle: var(--spring-responsive);
+    
+    /* Drag springs */
+    --spring-drag: var(--spring-responsive);
+    --spring-drag-snap: var(--spring-bouncy);
+    
+    /* List item springs */
+    --spring-list-item-add: var(--spring-bouncy);
+    --spring-list-item-remove: var(--spring-light);
+    --spring-list-item-reorder: var(--spring-responsive);
+    
+    /* Page transition springs */
+    --spring-page-in: var(--spring-standard);
+    --spring-page-out: var(--spring-light);
+    
+    /* Notification springs */
+    --spring-notification-in: var(--spring-bouncy);
+    --spring-notification-out: var(--spring-light);
+  }
+  
+  /* Spring animation utility classes */
+  .spring-light {
+    transition-timing-function: var(--spring-light) !important;
+  }
+  
+  .spring-standard {
+    transition-timing-function: var(--spring-standard) !important;
+  }
+  
+  .spring-responsive {
+    transition-timing-function: var(--spring-responsive) !important;
+  }
+  
+  .spring-bouncy {
+    transition-timing-function: var(--spring-bouncy) !important;
+  }
+  
+  .spring-energetic {
+    transition-timing-function: var(--spring-energetic) !important;
+  }
+  
+  /* Component spring animation classes */
+  .spring-button {
+    transition-timing-function: var(--spring-button-press);
+  }
+  
+  .spring-button.released {
+    transition-timing-function: var(--spring-button-release);
+  }
+  
+  .spring-modal {
+    transition-timing-function: var(--spring-modal-in);
+  }
+  
+  .spring-modal.closing {
+    transition-timing-function: var(--spring-modal-out);
+  }
+  
+  .spring-card {
+    transition-timing-function: var(--spring-card-hover);
+  }
+  
+  .spring-card:active {
+    transition-timing-function: var(--spring-card-press);
+  }
+  
+  .spring-menu {
+    transition-timing-function: var(--spring-menu-in);
+  }
+  
+  .spring-menu.closing {
+    transition-timing-function: var(--spring-menu-out);
+  }
+  
+  .spring-toggle {
+    transition-timing-function: var(--spring-toggle);
+  }
+  
+  .spring-list-item-enter {
+    transition-timing-function: var(--spring-list-item-add);
+  }
+  
+  .spring-list-item-exit {
+    transition-timing-function: var(--spring-list-item-remove);
+  }
+  
+  .spring-page-enter {
+    transition-timing-function: var(--spring-page-in);
+  }
+  
+  .spring-page-exit {
+    transition-timing-function: var(--spring-page-out);
+  }
+  
+  .spring-notification {
+    transition-timing-function: var(--spring-notification-in);
+  }
+  
+  .spring-notification.closing {
+    transition-timing-function: var(--spring-notification-out);
+  }
+  
+  /* JS Animation Helper Classes
+     Add data attributes for JavaScript animation libraries to read */
+  .js-spring-light {
+    --stiffness: var(--spring-js-light-stiffness);
+    --damping: var(--spring-js-light-damping);
+    --mass: var(--spring-js-light-mass);
+  }
+  
+  .js-spring-standard {
+    --stiffness: var(--spring-js-standard-stiffness);
+    --damping: var(--spring-js-standard-damping);
+    --mass: var(--spring-js-standard-mass);
+  }
+  
+  .js-spring-responsive {
+    --stiffness: var(--spring-js-responsive-stiffness);
+    --damping: var(--spring-js-responsive-damping);
+    --mass: var(--spring-js-responsive-mass);
+  }
+  
+  .js-spring-bouncy {
+    --stiffness: var(--spring-js-bouncy-stiffness);
+    --damping: var(--spring-js-bouncy-damping);
+    --mass: var(--spring-js-bouncy-mass);
+  }
+  
+  .js-spring-energetic {
+    --stiffness: var(--spring-js-energetic-stiffness);
+    --damping: var(--spring-js-energetic-damping);
+    --mass: var(--spring-js-energetic-mass);
+  }
+  
+  /* Reduced Motion Settings - simplify springs for users who prefer reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    :root {
+      --spring-light: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --spring-standard: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --spring-responsive: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --spring-bouncy: cubic-bezier(0.25, 0.1, 0.25, 1);
+      --spring-energetic: cubic-bezier(0.25, 0.1, 0.25, 1);
+    }
+  }

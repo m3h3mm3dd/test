@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskUp - Dashboard</title>
+    <link rel="stylesheet" href="/styles/design-system/tokens/colors.css">
+    <link rel="stylesheet" href="/styles/design-system/tokens/typography.css">
+    <link rel="stylesheet" href="/styles/design-system/tokens/spacing.css">
+    <link rel="stylesheet" href="/styles/design-system/tokens/shadows.css">
+    <link rel="stylesheet" href="/styles/design-system/tokens/borders.css">
+    <link rel="stylesheet" href="/styles/design-system/tokens/animations.css">
+    <link rel="stylesheet" href="/styles/design-system/components/buttons.css">
+    <link rel="stylesheet" href="/styles/design-system/components/navigation.css">
+    <link rel="stylesheet" href="/styles/design-system/components/cards.css">
+    <link rel="stylesheet" href="/styles/layouts/dashboard.css">
+    <link rel="stylesheet" href="/styles/layouts/sidebar.css">
+    <link rel="stylesheet" href="/styles/layouts/grid.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="logo-container">
+                    <img src="/assets/images/branding/logo.svg" alt="TaskUp" class="logo">
+                    <span class="logo-text">TaskUp</span>
+                </div>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item active">
+                        <a href="/app/dashboard.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1h2a1 1 0 001-1v-7m-6 0a1 1 0 00-1 1v3" />
+                            </svg>
+                            <span>Home</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/app/tasks/my-tasks.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                            </svg>
+                            <span>My Tasks</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/app/projects/list.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                            </svg>
+                            <span>Projects</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/app/teams/list.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                            </svg>
+                            <span>Teams</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/app/calendar.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span>Calendar</span>
+                        </a>
+                    </li>
+                </ul>
+                
+                <div class="nav-section-divider"></div>
+                
+                <ul class="nav-list">
+                    <li class="nav-item">
+                        <a href="/app/chat/project-chat.html" class="nav-link">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                            </svg>
+                            <span>Chat</span>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="current-user">
+                    <div class="avatar-container">
+                        <img src="/assets/images/branding/avatar-placeholder.png" alt="User avatar" class="avatar">
+                        <span class="status-indicator online"></span>
+                    </div>
+                    <div class="user-info">
+                        <p class="user-name">John Doe</p>
+                        <p class="user-status">Online</p>
+                    </div>
+                </div>
+                
+                <button class="sidebar-settings-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                </button>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Top Header -->
+            <header class="main-header">
+                <div class="header-left">
+                    <div class="project-selector">
+                        <button class="project-button">
+                            <span>My Workspace</span>
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="header-middle">
+                    <div class="search-container">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input type="text" placeholder="Search..." class="search-input">
+                    </div>
+                    
+                    <button class="create-task-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                        <span>New Task</span>
+                    </button>
+                </div>
+                
+                <div class="header-right">
+                    <button class="notification-button">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                        </svg>
+                        <span class="notification-badge">3</span>
+                    </button>
+                    
+                    <div class="user-profile">
+                        <img src="/assets/images/branding/avatar-placeholder.png" alt="User avatar" class="avatar">
+                    </div>
+                </div>
+            </header>
+            
+            <!-- Dashboard Content -->
+            <div class="dashboard-content">
+                <!-- Welcome Section -->
+                <section class="welcome-section">
+                    <div class="welcome-info">
+                        <h1 class="welcome-title">Good morning, John</h1>
+                        <p class="welcome-subtitle">Here's an overview of your tasks for today</p>
+                    </div>
+                    <div class="date-display">
+                        <p class="current-date">Friday, April 4, 2025</p>
+                    </div>
+                </section>
+                
+                <!-- Stats Cards -->
+                <section class="stats-section">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon tasks">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <h3 class="stat-title">Tasks</h3>
+                                <p class="stat-value">12</p>
+                                <p class="stat-subtitle">3 due today</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon projects">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <h3 class="stat-title">Projects</h3>
+                                <p class="stat-value">4</p>
+                                <p class="stat-subtitle">1 due this week</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon completed">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <h3 class="stat-title">Completed</h3>
+                                <p class="stat-value">8</p>
+                                <p class="stat-subtitle">This week</p>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon team">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <h3 class="stat-title">Team</h3>
+                                <p class="stat-value">5</p>
+                                <p class="stat-subtitle">Active members</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Tasks Due Today -->
+                <section class="tasks-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Due Today</h2>
+                        <a href="/app/tasks/my-tasks.html" class="view-all-link">
+                            View all
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+                    
+                    <div class="tasks-container">
+                        <div class="task-card">
+                            <div class="task-priority high"></div>
+                            <div class="task-content">
+                                <h3 class="task-title">Complete wireframes for TaskUp mobile app</h3>
+                                <p class="task-project">Project: TaskUp Mobile</p>
+                                <div class="task-meta">
+                                    <span class="task-due">Due: 5:00 PM</span>
+                                    <span class="task-status">In Progress</span>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="task-card">
+                            <div class="task-priority medium"></div>
+                            <div class="task-content">
+                                <h3 class="task-title">Review marketing materials for Q2 campaign</h3>
+                                <p class="task-project">Project: Marketing Q2</p>
+                                <div class="task-meta">
+                                    <span class="task-due">Due: 2:30 PM</span>
+                                    <span class="task-status">Not Started</span>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="task-card">
+                            <div class="task-priority low"></div>
+                            <div class="task-content">
+                                <h3 class="task-title">Schedule team meeting for next week</h3>
+                                <p class="task-project">Project: Team Management</p>
+                                <div class="task-meta">
+                                    <span class="task-due">Due: 4:00 PM</span>
+                                    <span class="task-status">Not Started</span>
+                                </div>
+                            </div>
+                            <div class="task-actions">
+                                <button class="task-action-button">
+                                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h.01M12 12h.01M19 12h.01M6 12a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0zm7 0a1 1 0 11-2 0 1 1 0 012 0z" />
+                                    </svg>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Project Progress -->
+                <section class="projects-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Project Progress</h2>
+                        <a href="/app/projects/list.html" class="view-all-link">
+                            View all
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </a>
+                    </div>
+                    
+                    <div class="projects-container">
+                        <div class="project-card">
+                            <div class="project-header">
+                                <h3 class="project-title">TaskUp Mobile App</h3>
+                                <div class="project-meta">
+                                    <span class="project-days">15 days left</span>
+                                </div>
+                            </div>
+                            <div class="project-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 65%;"></div>
+                                </div>
+                                <span class="progress-text">65% complete</span>
+                            </div>
+                            <div class="project-team">
+                                <div class="team-avatars">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <span class="team-avatar-more">+2</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="project-card">
+                            <div class="project-header">
+                                <h3 class="project-title">Marketing Q2 Campaign</h3>
+                                <div class="project-meta">
+                                    <span class="project-days">30 days left</span>
+                                </div>
+                            </div>
+                            <div class="project-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 25%;"></div>
+                                </div>
+                                <span class="progress-text">25% complete</span>
+                            </div>
+                            <div class="project-team">
+                                <div class="team-avatars">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <span class="team-avatar-more">+1</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="project-card">
+                            <div class="project-header">
+                                <h3 class="project-title">Website Redesign</h3>
+                                <div class="project-meta">
+                                    <span class="project-days">5 days left</span>
+                                </div>
+                            </div>
+                            <div class="project-progress">
+                                <div class="progress-bar">
+                                    <div class="progress-fill" style="width: 90%;"></div>
+                                </div>
+                                <span class="progress-text">90% complete</span>
+                            </div>
+                            <div class="project-team">
+                                <div class="team-avatars">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                    <img src="/assets/images/branding/avatar-placeholder.png" alt="Team member" class="team-avatar">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+                
+                <!-- Recent Activity -->
+                <section class="activity-section">
+                    <div class="section-header">
+                        <h2 class="section-title">Recent Activity</h2>
+                    </div>
+                    
+                    <div class="activity-container">
+                        <div class="activity-item">
+                            <div class="activity-icon comment">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+                                </svg>
+                            </div>
+                            <div class="activity-content">
+                                <p class="activity-text"><strong>Sarah Johnson</strong> commented on <strong>TaskUp Mobile App</strong></p>
+                                <p class="activity-message">"I've added the design files to the shared drive."</p>
+                                <p class="activity-time">10 minutes ago</p>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-icon task">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+                                </svg>
+                            </div>
+                            <div class="activity-content">
+                                <p class="activity-text"><strong>Michael Chen</strong> completed task <strong>Finalize font selection</strong></p>
+                                <p class="activity-time">45 minutes ago</p>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-icon project">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10" />
+                                </svg>
+                            </div>
+                            <div class="activity-content">
+                                <p class="activity-text"><strong>You</strong> created a new project <strong>Website Redesign</strong></p>
+                                <p class="activity-time">2 hours ago</p>
+                            </div>
+                        </div>
+                        
+                        <div class="activity-item">
+                            <div class="activity-icon task">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                </svg>
+                            </div>
+                            <div class="activity-content">
+                                <p class="activity-text"><strong>Emily Wong</strong> assigned you task <strong>Review wireframes</strong></p>
+                                <p class="activity-time">Yesterday</p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    
+    <script src="/scripts/pages/dashboard/home.js"></script>
+</body>
+</html>

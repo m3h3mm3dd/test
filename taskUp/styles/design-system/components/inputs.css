@@ -1,0 +1,538 @@
+/* =========================================
+   INPUT COMPONENTS - TASKUP
+   Apple-inspired form input styles
+   ========================================= */
+
+   @import 'inputs/text.css';
+   @import 'inputs/textarea.css';
+   @import 'inputs/checkbox.css';
+   @import 'inputs/radio.css';
+   @import 'inputs/select.css';
+   @import 'inputs/date.css';
+   @import 'inputs/search.css';
+   
+   :root {
+     /* Input base properties */
+     --input-font-family: var(--font-family-text);
+     --input-border-radius: var(--border-radius-md);
+     --input-transition: all var(--duration-normal) var(--ease-apple-standard);
+     
+     /* Input sizes */
+     --input-height-xs: 24px;
+     --input-height-sm: 32px;
+     --input-height-md: 40px;
+     --input-height-lg: 48px;
+     --input-height-xl: 56px;
+     
+     --input-padding-x-xs: var(--spacing-1);
+     --input-padding-x-sm: var(--spacing-2);
+     --input-padding-x-md: var(--spacing-3);
+     --input-padding-x-lg: var(--spacing-4);
+     --input-padding-x-xl: var(--spacing-5);
+     
+     --input-padding-y-xs: var(--spacing-0-5);
+     --input-padding-y-sm: var(--spacing-1);
+     --input-padding-y-md: var(--spacing-1-5);
+     --input-padding-y-lg: var(--spacing-2);
+     --input-padding-y-xl: var(--spacing-2-5);
+     
+     --input-font-size-xs: var(--font-size-xs);
+     --input-font-size-sm: var(--font-size-sm);
+     --input-font-size-md: var(--font-size-base);
+     --input-font-size-lg: var(--font-size-md);
+     --input-font-size-xl: var(--font-size-lg);
+     
+     /* Label sizes */
+     --label-font-size-xs: var(--font-size-xs);
+     --label-font-size-sm: var(--font-size-xs);
+     --label-font-size-md: var(--font-size-sm);
+     --label-font-size-lg: var(--font-size-sm);
+     --label-font-size-xl: var(--font-size-md);
+     
+     --label-margin-bottom-xs: var(--spacing-0-5);
+     --label-margin-bottom-sm: var(--spacing-0-5);
+     --label-margin-bottom-md: var(--spacing-1);
+     --label-margin-bottom-lg: var(--spacing-1);
+     --label-margin-bottom-xl: var(--spacing-1-5);
+     
+     /* Helper text */
+     --helper-text-font-size-xs: var(--font-size-xs);
+     --helper-text-font-size-sm: var(--font-size-xs);
+     --helper-text-font-size-md: var(--font-size-xs);
+     --helper-text-font-size-lg: var(--font-size-sm);
+     --helper-text-font-size-xl: var(--font-size-sm);
+     
+     --helper-text-margin-top-xs: var(--spacing-0-5);
+     --helper-text-margin-top-sm: var(--spacing-0-5);
+     --helper-text-margin-top-md: var(--spacing-1);
+     --helper-text-margin-top-lg: var(--spacing-1);
+     --helper-text-margin-top-xl: var(--spacing-1-5);
+     
+     /* Input states */
+     --input-bg: var(--color-input-background);
+     --input-text: var(--color-input-text);
+     --input-placeholder: var(--color-input-placeholder);
+     --input-border: var(--color-input-border);
+     --input-border-hover: var(--color-input-border-hover);
+     --input-border-focus: var(--color-input-border-focus);
+     --input-shadow-focus: 0 0 0 2px var(--color-primary-surface);
+     
+     --input-bg-disabled: var(--color-input-disabled);
+     --input-text-disabled: var(--color-input-disabled-text);
+     --input-border-disabled: var(--color-border);
+     
+     --input-bg-error: var(--color-input-background);
+     --input-text-error: var(--color-input-text);
+     --input-border-error: var(--color-error);
+     --input-shadow-error: 0 0 0 2px var(--color-error-surface);
+     
+     --input-bg-success: var(--color-input-background);
+     --input-text-success: var(--color-input-text);
+     --input-border-success: var(--color-success);
+     --input-shadow-success: 0 0 0 2px var(--color-success-surface);
+     
+     /* Label states */
+     --label-text: var(--color-text-secondary);
+     --label-text-focus: var(--color-primary);
+     --label-text-error: var(--color-error);
+     --label-text-success: var(--color-success);
+     --label-text-disabled: var(--color-text-disabled);
+     
+     /* Helper text states */
+     --helper-text: var(--color-text-tertiary);
+     --helper-text-error: var(--color-error);
+     --helper-text-success: var(--color-success);
+     --helper-text-disabled: var(--color-text-disabled);
+     
+     /* Icon states */
+     --input-icon: var(--color-icon-tertiary);
+     --input-icon-hover: var(--color-icon-secondary);
+     --input-icon-focus: var(--color-primary);
+     --input-icon-error: var(--color-error);
+     --input-icon-success: var(--color-success);
+     --input-icon-disabled: var(--color-icon-disabled);
+   }
+   
+   /* Form Group */
+   .form-group {
+     margin-bottom: var(--spacing-4);
+     position: relative;
+   }
+   
+   /* Input Label */
+   .input-label {
+     display: block;
+     font-family: var(--input-font-family);
+     font-size: var(--label-font-size-md);
+     font-weight: var(--font-weight-medium);
+     color: var(--label-text);
+     margin-bottom: var(--label-margin-bottom-md);
+     transition: var(--input-transition);
+   }
+   
+   /* Basic Input Styles */
+   .input-field {
+     display: block;
+     width: 100%;
+     height: var(--input-height-md);
+     padding: 0 var(--input-padding-x-md);
+     font-family: var(--input-font-family);
+     font-size: var(--input-font-size-md);
+     line-height: 1.5;
+     color: var(--input-text);
+     background-color: var(--input-bg);
+     border: 1px solid var(--input-border);
+     border-radius: var(--input-border-radius);
+     transition: var(--input-transition);
+     appearance: none;
+     -webkit-appearance: none;
+     -moz-appearance: none;
+   }
+   
+   .input-field::placeholder {
+     color: var(--input-placeholder);
+     opacity: 1;
+   }
+   
+   /* Hover state */
+   .input-field:hover:not(:disabled):not(.error):not(.success) {
+     border-color: var(--input-border-hover);
+   }
+   
+   /* Focus state */
+   .input-field:focus {
+     outline: none;
+     border-color: var(--input-border-focus);
+     box-shadow: var(--input-shadow-focus);
+   }
+   
+   .input-field:focus + .input-label {
+     color: var(--label-text-focus);
+   }
+   
+   /* Disabled state */
+   .input-field:disabled,
+   .input-field.disabled {
+     background-color: var(--input-bg-disabled);
+     color: var(--input-text-disabled);
+     border-color: var(--input-border-disabled);
+     cursor: not-allowed;
+     opacity: 0.75;
+   }
+   
+   .input-label.disabled {
+     color: var(--label-text-disabled);
+   }
+   
+   /* Error state */
+   .input-field.error {
+     border-color: var(--input-border-error);
+   }
+   
+   .input-field.error:focus {
+     box-shadow: var(--input-shadow-error);
+   }
+   
+   .input-label.error {
+     color: var(--label-text-error);
+   }
+   
+   .error-message {
+     margin-top: var(--helper-text-margin-top-md);
+     font-size: var(--helper-text-font-size-md);
+     color: var(--helper-text-error);
+     transition: var(--input-transition);
+   }
+   
+   /* Success state */
+   .input-field.success {
+     border-color: var(--input-border-success);
+   }
+   
+   .input-field.success:focus {
+     box-shadow: var(--input-shadow-success);
+   }
+   
+   .input-label.success {
+     color: var(--label-text-success);
+   }
+   
+   .success-message {
+     margin-top: var(--helper-text-margin-top-md);
+     font-size: var(--helper-text-font-size-md);
+     color: var(--helper-text-success);
+     transition: var(--input-transition);
+   }
+   
+   /* Helper text */
+   .helper-text {
+     margin-top: var(--helper-text-margin-top-md);
+     font-size: var(--helper-text-font-size-md);
+     color: var(--helper-text);
+     transition: var(--input-transition);
+   }
+   
+   /* Input with icon */
+   .input-icon-container {
+     position: relative;
+   }
+   
+   .input-icon-left .input-field {
+     padding-left: calc(var(--input-padding-x-md) * 2 + 20px);
+   }
+   
+   .input-icon-right .input-field {
+     padding-right: calc(var(--input-padding-x-md) * 2 + 20px);
+   }
+   
+   .input-icon {
+     position: absolute;
+     top: 50%;
+     transform: translateY(-50%);
+     color: var(--input-icon);
+     width: 20px;
+     height: 20px;
+     pointer-events: none;
+     transition: var(--input-transition);
+   }
+   
+   .input-icon-left .input-icon {
+     left: var(--input-padding-x-md);
+   }
+   
+   .input-icon-right .input-icon {
+     right: var(--input-padding-x-md);
+   }
+   
+   .input-field:hover + .input-icon {
+     color: var(--input-icon-hover);
+   }
+   
+   .input-field:focus + .input-icon {
+     color: var(--input-icon-focus);
+   }
+   
+   .input-field.error ~ .input-icon {
+     color: var(--input-icon-error);
+   }
+   
+   .input-field.success ~ .input-icon {
+     color: var(--input-icon-success);
+   }
+   
+   .input-field:disabled ~ .input-icon,
+   .input-field.disabled ~ .input-icon {
+     color: var(--input-icon-disabled);
+   }
+   
+   /* Input action button (clear, show password, etc.) */
+   .input-action {
+     position: absolute;
+     top: 50%;
+     right: var(--input-padding-x-md);
+     transform: translateY(-50%);
+     color: var(--input-icon);
+     background: none;
+     border: none;
+     padding: 0;
+     width: 20px;
+     height: 20px;
+     display: flex;
+     align-items: center;
+     justify-content: center;
+     cursor: pointer;
+     transition: var(--input-transition);
+   }
+   
+   .input-action:hover {
+     color: var(--input-icon-hover);
+   }
+   
+   .input-action:focus {
+     outline: none;
+     color: var(--input-icon-focus);
+   }
+   
+   /* Input group (with buttons or addons) */
+   .input-group {
+     display: flex;
+     position: relative;
+   }
+   
+   .input-group .input-field {
+     flex: 1;
+     border-radius: 0;
+   }
+   
+   .input-group .input-field:first-child {
+     border-top-left-radius: var(--input-border-radius);
+     border-bottom-left-radius: var(--input-border-radius);
+   }
+   
+   .input-group .input-field:last-child {
+     border-top-right-radius: var(--input-border-radius);
+     border-bottom-right-radius: var(--input-border-radius);
+   }
+   
+   .input-group-prepend,
+   .input-group-append {
+     display: flex;
+     align-items: center;
+   }
+   
+   .input-group-prepend {
+     margin-right: -1px;
+   }
+   
+   .input-group-append {
+     margin-left: -1px;
+   }
+   
+   .input-group-text {
+     display: flex;
+     align-items: center;
+     padding: 0 var(--input-padding-x-md);
+     font-size: var(--input-font-size-md);
+     font-weight: var(--font-weight-regular);
+     color: var(--color-text-secondary);
+     text-align: center;
+     white-space: nowrap;
+     background-color: var(--color-surface-secondary);
+     border: 1px solid var(--input-border);
+     height: var(--input-height-md);
+   }
+   
+   .input-group-prepend .input-group-text {
+     border-top-left-radius: var(--input-border-radius);
+     border-bottom-left-radius: var(--input-border-radius);
+   }
+   
+   .input-group-append .input-group-text {
+     border-top-right-radius: var(--input-border-radius);
+     border-bottom-right-radius: var(--input-border-radius);
+   }
+   
+   /* Input sizes */
+   .input-xs {
+     height: var(--input-height-xs);
+     padding: 0 var(--input-padding-x-xs);
+     font-size: var(--input-font-size-xs);
+   }
+   
+   .input-sm {
+     height: var(--input-height-sm);
+     padding: 0 var(--input-padding-x-sm);
+     font-size: var(--input-font-size-sm);
+   }
+   
+   .input-md {
+     height: var(--input-height-md);
+     padding: 0 var(--input-padding-x-md);
+     font-size: var(--input-font-size-md);
+   }
+   
+   .input-lg {
+     height: var(--input-height-lg);
+     padding: 0 var(--input-padding-x-lg);
+     font-size: var(--input-font-size-lg);
+   }
+   
+   .input-xl {
+     height: var(--input-height-xl);
+     padding: 0 var(--input-padding-x-xl);
+     font-size: var(--input-font-size-xl);
+   }
+   
+   /* Label sizes */
+   .label-xs {
+     font-size: var(--label-font-size-xs);
+     margin-bottom: var(--label-margin-bottom-xs);
+   }
+   
+   .label-sm {
+     font-size: var(--label-font-size-sm);
+     margin-bottom: var(--label-margin-bottom-sm);
+   }
+   
+   .label-md {
+     font-size: var(--label-font-size-md);
+     margin-bottom: var(--label-margin-bottom-md);
+   }
+   
+   .label-lg {
+     font-size: var(--label-font-size-lg);
+     margin-bottom: var(--label-margin-bottom-lg);
+   }
+   
+   .label-xl {
+     font-size: var(--label-font-size-xl);
+     margin-bottom: var(--label-margin-bottom-xl);
+   }
+   
+   /* Helper text sizes */
+   .helper-text-xs {
+     font-size: var(--helper-text-font-size-xs);
+     margin-top: var(--helper-text-margin-top-xs);
+   }
+   
+   .helper-text-sm {
+     font-size: var(--helper-text-font-size-sm);
+     margin-top: var(--helper-text-margin-top-sm);
+   }
+   
+   .helper-text-md {
+     font-size: var(--helper-text-font-size-md);
+     margin-top: var(--helper-text-margin-top-md);
+   }
+   
+   .helper-text-lg {
+     font-size: var(--helper-text-font-size-lg);
+     margin-top: var(--helper-text-margin-top-lg);
+   }
+   
+   .helper-text-xl {
+     font-size: var(--helper-text-font-size-xl);
+     margin-top: var(--helper-text-margin-top-xl);
+   }
+   
+   /* Floating label */
+   .form-group-float {
+     position: relative;
+   }
+   
+   .form-group-float .input-field {
+     height: var(--input-height-md);
+     padding-top: calc(var(--input-padding-y-md) + var(--label-font-size-md) / 2);
+   }
+   
+   .form-group-float .input-label {
+     position: absolute;
+     top: var(--input-padding-y-md);
+     left: var(--input-padding-x-md);
+     color: var(--input-placeholder);
+     font-size: var(--input-font-size-md);
+     transition: all 0.2s ease;
+     pointer-events: none;
+     margin-bottom: 0;
+   }
+   
+   .form-group-float .input-field:focus ~ .input-label,
+   .form-group-float .input-field:not(:placeholder-shown) ~ .input-label {
+     top: 6px;
+     font-size: var(--font-size-xs);
+     color: var(--label-text);
+     opacity: 0.7;
+   }
+   
+   .form-group-float .input-field:focus ~ .input-label {
+     color: var(--label-text-focus);
+   }
+   
+   .form-group-float .input-field.error ~ .input-label {
+     color: var(--label-text-error);
+   }
+   
+   .form-group-float .input-field.success ~ .input-label {
+     color: var(--label-text-success);
+   }
+   
+   /* Apple-style form layout */
+   .form-apple {
+     padding: var(--spacing-4);
+     background-color: var(--color-surface);
+     border-radius: var(--border-radius-lg);
+     box-shadow: var(--shadow-card);
+   }
+   
+   .form-apple .form-group {
+     margin-bottom: var(--spacing-5);
+   }
+   
+   .form-apple .form-section {
+     margin-bottom: var(--spacing-6);
+   }
+   
+   .form-apple .form-section-title {
+     font-size: var(--font-size-lg);
+     font-weight: var(--font-weight-semibold);
+     color: var(--color-text-primary);
+     margin-bottom: var(--spacing-3);
+   }
+   
+   .form-apple .form-section-description {
+     font-size: var(--font-size-base);
+     color: var(--color-text-secondary);
+     margin-bottom: var(--spacing-4);
+   }
+   
+   /* Responsive adjustments */
+   @media (max-width: 576px) {
+     .form-group-float .input-field {
+       padding-left: var(--input-padding-x-sm);
+       padding-right: var(--input-padding-x-sm);
+     }
+     
+     .form-group-float .input-label {
+       left: var(--input-padding-x-sm);
+     }
+   }

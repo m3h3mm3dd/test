@@ -1,0 +1,67 @@
+/* =========================================
+   LIGHT MODE SHADOWS - TASKUP
+   ========================================= */
+
+/* Light mode shadow variables - these override the defaults in shadows.css */
+.theme-light,
+:root:not(.theme-dark) {
+  /* Light mode shadow colors */
+  --shadow-color: rgba(0, 0, 0, 0.1);
+  --shadow-color-dark: rgba(0, 0, 0, 0.2);
+  
+  /* Light mode shadow values */
+  --shadow-xs: 0 1px 2px var(--shadow-color);
+  --shadow-sm: 0 1px 3px var(--shadow-color), 0 1px 2px var(--shadow-color-dark);
+  --shadow-md: 0 4px 6px -1px var(--shadow-color), 0 2px 4px -1px var(--shadow-color-dark);
+  --shadow-lg: 0 10px 15px -3px var(--shadow-color), 0 4px 6px -2px var(--shadow-color-dark);
+  --shadow-xl: 0 20px 25px -5px var(--shadow-color), 0 10px 10px -5px var(--shadow-color-dark);
+  --shadow-2xl: 0 25px 50px -12px var(--shadow-color-dark);
+  --shadow-inner: inset 0 2px 4px 0 var(--shadow-color);
+  
+  /* Apple-specific elevation shadows for light mode */
+  --shadow-apple-1: 0 1px 2px 0 var(--shadow-color);
+  --shadow-apple-2: 0 2px 4px 0 var(--shadow-color), 0 1px 2px 0 var(--shadow-color-dark);
+  --shadow-apple-3: 0 4px 8px 0 var(--shadow-color), 0 2px 4px 0 var(--shadow-color-dark);
+  --shadow-apple-4: 0 8px 16px 0 var(--shadow-color), 0 4px 8px 0 var(--shadow-color-dark);
+  --shadow-apple-5: 0 16px 32px 0 var(--shadow-color), 0 8px 16px 0 var(--shadow-color-dark);
+  
+  /* Component-specific shadows for light mode */
+  --shadow-card: var(--shadow-apple-2);
+  --shadow-card-hover: var(--shadow-apple-3);
+  --shadow-card-active: var(--shadow-apple-4);
+  
+  --shadow-dropdown: var(--shadow-apple-3);
+  --shadow-popover: var(--shadow-apple-3);
+  --shadow-tooltip: var(--shadow-apple-2);
+  
+  --shadow-button: var(--shadow-xs);
+  --shadow-button-hover: var(--shadow-sm);
+  --shadow-button-active: var(--shadow-inner);
+  
+  --shadow-modal: var(--shadow-apple-4);
+  --shadow-dialog: var(--shadow-apple-4);
+  --shadow-drawer: var(--shadow-apple-4);
+  
+  --shadow-header: var(--shadow-apple-1);
+  --shadow-navbar: var(--shadow-apple-2);
+  --shadow-sidebar: var(--shadow-apple-3);
+  
+  --shadow-input: var(--shadow-inner);
+  --shadow-input-focus: 0 0 0 2px var(--color-primary-surface), var(--shadow-xs);
+  
+  /* Interactive shadows */
+  --shadow-interactive-default: var(--shadow-apple-2);
+  --shadow-interactive-hover: var(--shadow-apple-3);
+  --shadow-interactive-active: var(--shadow-apple-1);
+}
+
+/* Light mode for users with preference-based media queries */
+@media (prefers-color-scheme: light) {
+  :root:not(.theme-dark) {
+    /* Same values as above - this ensures system preferences are respected */
+    --shadow-color: rgba(0, 0, 0, 0.1);
+    --shadow-color-dark: rgba(0, 0, 0, 0.2);
+    
+    /* Other shadow values omitted for brevity - would mirror the properties above */
+  }
+}

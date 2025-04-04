@@ -1,0 +1,178 @@
+/* =========================================
+   TRANSITIONS - TASKUP
+   Apple-inspired transition presets
+   ========================================= */
+
+   :root {
+    /* Common transition presets - inspired by Apple's transitions */
+    
+    /* Standard Transitions */
+    --transition-fade: opacity var(--duration-normal) var(--ease-apple-standard);
+    --transition-slide: transform var(--duration-normal) var(--ease-apple-standard);
+    --transition-scale: transform var(--duration-normal) var(--ease-spring-1);
+    --transition-color: color var(--duration-normal) var(--ease-apple-standard);
+    --transition-background: background-color var(--duration-normal) var(--ease-apple-standard);
+    --transition-border: border-color var(--duration-normal) var(--ease-apple-standard);
+    --transition-shadow: box-shadow var(--duration-normal) var(--ease-apple-standard);
+    
+    /* Element Transitions */
+    --transition-element-hover: all var(--duration-fast) var(--ease-apple-out);
+    --transition-element-active: all var(--duration-faster) var(--ease-apple-in);
+    --transition-element-focus: all var(--duration-normal) var(--ease-apple-out);
+    
+    /* Button Transitions */
+    --transition-button-color: color var(--duration-fast) var(--ease-apple-out), 
+                              background-color var(--duration-fast) var(--ease-apple-out),
+                              border-color var(--duration-fast) var(--ease-apple-out);
+    --transition-button-transform: transform var(--duration-faster) var(--ease-apple-out);
+    --transition-button-shadow: box-shadow var(--duration-fast) var(--ease-apple-out);
+    
+    /* Input Transitions */
+    --transition-input-border: border-color var(--duration-fast) var(--ease-apple-standard);
+    --transition-input-shadow: box-shadow var(--duration-fast) var(--ease-apple-standard);
+    
+    /* Card Transitions */
+    --transition-card-hover: transform var(--duration-normal) var(--ease-spring-1),
+                            box-shadow var(--duration-normal) var(--ease-apple-out);
+    --transition-card-active: transform var(--duration-faster) var(--ease-apple-in),
+                             box-shadow var(--duration-faster) var(--ease-apple-in);
+    
+    /* Interactive Component States */
+    --transition-interactive: all var(--duration-normal) var(--ease-apple-standard);
+    
+    /* Modal/Dialog Transitions */
+    --transition-modal-in: opacity var(--duration-normal) var(--ease-apple-out),
+                          transform var(--duration-normal) var(--ease-spring-1);
+    --transition-modal-out: opacity var(--duration-normal) var(--ease-apple-in),
+                           transform var(--duration-normal) var(--ease-apple-in);
+    --transition-backdrop-in: opacity var(--duration-normal) var(--ease-apple-out);
+    --transition-backdrop-out: opacity var(--duration-normal) var(--ease-apple-in);
+    
+    /* Dropdown/Popover Transitions */
+    --transition-dropdown-in: opacity var(--duration-fast) var(--ease-apple-out),
+                             transform var(--duration-fast) var(--ease-spring-1);
+    --transition-dropdown-out: opacity var(--duration-faster) var(--ease-apple-in),
+                              transform var(--duration-faster) var(--ease-apple-in);
+    
+    /* Toast/Notification Transitions */
+    --transition-toast-in: opacity var(--duration-normal) var(--ease-apple-out),
+                          transform var(--duration-normal) var(--ease-spring-1);
+    --transition-toast-out: opacity var(--duration-normal) var(--ease-apple-in),
+                           transform var(--duration-normal) var(--ease-apple-in);
+    
+    /* Expansion/Collapse Transitions */
+    --transition-expand: max-height var(--duration-normal) var(--ease-apple-out),
+                        opacity var(--duration-normal) var(--ease-apple-out);
+    --transition-collapse: max-height var(--duration-normal) var(--ease-apple-in),
+                          opacity var(--duration-normal) var(--ease-apple-in);
+    
+    /* Page Transitions */
+    --transition-page-in: opacity var(--duration-normal) var(--ease-apple-out),
+                         transform var(--duration-normal) var(--ease-spring-1);
+    --transition-page-out: opacity var(--duration-normal) var(--ease-apple-in),
+                          transform var(--duration-normal) var(--ease-apple-in);
+    
+    /* Menu Transitions */
+    --transition-menu-in: opacity var(--duration-fast) var(--ease-apple-out),
+                         transform var(--duration-fast) var(--ease-spring-1);
+    --transition-menu-out: opacity var(--duration-faster) var(--ease-apple-in),
+                          transform var(--duration-faster) var(--ease-apple-in);
+    
+    /* Specific UI Element Transitions */
+    --transition-switch: background-color var(--duration-normal) var(--ease-apple-standard),
+                        border-color var(--duration-normal) var(--ease-apple-standard);
+    --transition-switch-thumb: transform var(--duration-normal) var(--ease-spring-1);
+    
+    --transition-checkbox: background-color var(--duration-fast) var(--ease-apple-standard),
+                          border-color var(--duration-fast) var(--ease-apple-standard);
+    
+    --transition-radio: background-color var(--duration-fast) var(--ease-apple-standard),
+                       border-color var(--duration-fast) var(--ease-apple-standard);
+    
+    /* Accordion transitions */
+    --transition-accordion: all var(--duration-normal) var(--ease-apple-standard);
+    
+    /* Tab transitions */
+    --transition-tab: all var(--duration-normal) var(--ease-apple-standard);
+    --transition-tab-indicator: transform var(--duration-normal) var(--ease-spring-1);
+  }
+  
+  /* Transition utility classes */
+  .transition-fade {
+    transition: var(--transition-fade);
+  }
+  
+  .transition-slide {
+    transition: var(--transition-slide);
+  }
+  
+  .transition-scale {
+    transition: var(--transition-scale);
+  }
+  
+  .transition-button {
+    transition: var(--transition-button-color), 
+                var(--transition-button-transform), 
+                var(--transition-button-shadow);
+  }
+  
+  .transition-card {
+    transition: var(--transition-card-hover);
+  }
+  
+  .transition-card:active {
+    transition: var(--transition-card-active);
+  }
+  
+  .transition-interactive {
+    transition: var(--transition-interactive);
+  }
+  
+  .transition-expand-collapse {
+    transition: var(--transition-expand);
+    overflow: hidden;
+  }
+  
+  .collapsed {
+    transition: var(--transition-collapse);
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+  }
+  
+  .expanded {
+    max-height: 1000px; /* Arbitrary large value - will animate to actual height */
+    opacity: 1;
+  }
+  
+  /* Component-specific transition classes */
+  .transition-modal {
+    transition: var(--transition-modal-in);
+  }
+  
+  .transition-modal.closing {
+    transition: var(--transition-modal-out);
+  }
+  
+  .transition-dropdown {
+    transition: var(--transition-dropdown-in);
+  }
+  
+  .transition-dropdown.closing {
+    transition: var(--transition-dropdown-out);
+  }
+  
+  .transition-toast {
+    transition: var(--transition-toast-in);
+  }
+  
+  .transition-toast.closing {
+    transition: var(--transition-toast-out);
+  }
+  
+  /* Reduced Motion Settings - Respect user preferences */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      transition-duration: 0.01ms !important;
+    }
+  }
