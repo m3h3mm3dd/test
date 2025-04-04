@@ -1,0 +1,75 @@
+/* =========================================
+   SECONDARY BUTTON COMPONENT - TASKUP
+   Apple-inspired secondary button styles
+   ========================================= */
+
+/* Secondary Button - Used for secondary actions, less pronounced than primary */
+.btn-secondary {
+    background-color: var(--button-secondary-bg);
+    color: var(--button-secondary-text);
+    border: 1px solid var(--button-secondary-border);
+    box-shadow: var(--button-secondary-shadow);
+  }
+  
+  .btn-secondary:hover {
+    background-color: var(--button-secondary-hover-bg);
+    color: var(--button-secondary-hover-text);
+    border-color: var(--button-secondary-hover-border);
+    box-shadow: var(--button-secondary-hover-shadow);
+  }
+  
+  .btn-secondary:active {
+    background-color: var(--button-secondary-active-bg);
+    color: var(--button-secondary-active-text);
+    border-color: var(--button-secondary-active-border);
+    box-shadow: var(--button-secondary-active-shadow);
+  }
+  
+  .btn-secondary:disabled,
+  .btn-secondary.disabled {
+    background-color: var(--button-secondary-disabled-bg);
+    color: var(--button-secondary-disabled-text);
+    border-color: var(--button-secondary-disabled-border);
+    box-shadow: var(--button-secondary-disabled-shadow);
+  }
+  
+  /* Secondary Button with icon */
+  .btn-secondary .icon {
+    color: var(--button-secondary-text);
+  }
+  
+  /* Secondary Button Variations */
+  .btn-secondary-outline {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+  }
+  
+  .btn-secondary-outline:hover {
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-hover);
+  }
+  
+  .btn-secondary-outline:active {
+    background-color: var(--color-surface-tertiary);
+    color: var(--color-text-primary);
+    border-color: var(--color-border-active);
+  }
+  
+  .btn-secondary-text {
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border: none;
+    box-shadow: none;
+  }
+  
+  .btn-secondary-text:hover {
+    background-color: var(--color-surface-secondary);
+    color: var(--color-text-primary);
+  }
+  
+  .btn-secondary-text:active {
+    background-color: var(--color-surface-tertiary);
+    color: var(--color-text-primary);
+  }

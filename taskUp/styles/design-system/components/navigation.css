@@ -1,0 +1,129 @@
+/* =========================================
+   NAVIGATION COMPONENTS - TASKUP
+   Apple-inspired navigation styles
+   ========================================= */
+
+   @import 'navigation/sidebar.css';
+   @import 'navigation/tab-bar.css';
+   @import 'navigation/header.css';
+   
+   /* Base navigation variables */
+   :root {
+     /* Navigation heights */
+     --nav-header-height: 64px;
+     --nav-sidebar-width: 256px;
+     --nav-sidebar-collapsed-width: 72px;
+     --nav-tabbar-height: 48px;
+     --nav-bottom-bar-height: 56px;
+     
+     /* Navigation transitions */
+     --nav-transition: all 0.3s var(--ease-apple-standard);
+     
+     /* Navigation item styling */
+     --nav-item-padding: var(--spacing-2) var(--spacing-3);
+     --nav-item-border-radius: var(--border-radius-md);
+     --nav-item-color: var(--color-text-secondary);
+     --nav-item-hover-color: var(--color-text-primary);
+     --nav-item-hover-bg: var(--color-surface-secondary);
+     --nav-item-active-color: var(--color-primary);
+     --nav-item-active-bg: var(--color-primary-surface);
+     
+     /* Navigation icon styling */
+     --nav-icon-size: 20px;
+     --nav-icon-color: var(--color-icon-secondary);
+     --nav-icon-hover-color: var(--color-icon-primary);
+     --nav-icon-active-color: var(--color-primary);
+   }
+   
+   /* Common navigation list styles */
+   .nav-list {
+     list-style: none;
+     padding: 0;
+     margin: 0;
+   }
+   
+   .nav-item {
+     position: relative;
+   }
+   
+   .nav-link {
+     display: flex;
+     align-items: center;
+     padding: var(--nav-item-padding);
+     color: var(--nav-item-color);
+     text-decoration: none;
+     border-radius: var(--nav-item-border-radius);
+     transition: var(--nav-transition);
+   }
+   
+   .nav-link:hover {
+     color: var(--nav-item-hover-color);
+     background-color: var(--nav-item-hover-bg);
+   }
+   
+   .nav-item.active .nav-link {
+     color: var(--nav-item-active-color);
+     background-color: var(--nav-item-active-bg);
+     font-weight: var(--font-weight-medium);
+   }
+   
+   .nav-link svg {
+     width: var(--nav-icon-size);
+     height: var(--nav-icon-size);
+     color: var(--nav-icon-color);
+     margin-right: var(--spacing-2);
+     transition: var(--nav-transition);
+     flex-shrink: 0;
+   }
+   
+   .nav-link:hover svg {
+     color: var(--nav-icon-hover-color);
+   }
+   
+   .nav-item.active .nav-link svg {
+     color: var(--nav-icon-active-color);
+   }
+   
+   /* Badge styles for navigation items */
+   .nav-badge {
+     display: inline-flex;
+     align-items: center;
+     justify-content: center;
+     min-width: 18px;
+     height: 18px;
+     border-radius: 9px;
+     padding: 0 6px;
+     font-size: var(--font-size-xs);
+     font-weight: var(--font-weight-medium);
+     color: white;
+     background-color: var(--color-notification-badge);
+     margin-left: var(--spacing-1);
+   }
+   
+   /* Divider between navigation sections */
+   .nav-divider {
+     height: 1px;
+     background-color: var(--color-border);
+     margin: var(--spacing-2) 0;
+   }
+   
+   /* Navigation section headers */
+   .nav-section-title {
+     padding: var(--spacing-2) var(--spacing-3);
+     font-size: var(--font-size-xs);
+     text-transform: uppercase;
+     letter-spacing: 0.05em;
+     color: var(--color-text-tertiary);
+     font-weight: var(--font-weight-medium);
+   }
+   
+   /* Responsive navigation */
+   @media (max-width: 768px) {
+     .nav-link {
+       padding: var(--spacing-2);
+     }
+     
+     .nav-link svg {
+       margin-right: var(--spacing-1);
+     }
+   }

@@ -1,0 +1,75 @@
+/* =========================================
+   PRIMARY BUTTON COMPONENT - TASKUP
+   Apple-inspired primary button styles
+   ========================================= */
+
+/* Primary Button - Main action button used for the most important actions */
+.btn-primary {
+    background-color: var(--button-primary-bg);
+    color: var(--button-primary-text);
+    border: 1px solid var(--button-primary-border);
+    box-shadow: var(--button-primary-shadow);
+  }
+  
+  .btn-primary:hover {
+    background-color: var(--button-primary-hover-bg);
+    color: var(--button-primary-hover-text);
+    border-color: var(--button-primary-hover-border);
+    box-shadow: var(--button-primary-hover-shadow);
+  }
+  
+  .btn-primary:active {
+    background-color: var(--button-primary-active-bg);
+    color: var(--button-primary-active-text);
+    border-color: var(--button-primary-active-border);
+    box-shadow: var(--button-primary-active-shadow);
+  }
+  
+  .btn-primary:disabled,
+  .btn-primary.disabled {
+    background-color: var(--button-primary-disabled-bg);
+    color: var(--button-primary-disabled-text);
+    border-color: var(--button-primary-disabled-border);
+    box-shadow: var(--button-primary-disabled-shadow);
+  }
+  
+  /* Primary Button with icon */
+  .btn-primary .icon {
+    color: var(--button-primary-text);
+  }
+  
+  /* Primary Button Variations */
+  .btn-primary-outline {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+  }
+  
+  .btn-primary-outline:hover {
+    background-color: var(--color-primary-surface);
+    color: var(--color-primary-hover);
+    border-color: var(--color-primary-hover);
+  }
+  
+  .btn-primary-outline:active {
+    background-color: var(--color-primary-surface-hover);
+    color: var(--color-primary-active);
+    border-color: var(--color-primary-active);
+  }
+  
+  .btn-primary-text {
+    background-color: transparent;
+    color: var(--color-primary);
+    border: none;
+    box-shadow: none;
+  }
+  
+  .btn-primary-text:hover {
+    background-color: var(--color-primary-surface);
+    color: var(--color-primary-hover);
+  }
+  
+  .btn-primary-text:active {
+    background-color: var(--color-primary-surface-hover);
+    color: var(--color-primary-active);
+  }
