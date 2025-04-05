@@ -2,8 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, Edit, Trash2, CheckSquare, Users, 
-  BarChart2, Calendar, Clock, MoreHorizontal, Plus
+  BarChart2, Calendar, Clock, MoreHorizontal, Plus,
+  FileText, Users as UsersIcon, Percent, X
 } from 'lucide-react';
+import AddTaskModal from '../tasks/AddTaskModal';
 
 const ProjectOverview = () => {
   const { projectId } = useParams();
@@ -14,6 +16,9 @@ const ProjectOverview = () => {
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showAddTeamModal, setShowAddTeamModal] = useState(false);
+  const [showEditScopeModal, setShowEditScopeModal] = useState(false);
+  const [showAddStakeholderModal, setShowAddStakeholderModal] = useState(false);
 
   useEffect(() => {
     // Simulate API call to fetch project data
@@ -89,6 +94,20 @@ const ProjectOverview = () => {
           { id: '2', user: 'Sarah Miller', action: 'commented on', target: 'Implement authentication', time: '1 day ago' },
           { id: '3', user: 'Michael Chen', action: 'completed task', target: 'Create content for social media', time: '10 hours ago' },
           { id: '4', user: 'Emily Wong', action: 'was assigned to task', target: 'Fix navigation menu', time: '5 hours ago' }
+        ],
+        // Added scope data
+        scope: {
+          included: "- Full redesign of all customer-facing pages\n- Mobile responsiveness\n- Integration with existing backend APIs\n- SEO optimization\n- Performance optimization",
+          excluded: "- Backend development\n- Content creation\n- Hosting migration",
+          startDate: '2025-03-15',
+          endDate: '2025-06-30'
+        },
+        // Added stakeholders data
+        stakeholders: [
+          { id: '1', userId: '1', userName: 'John Doe', percentage: 40, role: 'Project Manager' },
+          { id: '2', userId: '2', userName: 'Sarah Miller', percentage: 30, role: 'Lead Developer' },
+          { id: '3', userId: '3', userName: 'Michael Chen', percentage: 20, role: 'Designer' },
+          { id: '4', userId: '4', userName: 'Lisa Park', percentage: 10, role: 'QA Engineer' }
         ]
       };
       
@@ -134,10 +153,270 @@ const ProjectOverview = () => {
 
   const handleEditProject = () => {
     setShowEditModal(true);
+    // You would implement an edit modal or navigate to an edit page
+    alert("Edit project functionality would be implemented here");
   };
 
   const handleTaskClick = (taskId) => {
     navigate(`/tasks/${taskId}`);
+  };
+
+  const handleAddTask = (task) => {
+    // Add the new task to the project
+    if (project) {
+      const newTask = {
+        ...task,
+        id: `task-${Date.now()}`,
+        status: 'Not Started'
+      };
+      
+      setProject({
+        ...project,
+        tasks: [...project.tasks, newTask]
+      });
+    }
+    setShowTaskModal(false);
+  };
+
+  const handleAddTeam = () => {
+    setShowAddTeamModal(true);
+    // Implement team addition modal
+    alert("Add team functionality would be implemented here");
+  };
+
+  const handleEditScope = () => {
+    setShowEditScopeModal(true);
+  };
+
+  const handleAddStakeholder = () => {
+    setShowAddStakeholderModal(true);
+  };
+
+  const ScopeEditModal = ({ isOpen, onClose, scope, onSave }) => {
+    const [included, setIncluded] = useState(scope?.included || '');
+    const [excluded, setExcluded] = useState(scope?.excluded || '');
+    const [startDate, setStartDate] = useState(scope?.startDate ? new Date(scope.startDate).toISOString().split('T')[0] : '');
+    const [endDate, setEndDate] = useState(scope?.endDate ? new Date(scope.endDate).toISOString().split('T')[0] : '');
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      
+      onSave({
+        included,
+        excluded,
+        startDate,
+        endDate
+      });
+      
+      onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-xl">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Edit Project Scope</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Scope Includes</label>
+                <textarea
+                  value={included}
+                  onChange={(e) => setIncluded(e.target.value)}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  placeholder="List items included in the project scope (one per line)"
+                ></textarea>
+                <p className="text-xs text-gray-500 mt-1">Use markdown format, e.g., "- Item 1" for bullet points</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Scope Excludes</label>
+                <textarea
+                  value={excluded}
+                  onChange={(e) => setExcluded(e.target.value)}
+                  rows={5}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  placeholder="List items excluded from the project scope (one per line)"
+                ></textarea>
+                <p className="text-xs text-gray-500 mt-1">Use markdown format, e.g., "- Item 1" for bullet points</p>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium mb-1">Start Date</label>
+                  <input
+                    type="date"
+                    value={startDate}
+                    onChange={(e) => setStartDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  />
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium mb-1">End Date</label>
+                  <input
+                    type="date"
+                    value={endDate}
+                    onChange={(e) => setEndDate(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  />
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              >
+                Save Changes
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const StakeholderModal = ({ isOpen, onClose, onSave }) => {
+    const [userName, setUserName] = useState('');
+    const [percentage, setPercentage] = useState(10);
+    const [role, setRole] = useState('');
+    
+    // This would typically be fetched from an API
+    const availableUsers = [
+      { id: '5', name: 'Emily Wong' },
+      { id: '6', name: 'David Garcia' },
+      { id: '7', name: 'Amanda Taylor' }
+    ];
+
+    const handleSubmit = (e) => {
+      e.preventDefault();
+      
+      // Simple validation
+      if (!userName || percentage <= 0 || percentage > 100 || !role) {
+        alert('Please fill in all fields correctly');
+        return;
+      }
+      
+      // Find the selected user
+      const selectedUser = availableUsers.find(user => user.name === userName);
+      
+      onSave({
+        id: `stakeholder-${Date.now()}`,
+        userId: selectedUser ? selectedUser.id : Date.now().toString(),
+        userName,
+        percentage: Number(percentage),
+        role
+      });
+      
+      onClose();
+    };
+
+    if (!isOpen) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-md">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold">Add Stakeholder</h2>
+            <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+          
+          <form onSubmit={handleSubmit}>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">User</label>
+                <select
+                  value={userName}
+                  onChange={(e) => setUserName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  required
+                >
+                  <option value="">Select a user</option>
+                  {availableUsers.map(user => (
+                    <option key={user.id} value={user.name}>{user.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Percentage (%)</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={percentage}
+                  onChange={(e) => setPercentage(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  required
+                />
+                <p className="text-xs text-gray-500 mt-1">Percentage of ownership in the project (1-100)</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <input
+                  type="text"
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  placeholder="e.g., Developer, Designer, Investor"
+                  required
+                />
+              </div>
+            </div>
+            
+            <div className="mt-6 flex justify-end space-x-3">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              >
+                Add Stakeholder
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    );
+  };
+
+  const handleSaveScope = (updatedScope) => {
+    setProject({
+      ...project,
+      scope: updatedScope
+    });
+  };
+
+  const handleSaveStakeholder = (newStakeholder) => {
+    setProject({
+      ...project,
+      stakeholders: [...project.stakeholders, newStakeholder]
+    });
   };
 
   if (isLoading) {
@@ -289,7 +568,9 @@ const ProjectOverview = () => {
           <nav className="flex overflow-x-auto">
             {[
               { id: 'tasks', label: 'Tasks', icon: <CheckSquare className="w-4 h-4 mr-2" /> },
+              { id: 'scope', label: 'Scope', icon: <FileText className="w-4 h-4 mr-2" /> },
               { id: 'teams', label: 'Teams', icon: <Users className="w-4 h-4 mr-2" /> },
+              { id: 'stakeholders', label: 'Stakeholders', icon: <Percent className="w-4 h-4 mr-2" /> },
               { id: 'activity', label: 'Activity', icon: <Clock className="w-4 h-4 mr-2" /> }
             ].map(tab => (
               <button
@@ -344,7 +625,14 @@ const ProjectOverview = () => {
                         </span>
                       </div>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <button 
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Show task options menu
+                        alert('Task options would appear here');
+                      }}
+                    >
                       <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </div>
@@ -369,12 +657,60 @@ const ProjectOverview = () => {
             </div>
           )}
 
+          {/* Scope Tab */}
+          {activeTab === 'scope' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Project Scope</h2>
+                <button
+                  onClick={handleEditScope}
+                  className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                >
+                  <Edit className="w-4 h-4 mr-1.5" />
+                  Edit Scope
+                </button>
+              </div>
+
+              <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4 mb-6">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Calendar className="h-4 w-4 text-gray-500" />
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Timeframe: {formatDate(project.scope.startDate)} - {formatDate(project.scope.endDate)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <h3 className="text-md font-medium mb-3 text-gray-700 dark:text-gray-300">Included in Scope</h3>
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="prose dark:prose-invert prose-sm max-w-none">
+                      <pre className="whitespace-pre-wrap text-gray-600 dark:text-gray-300 font-sans">{project.scope.included}</pre>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-md font-medium mb-3 text-gray-700 dark:text-gray-300">Excluded from Scope</h3>
+                  <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                    <div className="prose dark:prose-invert prose-sm max-w-none">
+                      <pre className="whitespace-pre-wrap text-gray-600 dark:text-gray-300 font-sans">{project.scope.excluded}</pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Teams Tab */}
           {activeTab === 'teams' && (
             <div>
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-lg font-semibold">Teams ({project.teams.length})</h2>
-                <button className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm">
+                <button 
+                  onClick={handleAddTeam}
+                  className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                >
                   <Plus className="w-4 h-4 mr-1.5" />
                   Add Team
                 </button>
@@ -398,7 +734,14 @@ const ProjectOverview = () => {
                         </div>
                       </div>
                     </div>
-                    <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                    <button 
+                      className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        // Show team options
+                        alert('Team options would appear here');
+                      }}
+                    >
                       <MoreHorizontal className="h-5 w-5" />
                     </button>
                   </div>
@@ -411,10 +754,128 @@ const ProjectOverview = () => {
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
                       Assign a team to this project to start collaborating
                     </p>
-                    <button className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg">
+                    <button 
+                      onClick={handleAddTeam}
+                      className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-lg"
+                    >
                       Add First Team
                     </button>
                   </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Stakeholders Tab */}
+          {activeTab === 'stakeholders' && (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold">Stakeholders ({project.stakeholders.length})</h2>
+                <button
+                  onClick={handleAddStakeholder}
+                  className="flex items-center px-3 py-1.5 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+                >
+                  <Plus className="w-4 h-4 mr-1.5" />
+                  Add Stakeholder
+                </button>
+              </div>
+
+              <div className="overflow-x-auto bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+                <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead className="bg-gray-50 dark:bg-gray-750">
+                    <tr>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Name
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Role
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Percentage
+                      </th>
+                      <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                    {project.stakeholders.map((stakeholder) => (
+                      <tr key={stakeholder.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="h-8 w-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold text-sm">
+                              {stakeholder.userName.charAt(0)}
+                            </div>
+                            <div className="ml-3">
+                              <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                {stakeholder.userName}
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="text-sm text-gray-500 dark:text-gray-400">{stakeholder.role}</div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap">
+                          <div className="flex items-center">
+                            <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mr-2 max-w-[100px]">
+                              <div 
+                                className="bg-blue-600 h-2.5 rounded-full" 
+                                style={{ width: `${stakeholder.percentage}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{stakeholder.percentage}%</span>
+                          </div>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                          <button 
+                            className="text-blue-600 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-300 mr-3"
+                            onClick={() => alert('Edit stakeholder feature would be implemented here')}
+                          >
+                            Edit
+                          </button>
+                          <button 
+                            className="text-red-600 dark:text-red-400 hover:text-red-900 dark:hover:text-red-300"
+                            onClick={() => alert('Remove stakeholder feature would be implemented here')}
+                          >
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Display total percentage allocated */}
+              <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
+                    Total Allocation
+                  </span>
+                  <span className="text-sm font-bold text-gray-900 dark:text-white">
+                    {project.stakeholders.reduce((total, s) => total + s.percentage, 0)}% of 100%
+                  </span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5">
+                  <div 
+                    className={`h-2.5 rounded-full ${
+                      project.stakeholders.reduce((total, s) => total + s.percentage, 0) > 100 
+                        ? 'bg-red-500' 
+                        : 'bg-green-500'
+                    }`}
+                    style={{ 
+                      width: `${Math.min(
+                        project.stakeholders.reduce((total, s) => total + s.percentage, 0), 
+                        100
+                      )}%` 
+                    }}
+                  ></div>
+                </div>
+                {project.stakeholders.reduce((total, s) => total + s.percentage, 0) > 100 && (
+                  <p className="text-sm text-red-500 mt-2">
+                    Warning: Total allocation exceeds 100%
+                  </p>
                 )}
               </div>
             </div>
@@ -455,6 +916,35 @@ const ProjectOverview = () => {
           )}
         </div>
       </div>
+
+      {/* Add Task Modal */}
+      {showTaskModal && (
+        <AddTaskModal 
+          isOpen={showTaskModal}
+          onClose={() => setShowTaskModal(false)}
+          onAddTask={handleAddTask}
+          projects={[project]}
+        />
+      )}
+
+      {/* Edit Scope Modal */}
+      {showEditScopeModal && (
+        <ScopeEditModal
+          isOpen={showEditScopeModal}
+          onClose={() => setShowEditScopeModal(false)}
+          scope={project.scope}
+          onSave={handleSaveScope}
+        />
+      )}
+
+      {/* Add Stakeholder Modal */}
+      {showAddStakeholderModal && (
+        <StakeholderModal
+          isOpen={showAddStakeholderModal}
+          onClose={() => setShowAddStakeholderModal(false)}
+          onSave={handleSaveStakeholder}
+        />
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (

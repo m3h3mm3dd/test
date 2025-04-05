@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Filter, MoreHorizontal, Briefcase } from 'lucide-react';
+import { Plus, Search, Filter as FilterIcon, MoreHorizontal, Briefcase } from 'lucide-react';
 import ProjectCard from './ProjectCard';
 
 const CreateProjectModal = ({ isOpen, onClose, onCreateProject }) => {
@@ -97,24 +97,47 @@ const CreateProjectModal = ({ isOpen, onClose, onCreateProject }) => {
 };
 
 const ProjectMenu = ({ project, onClose, onEdit, onDelete, position }) => {
+  const menuRef = useRef(null);
+  
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+  
+  // Adjust position to ensure menu stays in viewport
   const menuStyle = {
-    top: position.y,
-    left: position.x,
+    top: Math.min(position.y, window.innerHeight - 80),
+    left: Math.min(position.x, window.innerWidth - 150),
   };
 
   return (
     <div 
+      ref={menuRef}
       className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-48"
       style={menuStyle}
     >
       <button 
-        onClick={() => onEdit(project)}
+        onClick={() => {
+          onEdit(project);
+          onClose();
+        }}
         className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         Edit Project
       </button>
       <button 
-        onClick={() => onDelete(project)}
+        onClick={() => {
+          onDelete(project);
+          onClose();
+        }}
         className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
       >
         Delete Project
@@ -134,6 +157,7 @@ const Projects = () => {
   const [selectedProject, setSelectedProject] = useState(null);
   const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
   
   const navigate = useNavigate();
 
@@ -255,7 +279,12 @@ const Projects = () => {
     
     e.stopPropagation();
     setSelectedProject(project);
-    setMenuPosition({ x: e.clientX, y: e.clientY });
+    
+    // Calculate position based on cursor position
+    const x = e.clientX;
+    const y = e.clientY;
+    
+    setMenuPosition({ x, y });
     setShowMenu(true);
   };
 
@@ -264,13 +293,10 @@ const Projects = () => {
   };
 
   const handleEditProject = (project) => {
-    setShowMenu(false);
-    // Navigate to project edit page or show edit modal
     navigate(`/projects/${project.id}`);
   };
 
   const handleDeleteProject = (project) => {
-    setShowMenu(false);
     setSelectedProject(project);
     setShowDeleteConfirm(true);
   };
@@ -281,18 +307,6 @@ const Projects = () => {
     setSelectedProject(null);
   };
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      setShowMenu(false);
-    };
-
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, []);
-  
   return (
     <div className="p-6">
       {/* Header */}
@@ -309,7 +323,7 @@ const Projects = () => {
         </div>
         
         {/* Search and Filters */}
-        <div className="mt-6 flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4">
+        <div className="mt-6 flex flex-col md:flex-row space-y-2 md:space-y-0 md:space-x-4">
           <div className="relative flex-grow">
             <input
               type="text"
@@ -335,8 +349,11 @@ const Projects = () => {
           </div>
           
           <div className="flex space-x-4">
-            <button className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750">
-              <Filter size={18} className="mr-2" />
+            <button 
+              onClick={() => setShowFilters(!showFilters)}
+              className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750"
+            >
+              <FilterIcon size={18} className="mr-2" />
               <span>Filter</span>
             </button>
             <div className="flex rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700">
@@ -379,6 +396,43 @@ const Projects = () => {
           </div>
         </div>
       </div>
+      
+      {/* Advanced Filters (collapsible) */}
+      {showFilters && (
+        <div className="mb-6 p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Status</label>
+              <select
+                className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">All Statuses</option>
+                <option value="not_started">Not Started</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Due Date</label>
+              <select
+                className="w-full px-3 py-2 rounded-lg bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              >
+                <option value="all">Any Time</option>
+                <option value="this_week">This Week</option>
+                <option value="this_month">This Month</option>
+                <option value="next_month">Next Month</option>
+              </select>
+            </div>
+            
+            <div className="flex items-end">
+              <button className="px-4 py-2 text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                Reset Filters
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Project List */}
       {isLoading ? (

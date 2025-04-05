@@ -169,7 +169,7 @@ const TaskOverview = () => {
     
     setTask({
       ...task,
-      comments: [...task.comments, newCommentObj]
+      comments: [...(task.comments || []), newCommentObj]
     });
     
     setNewComment('');
@@ -233,6 +233,12 @@ const TaskOverview = () => {
       default:
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
+  };
+
+  // Helper function to safely get first character or provide fallback
+  const getInitial = (name) => {
+    if (!name) return 'U'; // U for Unknown/Unassigned
+    return name.charAt(0);
   };
 
   if (isLoading) {
@@ -333,8 +339,8 @@ const TaskOverview = () => {
               <nav className="flex overflow-x-auto">
                 {[
                   { id: 'details', label: 'Details' },
-                  { id: 'comments', label: 'Comments', count: task.comments.length },
-                  { id: 'attachments', label: 'Attachments', count: task.attachments.length }
+                  { id: 'comments', label: 'Comments', count: task.comments?.length || 0 },
+                  { id: 'attachments', label: 'Attachments', count: task.attachments?.length || 0 }
                 ].map(tab => (
                   <button
                     key={tab.id}
@@ -365,9 +371,11 @@ const TaskOverview = () => {
                     <p className="text-gray-900 dark:text-white">{task.description}</p>
                   </div>
 
-                  {task.subtasks.length > 0 && (
+                  {task.subtasks && task.subtasks.length > 0 && (
                     <div>
-                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">Subtasks ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})</h3>
+                      <h3 className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">
+                        Subtasks ({task.subtasks.filter(st => st.completed).length}/{task.subtasks.length})
+                      </h3>
                       <div className="space-y-2">
                         {task.subtasks.map(subtask => (
                           <div
@@ -402,11 +410,11 @@ const TaskOverview = () => {
               {activeTab === 'comments' && (
                 <div className="space-y-6">
                   <div className="space-y-4">
-                    {task.comments.length > 0 ? (
+                    {task.comments && task.comments.length > 0 ? (
                       task.comments.map(comment => (
                         <div key={comment.id} className="flex items-start">
                           <div className="flex-shrink-0 h-8 w-8 bg-blue-500 text-white rounded-full flex items-center justify-center font-semibold text-sm mr-3">
-                            {comment.user.charAt(0)}
+                            {getInitial(comment.user)}
                           </div>
                           <div className="flex-1 min-w-0 bg-gray-50 dark:bg-gray-750 p-3 rounded-lg">
                             <div className="flex items-center justify-between mb-1">
@@ -461,7 +469,7 @@ const TaskOverview = () => {
 
               {activeTab === 'attachments' && (
                 <div className="space-y-4">
-                  {task.attachments.length > 0 ? (
+                  {task.attachments && task.attachments.length > 0 ? (
                     task.attachments.map(file => (
                       <div
                         key={file.id}
@@ -600,9 +608,9 @@ const TaskOverview = () => {
               </label>
               <div className="flex items-center space-x-2 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
                 <div className="h-6 w-6 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold text-sm">
-                  {task.assignee.charAt(0)}
+                  {getInitial(task.assignee)}
                 </div>
-                <span className="text-gray-900 dark:text-white">{task.assignee}</span>
+                <span className="text-gray-900 dark:text-white">{task.assignee || 'Unassigned'}</span>
               </div>
             </div>
             
@@ -647,7 +655,12 @@ const TaskOverview = () => {
               >
                 View Project
               </button>
-              <button className="w-full flex items-center justify-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg">
+              <button 
+                onClick={() => {
+                  setTask({...task, status: 'Completed'});
+                }}
+                className="w-full flex items-center justify-center px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg"
+              >
                 Mark as Completed
               </button>
               <button 

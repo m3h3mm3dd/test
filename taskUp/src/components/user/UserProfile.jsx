@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Mail, Key, LogOut, Camera, Bell, Lock, List, Calendar, Clock } from 'lucide-react';
+import { User, Mail, Key, LogOut, Camera, Bell, Lock, List, Calendar, Clock, Briefcase, Percent } from 'lucide-react';
 
 const ProfileSection = ({ children }) => (
   <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6 mb-6">
@@ -134,6 +134,12 @@ const UserProfile = () => {
           { id: '1', type: 'task_completed', content: 'Completed "Design homepage mockup"', time: '1 day ago' },
           { id: '2', type: 'comment_added', content: 'Added a comment on "Mobile App Development"', time: '2 days ago' },
           { id: '3', type: 'project_created', content: 'Created project "Website Redesign"', time: '1 week ago' }
+        ],
+        // Added stakes data
+        stakes: [
+          { id: '1', projectId: '1', projectName: 'Website Redesign', percentage: 40, role: 'Project Manager' },
+          { id: '2', projectId: '2', projectName: 'Mobile App Development', percentage: 25, role: 'Lead Developer' },
+          { id: '3', projectId: '3', projectName: 'Marketing Campaign', percentage: 15, role: 'Consultant' }
         ]
       });
       setIsLoading(false);
@@ -173,6 +179,12 @@ const UserProfile = () => {
 
   const handleViewTeam = (teamId) => {
     navigate(`/teams/${teamId}`);
+  };
+
+  // Get total stake percentage across all projects
+  const getTotalStakePercentage = () => {
+    if (!user || !user.stakes) return 0;
+    return user.stakes.reduce((total, stake) => total + stake.percentage, 0);
   };
   
   if (isLoading) {
@@ -263,6 +275,7 @@ const UserProfile = () => {
         <div className="flex overflow-x-auto">
           {[
             { id: 'profile', label: 'Profile', icon: User },
+            { id: 'stakes', label: 'My Stakes', icon: Percent },
             { id: 'security', label: 'Security', icon: Lock },
             { id: 'notifications', label: 'Notifications', icon: Bell },
             { id: 'activity', label: 'Activity', icon: List }
@@ -393,6 +406,121 @@ const UserProfile = () => {
             )}
           </ProfileSection>
         </>
+      )}
+
+      {/* My Stakes Tab Content */}
+      {activeTab === 'stakes' && (
+        <ProfileSection>
+          <SectionHeader title="My Stakes" description="Projects where you have a stake or ownership" />
+          
+          {/* Stakes Summary */}
+          <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4 mb-6">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-4">
+              <div className="mb-2 md:mb-0">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Stakes Summary</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">You have stakes in {user.stakes.length} projects</p>
+              </div>
+              <div className="flex items-center">
+                <Percent className="h-5 w-5 text-blue-500 mr-2" />
+                <span className="text-xl font-bold text-blue-600 dark:text-blue-400">{getTotalStakePercentage()}% Total</span>
+              </div>
+            </div>
+            
+            {/* Progress bars showing distribution of stakes */}
+            <div className="space-y-3">
+              {user.stakes.map(stake => (
+                <div key={stake.id} className="space-y-1">
+                  <div className="flex justify-between text-sm">
+                    <span className="font-medium text-gray-700 dark:text-gray-300">{stake.projectName}</span>
+                    <span className="text-gray-500 dark:text-gray-400">{stake.percentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                    <div 
+                      className="bg-blue-500 h-2 rounded-full" 
+                      style={{ width: `${stake.percentage}%` }}
+                    ></div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          {/* List of Stakes */}
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+              <thead className="bg-gray-50 dark:bg-gray-750">
+                <tr>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Project
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Role
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Percentage
+                  </th>
+                  <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {user.stakes.map(stake => (
+                  <tr key={stake.id} className="hover:bg-gray-50 dark:hover:bg-gray-750">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="flex-shrink-0 h-10 w-10 bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-400 rounded-lg flex items-center justify-center font-bold text-xl">
+                          {stake.projectName.charAt(0)}
+                        </div>
+                        <div className="ml-4">
+                          <div className="text-sm font-medium text-gray-900 dark:text-white">{stake.projectName}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm text-gray-500 dark:text-gray-400">{stake.role}</div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center">
+                        <div className="w-24 bg-gray-200 dark:bg-gray-700 rounded-full h-2 mr-2">
+                          <div 
+                            className="bg-blue-500 h-2 rounded-full" 
+                            style={{ width: `${stake.percentage}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-sm text-gray-500 dark:text-gray-400">{stake.percentage}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
+                      <button 
+                        onClick={() => handleViewProject(stake.projectId)}
+                        className="text-blue-500 hover:text-blue-600 font-medium"
+                      >
+                        View Project
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {user.stakes.length === 0 && (
+            <div className="text-center py-8">
+              <Percent size={48} className="mx-auto mb-3 text-gray-300 dark:text-gray-600" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white">No Stakes Found</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+                You don't have any stakes in projects yet
+              </p>
+              <button 
+                onClick={() => navigate('/projects')}
+                className="mt-4 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg text-sm"
+              >
+                Browse Projects
+              </button>
+            </div>
+          )}
+        </ProfileSection>
       )}
       
       {/* Security Tab Content */}
@@ -599,13 +727,6 @@ const CheckSquare = ({ size, className }) => (
 const MessageSquare = ({ size, className }) => (
   <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-  </svg>
-);
-
-const Briefcase = ({ size, className }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-    <rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect>
-    <path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path>
   </svg>
 );
 
