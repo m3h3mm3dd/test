@@ -1,3 +1,4 @@
+/** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     "./src/**/*.{js,jsx,ts,tsx}",
@@ -25,27 +26,10 @@ module.exports = {
         },
       },
       animation: {
-        'fade-in': 'fade-in 0.3s ease-out',
-        'slide-up': 'slide-up 0.4s ease-out',
-        'scale-in': 'scale-in 0.2s ease-out',
-        'grow-width': 'grow-width 0.7s ease-out forwards',
-      },
-      keyframes: {
-        'fade-in': {
-          '0%': { opacity: 0 },
-          '100%': { opacity: 1 },
-        },
-        'slide-up': {
-          '0%': { transform: 'translateY(12px)', opacity: 0 },
-          '100%': { transform: 'translateY(0)', opacity: 1 },
-        },
-        'scale-in': {
-          '0%': { transform: 'scale(0)' },
-          '100%': { transform: 'scale(1)' },
-        },
-        'grow-width': {
-          '0%': { width: '0%' },
-        },
+        'fade-in': 'fadeIn 0.3s ease-out',
+        'slide-up': 'slideUp 0.4s ease-out',
+        'scale-in': 'scaleIn 0.2s ease-out',
+        'grow-width': 'growWidth 0.7s ease-out forwards',
       },
       boxShadow: {
         'card': '0 2px 4px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.1)',
