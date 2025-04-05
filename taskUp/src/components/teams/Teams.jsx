@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, UserPlus, MoreHorizontal, X, ChevronRight, Settings } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Search, UserPlus, MoreHorizontal, X, ChevronRight, Settings, Calendar, CheckSquare, Clock } from 'lucide-react';
+import AddTaskModal from '../tasks/AddTaskModal';
 
 // Team colors for different team cards
 const teamColors = [
@@ -53,7 +55,7 @@ const TeamCard = ({ team, index, onSelect }) => {
       className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 animate-fade-in h-full"
       style={{ animationDelay: `${index * 50}ms` }}
     >
-      <div className="h-3 bg-gradient-to-r ${color.primary}"></div>
+      <div className={`h-3 bg-gradient-to-r ${color.primary}`}></div>
       <div className="p-5">
         <div className="flex items-center mb-4">
           <div className={`w-12 h-12 rounded-xl ${color.secondary} flex items-center justify-center font-bold text-xl`}>
@@ -102,31 +104,238 @@ const TeamCard = ({ team, index, onSelect }) => {
   );
 };
 
-const TeamDetail = ({ team, onClose, onEdit }) => {
+const AddMemberModal = ({ isOpen, onClose, onSave, team }) => {
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedMembers, setSelectedMembers] = useState([]);
+  
+  // Mock users data
+  const availableUsers = [
+    { id: '20', name: 'Thomas Wright', role: 'UX Designer' },
+    { id: '21', name: 'Rachel Green', role: 'Frontend Developer' },
+    { id: '22', name: 'Carlos Rodriguez', role: 'Product Manager' },
+    { id: '23', name: 'Sophia Chen', role: 'Data Analyst' },
+    { id: '24', name: 'James Wilson', role: 'Backend Developer' },
+  ];
+  
+  // Filter out users who are already team members
+  const filteredUsers = availableUsers.filter(user => 
+    !team.members.some(member => member.id === user.id) &&
+    (searchQuery === '' || 
+     user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+     user.role.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
+  
+  const toggleMember = (userId) => {
+    if (selectedMembers.includes(userId)) {
+      setSelectedMembers(selectedMembers.filter(id => id !== userId));
+    } else {
+      setSelectedMembers([...selectedMembers, userId]);
+    }
+  };
+  
+  const handleSave = () => {
+    if (selectedMembers.length === 0) return;
+    
+    const newMembers = selectedMembers.map(memberId => {
+      const user = availableUsers.find(u => u.id === memberId);
+      return {
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        joinedDate: new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+      };
+    });
+    
+    onSave(newMembers);
+    setSelectedMembers([]);
+    setSearchQuery('');
+    onClose();
+  };
+  
+  if (!isOpen) return null;
+  
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fade-in">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold">Add Team Members</h3>
+          <button 
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700"
+          >
+            <X size={20} />
+          </button>
+        </div>
+        
+        <div className="mb-4">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Search users..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+            />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search size={16} className="text-gray-400" />
+            </div>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+              >
+                <X size={16} className="text-gray-400" />
+              </button>
+            )}
+          </div>
+        </div>
+        
+        <div className="mb-4">
+          <p className="text-sm font-medium mb-2">Selected: {selectedMembers.length}</p>
+          <div className="space-y-2 max-h-[200px] overflow-y-auto border border-gray-200 dark:border-gray-700 rounded-lg p-2">
+            {filteredUsers.map(user => (
+              <div 
+                key={user.id} 
+                className={`flex items-center p-2 rounded cursor-pointer ${
+                  selectedMembers.includes(user.id) ? 'bg-blue-50 dark:bg-blue-900/20' : 'hover:bg-gray-50 dark:hover:bg-gray-750'
+                }`}
+                onClick={() => toggleMember(user.id)}
+              >
+                <input 
+                  type="checkbox" 
+                  checked={selectedMembers.includes(user.id)}
+                  onChange={() => {}}
+                  className="mr-3 h-4 w-4"
+                />
+                <div className="flex-1">
+                  <div className="font-medium">{user.name}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">{user.role}</div>
+                </div>
+              </div>
+            ))}
+            
+            {filteredUsers.length === 0 && (
+              <div className="text-center py-4 text-gray-500 dark:text-gray-400">
+                {searchQuery ? 'No matching users found' : 'No available users'}
+              </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="flex justify-end space-x-3">
+          <button 
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+          >
+            Cancel
+          </button>
+          <button 
+            onClick={handleSave}
+            className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={selectedMembers.length === 0}
+          >
+            Add Members
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const TeamDetail = ({ team, onClose, onEdit, onAddMember, onAddTask, onUpdateTeam }) => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('members');
   const [teamLeaderId, setTeamLeaderId] = useState(team?.members[0]?.id || '');
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showAddTaskModal, setShowAddTaskModal] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [editedTeam, setEditedTeam] = useState({...team});
+  const [selectedColor, setSelectedColor] = useState(parseInt(team.id) % teamColors.length);
   
   // Get a consistent color based on team id
   const colorIndex = parseInt(team.id) % teamColors.length;
   const color = teamColors[colorIndex];
+
+  const handleAddMember = (newMembers) => {
+    onAddMember(team.id, newMembers);
+  };
+
+  const handleAddTask = (newTask) => {
+    onAddTask(team.id, newTask);
+    setShowAddTaskModal(false);
+  };
+
+  const handleRemoveMember = (memberId) => {
+    const updatedMembers = team.members.filter(member => member.id !== memberId);
+    onUpdateTeam({
+      ...team,
+      members: updatedMembers
+    });
+  };
+
+  const handleSaveTeamEdits = () => {
+    onUpdateTeam({
+      ...editedTeam,
+      colorIndex: selectedColor
+    });
+    setEditMode(false);
+  };
+
+  const handleCancelEdit = () => {
+    setEditedTeam({...team});
+    setSelectedColor(parseInt(team.id) % teamColors.length);
+    setEditMode(false);
+  };
+
+  const handleTeamLeaderChange = (leaderId) => {
+    setTeamLeaderId(leaderId);
+    const updatedMembers = team.members.map(member => ({
+      ...member,
+      isLeader: member.id === leaderId
+    }));
+    
+    onUpdateTeam({
+      ...team,
+      members: updatedMembers
+    });
+  };
   
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl animate-fade-in overflow-hidden">
       {/* Header */}
-      <div className="h-3 bg-gradient-to-r ${color.primary}"></div>
+      <div className={`h-3 bg-gradient-to-r ${color.primary}`}></div>
       <div className="p-5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
-        <div className="flex items-center">
-          <div className={`w-12 h-12 rounded-xl ${color.secondary} flex items-center justify-center font-bold text-xl`}>
-            {team.name.charAt(0)}
+        {editMode ? (
+          <div className="flex-1">
+            <input
+              type="text"
+              value={editedTeam.name}
+              onChange={(e) => setEditedTeam({...editedTeam, name: e.target.value})}
+              className="w-full px-3 py-2 mb-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+              placeholder="Team Name"
+            />
+            <input
+              type="text"
+              value={editedTeam.projectName}
+              onChange={(e) => setEditedTeam({...editedTeam, projectName: e.target.value})}
+              className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+              placeholder="Project Name"
+            />
           </div>
-          <div className="ml-3">
-            <h3 className="text-xl font-semibold">{team.name}</h3>
-            <div className="text-sm text-gray-500 dark:text-gray-400">{team.projectName}</div>
+        ) : (
+          <div className="flex items-center">
+            <div className={`w-12 h-12 rounded-xl ${color.secondary} flex items-center justify-center font-bold text-xl`}>
+              {team.name.charAt(0)}
+            </div>
+            <div className="ml-3">
+              <h3 className="text-xl font-semibold">{team.name}</h3>
+              <div className="text-sm text-gray-500 dark:text-gray-400">{team.projectName}</div>
+            </div>
           </div>
-        </div>
+        )}
         <div className="flex items-center">
           <button 
-            onClick={onEdit}
+            onClick={() => setEditMode(!editMode)}
             className="mr-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 rounded-full p-2 hover:bg-gray-100 dark:hover:bg-gray-700"
           >
             <Settings size={18} />
@@ -140,135 +349,211 @@ const TeamDetail = ({ team, onClose, onEdit }) => {
         </div>
       </div>
       
-      {/* Tabs */}
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex px-5">
-          {[
-            { id: 'members', label: 'Members' },
-            { id: 'tasks', label: 'Tasks' },
-            { id: 'settings', label: 'Settings' }
-          ].map(tab => (
-            <button
-              key={tab.id}
-              className={`py-4 px-4 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600 dark:text-blue-400'
-                  : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
-              }`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      
-      {/* Content */}
-      <div className="p-5">
-        {activeTab === 'members' && (
-          <div className="space-y-1">
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-medium">Team Members ({team.members.length})</h4>
-              <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center text-sm shadow-sm transition-colors">
-                <UserPlus size={16} className="mr-1.5" />
-                <span>Add Member</span>
-              </button>
+      {editMode ? (
+        <div className="p-5">
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea
+                value={editedTeam.description}
+                onChange={(e) => setEditedTeam({...editedTeam, description: e.target.value})}
+                rows={3}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                placeholder="Team description"
+              ></textarea>
             </div>
-            {team.members.map(member => (
-              <TeamMemberItem 
-                key={member.id} 
-                member={member} 
-                isLeader={member.id === teamLeaderId} 
-              />
-            ))}
-          </div>
-        )}
-        
-        {activeTab === 'tasks' && (
-          <div>
-            <div className="flex items-center justify-between mb-4">
-              <h4 className="text-lg font-medium">Team Tasks ({team.tasks?.length || 0})</h4>
-              <button className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center text-sm shadow-sm transition-colors">
-                <Plus size={16} className="mr-1.5" />
-                <span>Add Task</span>
-              </button>
-            </div>
-            {team.tasks && team.tasks.length > 0 ? (
-              <div className="space-y-2">
-                {team.tasks.map(task => (
-                  <div key={task.id} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-750">
-                    <div className="font-medium">{task.title}</div>
-                    <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{task.status}</div>
-                  </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Team Color</label>
+              <div className="flex flex-wrap gap-2">
+                {teamColors.map((color, index) => (
+                  <button 
+                    key={index}
+                    type="button"
+                    onClick={() => setSelectedColor(index)}
+                    className={`w-8 h-8 rounded-full bg-gradient-to-r ${color.primary} ${selectedColor === index ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
+                  ></button>
                 ))}
               </div>
-            ) : (
-              <div className="text-center py-8 text-gray-500 dark:text-gray-400">
-                <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
-                </svg>
-                <p>No tasks assigned to this team yet</p>
-                <button className="mt-3 text-blue-500 font-medium">Assign a task</button>
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium mb-1">Team Leader</label>
+              <select
+                value={teamLeaderId}
+                onChange={(e) => setTeamLeaderId(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+              >
+                {team.members.map(member => (
+                  <option key={member.id} value={member.id}>{member.name}</option>
+                ))}
+              </select>
+            </div>
+            
+            <div className="flex justify-end space-x-3 pt-2">
+              <button
+                onClick={handleCancelEdit}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveTeamEdits}
+                className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              >
+                Save Changes
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Tabs */}
+          <div className="border-b border-gray-200 dark:border-gray-700">
+            <div className="flex px-5">
+              {[
+                { id: 'members', label: 'Members' },
+                { id: 'tasks', label: 'Tasks' },
+                { id: 'settings', label: 'Settings' }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  className={`py-4 px-4 font-medium text-sm whitespace-nowrap border-b-2 transition-colors ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600 dark:text-blue-400'
+                      : 'border-transparent text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300'
+                  }`}
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          {/* Content */}
+          <div className="p-5">
+            {activeTab === 'members' && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-medium">Team Members ({team.members.length})</h4>
+                  <button 
+                    onClick={() => setShowAddMemberModal(true)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center text-sm shadow-sm transition-colors"
+                  >
+                    <UserPlus size={16} className="mr-1.5" />
+                    <span>Add Member</span>
+                  </button>
+                </div>
+                {team.members.map(member => (
+                  <TeamMemberItem 
+                    key={member.id} 
+                    member={member} 
+                    isLeader={member.id === teamLeaderId} 
+                    onRemove={handleRemoveMember}
+                  />
+                ))}
+              </div>
+            )}
+            
+            {activeTab === 'tasks' && (
+              <div>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-medium">Team Tasks ({team.tasks?.length || 0})</h4>
+                  <button 
+                    onClick={() => setShowAddTaskModal(true)}
+                    className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1.5 rounded-lg flex items-center text-sm shadow-sm transition-colors"
+                  >
+                    <Plus size={16} className="mr-1.5" />
+                    <span>Add Task</span>
+                  </button>
+                </div>
+                {team.tasks && team.tasks.length > 0 ? (
+                  <div className="space-y-2">
+                    {team.tasks.map(task => (
+                      <div 
+                        key={task.id} 
+                        className="border border-gray-200 dark:border-gray-700 rounded-lg p-3 hover:bg-gray-50 dark:hover:bg-gray-750 cursor-pointer"
+                        onClick={() => navigate(`/tasks/${task.id}`)}
+                      >
+                        <div className="font-medium">{task.title}</div>
+                        <div className="text-sm text-gray-500 dark:text-gray-400 mt-1">{task.status}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8 text-gray-500 dark:text-gray-400">
+                    <svg className="w-12 h-12 mx-auto mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    <p>No tasks assigned to this team yet</p>
+                    <button 
+                      onClick={() => setShowAddTaskModal(true)}
+                      className="mt-3 text-blue-500 font-medium"
+                    >
+                      Assign a task
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {activeTab === 'settings' && (
+              <div>
+                <h4 className="text-lg font-medium mb-4">Team Settings</h4>
+                <div className="space-y-4">
+                  <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
+                    <div className="flex items-center mb-2">
+                      <Calendar size={16} className="mr-2 text-gray-500" />
+                      <span className="text-sm font-medium">Created on</span>
+                    </div>
+                    <p className="text-gray-700 dark:text-gray-300">{team.createdDate || 'Unknown'}</p>
+                  </div>
+                  
+                  <div className="bg-gray-50 dark:bg-gray-750 rounded-lg p-4">
+                    <p className="text-sm text-gray-700 dark:text-gray-300">{team.description}</p>
+                  </div>
+                  
+                  <button
+                    onClick={() => setEditMode(true)}
+                    className="w-full px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg font-medium shadow-sm"
+                  >
+                    Edit Team
+                  </button>
+                  
+                  <button
+                    className="w-full px-4 py-2 border border-red-300 dark:border-red-700 text-red-600 dark:text-red-400 rounded-lg font-medium hover:bg-red-50 dark:hover:bg-red-900/20"
+                  >
+                    Delete Team
+                  </button>
+                </div>
               </div>
             )}
           </div>
-        )}
-        
-        {activeTab === 'settings' && (
-          <div>
-            <h4 className="text-lg font-medium mb-4">Team Settings</h4>
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Team Name</label>
-                <input 
-                  type="text" 
-                  defaultValue={team.name} 
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Description</label>
-                <textarea 
-                  defaultValue={team.description} 
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
-                ></textarea>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Team Color</label>
-                <div className="flex flex-wrap gap-2">
-                  {teamColors.map((colorOption, index) => (
-                    <button
-                      key={index}
-                      className={`w-8 h-8 rounded-full bg-gradient-to-r ${colorOption.primary} ${colorIndex === index ? 'ring-2 ring-offset-2 ring-blue-500' : ''}`}
-                    ></button>
-                  ))}
-                </div>
-              </div>
-              <div className="space-y-2">
-                <label className="block text-sm font-medium">Team Leader</label>
-                <select 
-                  value={teamLeaderId}
-                  onChange={(e) => setTeamLeaderId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
-                >
-                  {team.members.map(member => (
-                    <option key={member.id} value={member.id}>{member.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="pt-4 flex space-x-3">
-                <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg font-medium shadow-sm transition-colors">
-                  Save Changes
-                </button>
-                <button className="text-red-500 hover:text-red-600 px-4 py-2 rounded-lg font-medium transition-colors">
-                  Delete Team
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+        </>
+      )}
+
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <AddMemberModal
+          isOpen={showAddMemberModal}
+          onClose={() => setShowAddMemberModal(false)}
+          onSave={handleAddMember}
+          team={team}
+        />
+      )}
+
+      {/* Add Task Modal - with pre-selected project and project selection disabled */}
+      {showAddTaskModal && (
+        <AddTaskModal 
+          isOpen={showAddTaskModal}
+          onClose={() => setShowAddTaskModal(false)}
+          onAddTask={handleAddTask}
+          projects={[{ id: team.id, name: team.projectName }]}
+          preSelectedProject={team.id}
+          disableProjectSelection={true}
+        />
+      )}
     </div>
   );
 };
@@ -559,7 +844,9 @@ const Teams = () => {
   );
   
   const handleSelectTeam = (team) => {
-    setSelectedTeam(team);
+    // Find the most up-to-date version of the team
+    const updatedTeam = teams.find(t => t.id === team.id) || team;
+    setSelectedTeam(updatedTeam);
     setIsEditing(false);
   };
   
@@ -574,6 +861,59 @@ const Teams = () => {
   
   const handleEditTeam = () => {
     setIsEditing(true);
+  };
+  
+  const handleAddMemberToTeam = (teamId, newMembers) => {
+    setTeams(teams.map(team => {
+      if (team.id === teamId) {
+        return {
+          ...team,
+          members: [...team.members, ...newMembers]
+        };
+      }
+      return team;
+    }));
+
+    // Update the selected team if it's the one being modified
+    if (selectedTeam && selectedTeam.id === teamId) {
+      setSelectedTeam({
+        ...selectedTeam,
+        members: [...selectedTeam.members, ...newMembers]
+      });
+    }
+  };
+
+  const handleAddTaskToTeam = (teamId, newTask) => {
+    const taskWithId = {
+      ...newTask,
+      id: `task-${Date.now()}`
+    };
+
+    setTeams(teams.map(team => {
+      if (team.id === teamId) {
+        return {
+          ...team,
+          tasks: [...(team.tasks || []), taskWithId]
+        };
+      }
+      return team;
+    }));
+
+    // Update the selected team if it's the one being modified
+    if (selectedTeam && selectedTeam.id === teamId) {
+      setSelectedTeam({
+        ...selectedTeam,
+        tasks: [...(selectedTeam.tasks || []), taskWithId]
+      });
+    }
+  };
+
+  const handleUpdateTeam = (updatedTeam) => {
+    setTeams(teams.map(team => 
+      team.id === updatedTeam.id ? updatedTeam : team
+    ));
+    
+    setSelectedTeam(updatedTeam);
   };
   
   return (
@@ -609,9 +949,9 @@ const Teams = () => {
       {/* Team List and Detail View */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Team List */}
-        <div className={`${selectedTeam ? 'hidden lg:block' : ''} lg:col-span-${selectedTeam ? '1' : '3'}`}>
+        <div className={`${selectedTeam ? 'hidden lg:block' : ''} ${selectedTeam ? 'lg:col-span-1' : 'lg:col-span-3'}`}>
           {isLoading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {[...Array(3)].map((_, index) => (
                 <div key={index} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5 animate-pulse">
                   <div className="flex items-center">
@@ -634,7 +974,7 @@ const Teams = () => {
               ))}
             </div>
           ) : filteredTeams.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-6">
               {filteredTeams.map((team, index) => (
                 <TeamCard key={team.id} team={team} index={index} onSelect={handleSelectTeam} />
               ))}
@@ -666,6 +1006,9 @@ const Teams = () => {
               team={selectedTeam} 
               onClose={handleCloseTeamDetail} 
               onEdit={handleEditTeam}
+              onAddMember={handleAddMemberToTeam}
+              onAddTask={handleAddTaskToTeam}
+              onUpdateTeam={handleUpdateTeam}
             />
           </div>
         )}

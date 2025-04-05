@@ -50,6 +50,16 @@ const TaskOverview = () => {
             : taskId === '3' ? 'Michael Chen'
             : taskId === '4' ? 'Lisa Park'
             : 'David Garcia',
+          assignedType: taskId === '1' || taskId === '4' ? 'user' : 'team',
+          assignedTo: taskId === '1' ? 
+            { type: 'user', id: '1', name: 'John Doe' } 
+            : taskId === '2' ? 
+              { type: 'team', id: '2', name: 'Development Team' } 
+              : taskId === '3' ? 
+                { type: 'team', id: '3', name: 'Marketing Team' }
+                : taskId === '4' ? 
+                  { type: 'user', id: '4', name: 'Lisa Park' }
+                  : { type: 'user', id: '5', name: 'David Garcia' },
           status: taskId === '3' ? 'Completed' : taskId === '1' || taskId === '4' ? 'In Progress' : 'Not Started',
           priority: taskId === '1' || taskId === '3' ? 'High' : taskId === '2' || taskId === '5' ? 'Medium' : 'Low',
           deadline: taskId === '1' ? '2025-04-10' 
@@ -241,6 +251,26 @@ const TaskOverview = () => {
     return name.charAt(0);
   };
 
+  // Helper function to display assignee information
+  const getAssigneeInfo = () => {
+    if (!task.assignedTo || (!task.assignedTo.name && !task.assignee)) {
+      return { name: 'Unassigned', type: null };
+    }
+    
+    // Support both structures: task.assignedTo object and legacy task.assignee string
+    if (task.assignedTo && task.assignedTo.name) {
+      return { 
+        name: task.assignedTo.name, 
+        type: task.assignedTo.type || task.assignedType || 'user' 
+      };
+    }
+    
+    return { 
+      name: task.assignee, 
+      type: task.assignedType || 'user'
+    };
+  };
+
   if (isLoading) {
     return (
       <div className="p-6">
@@ -288,6 +318,8 @@ const TaskOverview = () => {
       </div>
     );
   }
+
+  const assigneeInfo = getAssigneeInfo();
 
   return (
     <div className="p-6">
@@ -608,9 +640,16 @@ const TaskOverview = () => {
               </label>
               <div className="flex items-center space-x-2 p-2 border border-gray-300 dark:border-gray-600 rounded-lg">
                 <div className="h-6 w-6 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold text-sm">
-                  {getInitial(task.assignee)}
+                  {getInitial(assigneeInfo.name)}
                 </div>
-                <span className="text-gray-900 dark:text-white">{task.assignee || 'Unassigned'}</span>
+                <div className="flex-1">
+                  <span className="text-gray-900 dark:text-white">{assigneeInfo.name}</span>
+                  {assigneeInfo.type && (
+                    <span className="ml-2 text-xs px-2 py-0.5 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-full">
+                      {assigneeInfo.type === 'team' ? 'Team' : 'Individual'}
+                    </span>
+                  )}
+                </div>
               </div>
             </div>
             
