@@ -13,6 +13,7 @@ const Dashboard = () => {
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const notificationRef = useRef(null);
 
   useEffect(() => {
     // Simulate data loading
@@ -61,6 +62,20 @@ const Dashboard = () => {
     setFilteredTasks(filtered);
   }, [tasks, searchTerm, priorityFilter]);
 
+  // Close notification dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
   const getPriorityColor = (priority) => {
     switch(priority) {
       case 'High':
@@ -105,12 +120,14 @@ const Dashboard = () => {
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // Ref for search input
-  const searchInputRef = useRef(null);
+  // State for notification dropdown
+  const [showNotifications, setShowNotifications] = useState(false);
 
-  // Function to focus search input
-  const focusSearch = () => {
-    searchInputRef.current?.focus();
+  const viewAllNotifications = () => {
+    setShowNotifications(false);
+    // Navigate to all notifications page or expand the current view
+    console.log("View all notifications");
+    alert("This would navigate to a full notifications page in a real app");
   };
 
   return (
@@ -120,7 +137,6 @@ const Dashboard = () => {
         <div className="flex flex-col md:flex-row md:items-center space-y-3 md:space-y-0 md:space-x-4">
           <div className="relative flex-grow">
             <input
-              ref={searchInputRef}
               type="text"
               placeholder="Search tasks, projects..."
               className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 border border-transparent focus:bg-white dark:focus:bg-gray-600 focus:border-gray-300 dark:focus:border-gray-600"
@@ -212,7 +228,7 @@ const Dashboard = () => {
           <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 mb-8 animate-fade-in" style={{animationDelay: '300ms'}}>
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-xl font-semibold">Active Projects</h2>
-              <Link to="/app/projects" className="text-blue-600 dark:text-blue-400 text-sm font-medium">View all</Link>
+              <Link to="/projects" className="text-blue-600 dark:text-blue-400 text-sm font-medium">View all</Link>
             </div>
             
             <div className="overflow-x-auto">
@@ -268,7 +284,7 @@ const Dashboard = () => {
             <div className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-6 animate-fade-in" style={{animationDelay: '600ms'}}>
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">Recent Tasks</h2>
-                <Link to="/app/tasks" className="text-blue-600 dark:text-blue-400 text-sm font-medium">View all</Link>
+                <Link to="/tasks" className="text-blue-600 dark:text-blue-400 text-sm font-medium">View all</Link>
               </div>
               
               <div className="space-y-4">
@@ -352,7 +368,8 @@ const Dashboard = () => {
 
       {/* Add Task Modal */}
       {showAddTaskModal && <AddTaskModal 
-        onAdd={handleAddTask} 
+        isOpen={showAddTaskModal}
+        onAddTask={handleAddTask} 
         onClose={() => setShowAddTaskModal(false)} 
         projects={projects}
       />}

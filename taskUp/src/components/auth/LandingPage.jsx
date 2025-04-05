@@ -26,45 +26,25 @@ const LandingPage = () => {
         </div>
       </header>
 
-      {/* Hero Section */}
-      <div className="flex-grow flex flex-col md:flex-row items-center justify-center px-8 md:px-16 max-w-7xl mx-auto w-full">
-        <div className="md:w-1/2 md:pr-12 mb-10 md:mb-0">
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white">
+      {/* Hero Section - Centered */}
+      <div className="flex-grow flex items-center justify-center px-8 md:px-16 max-w-5xl mx-auto w-full">
+        <div className="text-center">
+          <h1 className="text-4xl sm:text-5xl md:text-6xl font-bold mb-6 text-gray-900 dark:text-white animate-fade-in">
             TaskUp.
             <span className="block text-blue-600 dark:text-blue-400">
               Focused work, beautifully managed.
             </span>
           </h1>
-          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8">
+          <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto animate-fade-in" style={{animationDelay: '200ms'}}>
             The intelligent project management platform that helps teams plan, track, and deliver their best work.
           </p>
-          <div className="flex flex-col sm:flex-row space-y-3 sm:space-y-0 sm:space-x-4">
+          <div className="flex justify-center animate-fade-in" style={{animationDelay: '400ms'}}>
             <Link
               to="/signup"
-              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg transition-colors text-center"
+              className="px-8 py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-semibold shadow-lg transition-colors text-center hover:scale-105 transform transition-transform duration-200"
             >
               Get Started — It's Free
             </Link>
-            <Link
-              to="/demo"
-              className="px-8 py-4 border border-gray-300 dark:border-gray-600 text-gray-800 dark:text-white hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl font-semibold transition-colors text-center"
-            >
-              Watch Demo
-            </Link>
-          </div>
-        </div>
-        <div className="md:w-1/2">
-          <div className="relative">
-            <div className="rounded-2xl shadow-2xl overflow-hidden border border-gray-200 dark:border-gray-700">
-              <img
-                src="https://via.placeholder.com/800x600"
-                alt="TaskUp Dashboard"
-                className="w-full h-auto"
-              />
-            </div>
-            {/* Floating Elements */}
-            <div className="absolute -top-6 -right-6 w-24 h-24 bg-purple-100 dark:bg-purple-900/40 rounded-xl rotate-12 z-0"></div>
-            <div className="absolute -bottom-6 -left-6 w-24 h-24 bg-blue-100 dark:bg-blue-900/40 rounded-xl -rotate-12 z-0"></div>
           </div>
         </div>
       </div>
@@ -123,7 +103,7 @@ const LandingPage = () => {
                 ),
               },
             ].map((feature, index) => (
-              <div key={index} className="bg-gray-50 dark:bg-gray-750 p-8 rounded-xl shadow-sm">
+              <div key={index} className="bg-gray-50 dark:bg-gray-750 p-8 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 transform hover:-translate-y-1">
                 <div className="text-blue-600 dark:text-blue-400 mb-4">{feature.icon}</div>
                 <h3 className="text-xl font-semibold mb-3 text-gray-900 dark:text-white">{feature.title}</h3>
                 <p className="text-gray-600 dark:text-gray-300">{feature.description}</p>

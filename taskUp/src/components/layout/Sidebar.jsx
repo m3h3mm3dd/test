@@ -9,13 +9,13 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
   const location = useLocation();
   
   const navItems = [
-    { name: 'Dashboard', path: '/app/dashboard', icon: Home },
-    { name: 'Projects', path: '/app/projects', icon: Briefcase },
-    { name: 'Tasks', path: '/app/tasks', icon: CheckSquare },
-    { name: 'Teams', path: '/app/teams', icon: Users },
-    { name: 'Analytics', path: '/app/analytics', icon: BarChart2 },
-    { name: 'Chat', path: '/app/chat/general', icon: MessageSquare },
-    { name: 'Settings', path: '/app/settings', icon: Settings }
+    { name: 'Dashboard', path: '/dashboard', icon: Home },
+    { name: 'Projects', path: '/projects', icon: Briefcase },
+    { name: 'Tasks', path: '/tasks', icon: CheckSquare },
+    { name: 'Teams', path: '/teams', icon: Users },
+    { name: 'Analytics', path: '/analytics', icon: BarChart2 },
+    { name: 'Chat', path: '/chat/general', icon: MessageSquare },
+    { name: 'Settings', path: '/settings', icon: Settings }
   ];
 
   const projects = [
@@ -36,6 +36,14 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     return colors[color] || 'bg-gray-500';
   };
 
+  // Check if the path is active
+  const isActivePath = (path) => {
+    if (path === '/dashboard' && location.pathname === '/') {
+      return true;
+    }
+    return location.pathname.startsWith(path);
+  };
+  
   return (
     <div className={`${collapsed ? 'w-20' : 'w-64'} transition-all duration-300 ease-in-out bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 flex flex-col h-screen`}>
       
@@ -62,7 +70,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               <Link 
                 to={item.path}
                 className={`flex items-center p-2 rounded-xl transition-colors duration-200 ${
-                  location.pathname.includes(item.path.split('/').pop()) 
+                  isActivePath(item.path) 
                     ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'
                 }`}
@@ -81,7 +89,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
               {projects.map(project => (
                 <li key={project.id}>
                   <Link 
-                    to={`/app/projects/${project.id}`}
+                    to={`/projects/${project.id}`}
                     className="flex items-center p-2 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
                   >
                     <div className={`w-2 h-2 rounded-full ${getColorClass(project.color)} mr-3`} />
@@ -96,7 +104,7 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
 
       {/* User */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-        <Link to="/app/profile" className="flex items-center">
+        <Link to="/profile" className="flex items-center">
           <div className="w-10 h-10 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold text-lg">J</div>
           {!collapsed && (
             <div className="ml-3">

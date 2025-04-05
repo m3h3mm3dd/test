@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
@@ -14,6 +14,8 @@ import Teams from './components/teams/Teams';
 import UserProfile from './components/user/UserProfile';
 import ChatPanel from './components/chat/ChatPanel';
 import Settings from './components/settings/Settings';
+import Analytics from './components/analytics/Analytics';
+import ForgotPassword from './components/auth/ForgotPassword';
 
 // Auth pages
 import LandingPage from './components/auth/LandingPage';
@@ -40,16 +42,17 @@ const App = () => {
   const { darkMode } = useTheme();
   const { isAuthenticated } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
 
-  // Effect to check if user is on an auth page but already authenticated
+  // Effect to redirect authenticated users away from auth pages
   useEffect(() => {
     if (isAuthenticated) {
       const authPaths = ['/', '/login', '/signup'];
       if (authPaths.includes(location.pathname)) {
-        // Optional: you can add logic here if needed
+        navigate('/dashboard', { replace: true });
       }
     }
-  }, [isAuthenticated, location.pathname]);
+  }, [isAuthenticated, location.pathname, navigate]);
 
   return (
     <div className={`${darkMode ? 'dark' : ''}`}>
@@ -58,28 +61,29 @@ const App = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPassword />} />
 
         {/* Protected routes inside Layout */}
-        <Route path="/app" element={
+        <Route path="/" element={
           <ProtectedRoute>
             <Layout />
           </ProtectedRoute>
         }>
-          <Route index element={<Dashboard />} />
           <Route path="dashboard" element={<Dashboard />} />
           <Route path="projects" element={<Projects />} />
           <Route path="tasks" element={<Tasks />} />
           <Route path="teams" element={<Teams />} />
+          <Route path="teams/:teamId" element={<Teams />} />
+          <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<UserProfile />} />
           <Route path="chat/:projectId" element={<ChatPanel projectName="Website Redesign" />} />
-          <Route path="*" element={<Navigate to="/app/dashboard" replace />} />
         </Route>
 
         {/* Redirect any unknown routes to home or dashboard based on auth */}
         <Route path="*" element={
           isAuthenticated ? 
-            <Navigate to="/app/dashboard" replace /> : 
+            <Navigate to="/dashboard" replace /> : 
             <Navigate to="/" replace />
         } />
       </Routes>

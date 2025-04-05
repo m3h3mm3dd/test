@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { Sun, Moon, Bell, Search, Settings } from 'lucide-react';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
@@ -7,11 +7,35 @@ import { useAuth } from '../../context/AuthContext';
 const Header = ({ pageTitle }) => {
   const { darkMode, toggleDarkMode } = useTheme();
   const { logout } = useAuth();
+  const navigate = useNavigate();
 
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(2);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+
+  // Refs for click outside handling
+  const notificationRef = useRef(null);
+  const userMenuRef = useRef(null);
+
+  // Effect for closing dropdowns when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (notificationRef.current && !notificationRef.current.contains(event.target)) {
+        setShowNotifications(false);
+      }
+      
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target)) {
+        setShowUserMenu(false);
+      }
+    }
+    
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -22,15 +46,28 @@ const Header = ({ pageTitle }) => {
     setUnreadNotifications(0);
   };
 
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  const viewAllNotifications = () => {
+    setShowNotifications(false);
+    // Navigate to notifications page
+    console.log("View all notifications");
+    // This would navigate to a notifications page in a real app
+    navigate('/notifications');
+  };
+
+  const handleNotificationClick = (id) => {
+    console.log('Notification clicked:', id);
+  };
+
   const notifications = [
     { id: '1', message: 'John Doe assigned you a new task', time: '5 mins ago', read: false },
     { id: '2', message: 'New comment on "Design homepage mockup"', time: '1 hour ago', read: false },
     { id: '3', message: 'Your task "Setup developer environment" was approved', time: '3 hours ago', read: true }
   ];
-
-  const handleNotificationClick = (id) => {
-    console.log('Notification clicked:', id);
-  };
 
   return (
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
@@ -72,7 +109,7 @@ const Header = ({ pageTitle }) => {
         </button>
 
         {/* Notification Bell */}
-        <div className="relative h-10">
+        <div className="relative h-10" ref={notificationRef}>
           <button
             onClick={() => setShowNotifications(!showNotifications)}
             className="h-10 w-10 flex items-center justify-center rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 relative"
@@ -116,7 +153,10 @@ const Header = ({ pageTitle }) => {
               </div>
 
               <div className="p-3 border-t border-gray-200 dark:border-gray-700 text-center">
-                <button className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300">
+                <button 
+                  onClick={viewAllNotifications}
+                  className="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300"
+                >
                   View all notifications
                 </button>
               </div>
@@ -127,27 +167,32 @@ const Header = ({ pageTitle }) => {
         <div className="h-8 w-px bg-gray-200 dark:bg-gray-700"></div>
 
         {/* User Info + Dropdown */}
-        <div className="relative group">
-          <Link to="/app/profile" className="flex items-center hover:opacity-80 transition-opacity">
+        <div className="relative group" ref={userMenuRef}>
+          <button 
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center hover:opacity-80 transition-opacity"
+          >
             <div className="w-8 h-8 rounded-full bg-blue-500 text-white flex items-center justify-center font-semibold">J</div>
             <span className="ml-2 font-medium">John Doe</span>
-          </Link>
+          </button>
 
-          <div className="hidden group-hover:block absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
-            <Link to="/app/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-              Profile
-            </Link>
-            <Link to="/app/settings" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
-              Settings
-            </Link>
-            <div className="border-t border-gray-200 dark:border-gray-700"></div>
-            <button
-              onClick={logout}
-              className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
-            >
-              Log out
-            </button>
-          </div>
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-50">
+              <Link to="/profile" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                Profile
+              </Link>
+              <Link to="/settings" className="block px-4 py-2 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700">
+                Settings
+              </Link>
+              <div className="border-t border-gray-200 dark:border-gray-700"></div>
+              <button
+                onClick={handleLogout}
+                className="block w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                Log out
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Calendar, Flag } from 'lucide-react';
 
-const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
+const AddTaskModal = ({ isOpen, onClose, onAddTask, projects }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [deadline, setDeadline] = useState('');
@@ -11,13 +11,17 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
   const [teamId, setTeamId] = useState('');
   const [userId, setUserId] = useState('');
   
-  // Mock data - these would come from your API/state
-  const projects = [
+  // If no projects are provided, use this default data
+  const defaultProjects = [
     { id: '1', name: 'Website Redesign' },
     { id: '2', name: 'Mobile App Development' },
     { id: '3', name: 'Marketing Campaign' }
   ];
   
+  // Use provided projects or defaults
+  const projectList = projects || defaultProjects;
+  
+  // Mock data - these would come from your API/state
   const teams = [
     { id: '1', name: 'Design Team', color: 'blue' },
     { id: '2', name: 'Development Team', color: 'purple' },
@@ -33,25 +37,27 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
   
   // Set default date to tomorrow
   useEffect(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    setDeadline(tomorrow.toISOString().split('T')[0]);
-    
-    // Set default project if available
-    if (projects.length > 0) {
-      setProject(projects[0].id);
+    if (isOpen) {
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 1);
+      setDeadline(tomorrow.toISOString().split('T')[0]);
+      
+      // Set default project if available
+      if (projectList.length > 0) {
+        setProject(projectList[0].id);
+      }
+      
+      // Set default user
+      if (users.length > 0) {
+        setUserId(users[0].id);
+      }
+      
+      // Set default team
+      if (teams.length > 0) {
+        setTeamId(teams[0].id);
+      }
     }
-    
-    // Set default user
-    if (users.length > 0) {
-      setUserId(users[0].id);
-    }
-    
-    // Set default team
-    if (teams.length > 0) {
-      setTeamId(teams[0].id);
-    }
-  }, [isOpen]);
+  }, [isOpen, projectList]);
   
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -67,7 +73,7 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
       id: `new-${Date.now()}`,
       title,
       description,
-      project: projects.find(p => p.id === project)?.name || project,
+      project: projectList.find(p => p.id === project)?.name || project,
       deadline,
       priority,
       status: 'Not Started',
@@ -80,19 +86,30 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
     
     onAddTask(newTask);
     
-    // Reset form and close modal
+    // Reset form
+    resetForm();
+  };
+  
+  const resetForm = () => {
     setTitle('');
     setDescription('');
     setPriority('Medium');
-    setProject('');
-    onClose();
+    setProject(projectList.length > 0 ? projectList[0].id : '');
+    setAssignedTo('user');
+    setUserId(users.length > 0 ? users[0].id : '');
+    setTeamId(teams.length > 0 ? teams[0].id : '');
+    
+    // Reset deadline to tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    setDeadline(tomorrow.toISOString().split('T')[0]);
   };
   
   if (!isOpen) return null;
   
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md animate-fade-in">
         <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold">Add New Task</h3>
           <button 
@@ -132,7 +149,7 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
                 required
               >
                 <option value="">Select Project</option>
-                {projects.map(proj => (
+                {projectList.map(proj => (
                   <option key={proj.id} value={proj.id}>{proj.name}</option>
                 ))}
               </select>
@@ -256,7 +273,7 @@ const AddTaskModal = ({ isOpen, onClose, onAddTask }) => {
             </button>
             <button
               type="submit"
-              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transform transition-transform hover:scale-105"
             >
               Add Task
             </button>

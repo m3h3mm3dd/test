@@ -3,13 +3,12 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  // For now, we're using a simple mock auth state
-  // In a real app, you would use a proper authentication system with JWT tokens, etc.
+  // State for authentication
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   
   useEffect(() => {
-    // Simulate checking for saved auth state
+    // Check for saved auth state
     const savedUser = localStorage.getItem('taskup_user');
     
     if (savedUser) {
@@ -21,17 +20,7 @@ export const AuthProvider = ({ children }) => {
       }
     }
     
-    // For demo purposes, set a mock user
-    if (!savedUser) {
-      const mockUser = {
-        id: '1',
-        name: 'John Doe',
-        email: 'john@example.com',
-        role: 'Admin'
-      };
-      setUser(mockUser);
-      localStorage.setItem('taskup_user', JSON.stringify(mockUser));
-    }
+    // Don't set a mock user automatically - let the user login
     
     setLoading(false);
   }, []);
@@ -57,12 +46,24 @@ export const AuthProvider = ({ children }) => {
   };
   
   const logout = () => {
+    // Clear user data and remove from localStorage
     setUser(null);
     localStorage.removeItem('taskup_user');
+    
+    // Optional: You could do additional cleanup here such as:
+    // - Clear any app state
+    // - Clear tokens
+    // - Clear any other user-specific data in localStorage
   };
   
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, isAuthenticated: !!user }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      loading, 
+      login, 
+      logout, 
+      isAuthenticated: !!user 
+    }}>
       {children}
     </AuthContext.Provider>
   );
