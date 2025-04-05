@@ -9,8 +9,6 @@ const Header = ({ pageTitle }) => {
   const { logout } = useAuth();
   const navigate = useNavigate();
 
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(2);
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -37,11 +35,6 @@ const Header = ({ pageTitle }) => {
     };
   }, []);
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log('Searching for:', searchQuery);
-  };
-
   const markAllAsRead = () => {
     setUnreadNotifications(0);
   };
@@ -54,8 +47,6 @@ const Header = ({ pageTitle }) => {
   const viewAllNotifications = () => {
     setShowNotifications(false);
     // Navigate to notifications page
-    console.log("View all notifications");
-    // This would navigate to a notifications page in a real app
     navigate('/notifications');
   };
 
@@ -73,33 +64,9 @@ const Header = ({ pageTitle }) => {
     <header className="h-16 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between px-6">
       <div className="flex items-center">
         <h1 className="text-2xl font-semibold font-sans">{pageTitle}</h1>
-
-        {/* Search bar */}
-        <div className={`ml-6 relative ${searchOpen ? 'block' : 'hidden md:block'}`}>
-          <form onSubmit={handleSearch}>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search..."
-              className="pl-9 pr-4 py-2 w-full md:w-64 lg:w-80 bg-gray-100 dark:bg-gray-700 border border-transparent focus:bg-white dark:focus:bg-gray-600 focus:border-gray-300 dark:focus:border-gray-600 rounded-lg"
-            />
-            <button type="submit" className="absolute left-3 top-2.5">
-              <Search className="h-4 w-4 text-gray-500 dark:text-gray-400" />
-            </button>
-          </form>
-        </div>
       </div>
 
       <div className="flex items-center space-x-4">
-        {/* Mobile Search Toggle */}
-        <button
-          onClick={() => setSearchOpen(!searchOpen)}
-          className="md:hidden text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300"
-        >
-          <Search className="h-5 w-5" />
-        </button>
-
         {/* Theme Toggle */}
         <button
           onClick={toggleDarkMode}

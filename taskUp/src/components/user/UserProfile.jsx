@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Mail, Key, LogOut, Camera, Bell, Lock, List, Calendar, Clock } from 'lucide-react';
 
 const ProfileSection = ({ children }) => (
@@ -14,10 +15,100 @@ const SectionHeader = ({ title, description }) => (
   </div>
 );
 
+const EditProfileModal = ({ isOpen, onClose, user, onSave }) => {
+  const [firstName, setFirstName] = useState(user?.firstName || '');
+  const [lastName, setLastName] = useState(user?.lastName || '');
+  const [email, setEmail] = useState(user?.email || '');
+  const [jobTitle, setJobTitle] = useState(user?.role || '');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    const updatedUser = {
+      ...user,
+      firstName,
+      lastName,
+      email,
+      role: jobTitle
+    };
+    onSave(updatedUser);
+    onClose();
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md mx-4 w-full">
+        <h3 className="text-xl font-semibold mb-4">Edit Profile</h3>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">First Name</label>
+              <input 
+                type="text" 
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Last Name</label>
+              <input 
+                type="text" 
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input 
+                type="email" 
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Job Title</label>
+              <input 
+                type="text" 
+                value={jobTitle}
+                onChange={(e) => setJobTitle(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button 
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+            >
+              Save Changes
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
 const UserProfile = () => {
   const [activeTab, setActiveTab] = useState('profile');
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const navigate = useNavigate();
   
   useEffect(() => {
     // Mock fetching user data
@@ -70,6 +161,18 @@ const UserProfile = () => {
       default:
         return <div className="p-2 bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400 rounded-full"><Activity size={16} /></div>;
     }
+  };
+
+  const handleSaveProfile = (updatedUser) => {
+    setUser(updatedUser);
+  };
+
+  const handleViewProject = (projectId) => {
+    navigate(`/projects/${projectId}`);
+  };
+
+  const handleViewTeam = (teamId) => {
+    navigate(`/teams/${teamId}`);
   };
   
   if (isLoading) {
@@ -133,7 +236,10 @@ const UserProfile = () => {
             <p className="text-gray-600 dark:text-gray-400">{user.role}</p>
             
             <div className="mt-4">
-              <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm transition-colors">
+              <button 
+                onClick={() => setShowEditModal(true)}
+                className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm transition-colors"
+              >
                 Edit Profile
               </button>
             </div>
@@ -189,7 +295,8 @@ const UserProfile = () => {
                 <input 
                   type="text" 
                   value={user.firstName}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700"
                 />
               </div>
               
@@ -198,7 +305,8 @@ const UserProfile = () => {
                 <input 
                   type="text" 
                   value={user.lastName}
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700"
                 />
               </div>
               
@@ -211,26 +319,21 @@ const UserProfile = () => {
                   <input 
                     type="email" 
                     value={user.email}
-                    className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                    readOnly
+                    className="w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700"
                   />
                 </div>
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-medium">Role</label>
+                <label className="block text-sm font-medium">Job Title</label>
                 <input 
                   type="text" 
                   value={user.role}
-                  disabled
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-600 cursor-not-allowed"
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-700"
                 />
               </div>
-            </div>
-            
-            <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg shadow-sm transition-colors">
-                Save Changes
-              </button>
             </div>
           </ProfileSection>
           
@@ -245,7 +348,10 @@ const UserProfile = () => {
                       <div className="font-medium">{project.name}</div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Role: {project.role}</div>
                     </div>
-                    <button className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                    <button 
+                      onClick={() => handleViewProject(project.id)}
+                      className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                    >
                       View Project
                     </button>
                   </div>
@@ -270,7 +376,10 @@ const UserProfile = () => {
                       <div className="font-medium">{team.name}</div>
                       <div className="text-sm text-gray-500 dark:text-gray-400">Role: {team.role}</div>
                     </div>
-                    <button className="text-blue-500 hover:text-blue-600 text-sm font-medium">
+                    <button 
+                      onClick={() => handleViewTeam(team.id)}
+                      className="text-blue-500 hover:text-blue-600 text-sm font-medium"
+                    >
                       View Team
                     </button>
                   </div>
@@ -348,7 +457,7 @@ const UserProfile = () => {
                   <input
                     id="2fa"
                     type="checkbox"
-                    className="w-4 h-4 border border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+                    className="w-4 h-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded"
                   />
                 </div>
                 <div className="ml-3 text-sm">
@@ -358,14 +467,6 @@ const UserProfile = () => {
               </div>
               <button className="mt-4 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700">
                 Configure 2FA
-              </button>
-            </div>
-            
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6">
-              <h3 className="text-lg font-medium mb-4 text-red-600 dark:text-red-500">Danger Zone</h3>
-              <p className="text-gray-500 dark:text-gray-400 mb-4">Once you delete your account, there is no going back. Please be certain.</p>
-              <button className="px-4 py-2 border border-red-300 dark:border-red-800 text-red-600 dark:text-red-500 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20">
-                Delete Account
               </button>
             </div>
           </div>
@@ -472,6 +573,16 @@ const UserProfile = () => {
             </button>
           </div>
         </ProfileSection>
+      )}
+
+      {/* Edit Profile Modal */}
+      {showEditModal && (
+        <EditProfileModal 
+          isOpen={showEditModal}
+          onClose={() => setShowEditModal(false)}
+          user={user}
+          onSave={handleSaveProfile}
+        />
       )}
     </div>
   );

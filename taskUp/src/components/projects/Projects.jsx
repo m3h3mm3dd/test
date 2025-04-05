@@ -1,78 +1,124 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter, MoreHorizontal, Briefcase } from 'lucide-react';
+import ProjectCard from './ProjectCard';
 
-const ProjectCard = ({ project, index }) => {
-  const { name, progress, deadline, status, description, teams } = project;
-  
-  const getStatusColor = (status) => {
-    switch(status) {
-      case 'In Progress': 
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'Completed': 
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'On Hold': 
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'Not Started': 
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-      default: 
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
-    }
+const CreateProjectModal = ({ isOpen, onClose, onCreateProject }) => {
+  const [projectName, setProjectName] = useState('');
+  const [description, setDescription] = useState('');
+  const [deadline, setDeadline] = useState('');
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!projectName || !description || !deadline) return;
+
+    const newProject = {
+      id: `new-${Date.now()}`,
+      name: projectName,
+      description,
+      deadline,
+      progress: 0,
+      status: 'Not Started',
+      teams: 0,
+      tasks: 0
+    };
+
+    onCreateProject(newProject);
+    resetForm();
+    onClose();
   };
-  
+
+  const resetForm = () => {
+    setProjectName('');
+    setDescription('');
+    setDeadline('');
+  };
+
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-lg p-6 w-full max-w-md">
+        <h2 className="text-xl font-bold mb-4">Create New Project</h2>
+        <form onSubmit={handleSubmit}>
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Project Name</label>
+              <input 
+                type="text" 
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                placeholder="Enter project name"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea 
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows="3"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                placeholder="Project description"
+                required
+              ></textarea>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Deadline</label>
+              <input 
+                type="date" 
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white dark:bg-gray-700"
+                required
+              />
+            </div>
+          </div>
+          <div className="mt-6 flex justify-end space-x-3">
+            <button 
+              type="button" 
+              onClick={onClose}
+              className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg"
+            >
+              Create Project
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+const ProjectMenu = ({ project, onClose, onEdit, onDelete, position }) => {
+  const menuStyle = {
+    top: position.y,
+    left: position.x,
+  };
+
   return (
     <div 
-      className="bg-white dark:bg-gray-800 rounded-xl shadow-sm overflow-hidden border border-gray-100 dark:border-gray-700 hover:shadow-md transition-shadow duration-200 animate-fade-in"
-      style={{ animationDelay: `${index * 50}ms` }}
+      className="fixed z-50 bg-white dark:bg-gray-800 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 w-48"
+      style={menuStyle}
     >
-      <div className="p-5">
-        <div className="flex justify-between items-start">
-          <h3 className="font-semibold text-lg">{name}</h3>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
-            {status}
-          </span>
-        </div>
-        
-        <p className="text-gray-500 dark:text-gray-400 text-sm mt-2 h-10 overflow-hidden">
-          {description}
-        </p>
-        
-        <div className="flex items-center justify-between mt-4">
-          <div className="text-xs text-gray-500 dark:text-gray-400">
-            Due {new Date(deadline).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-          </div>
-          <div className="text-xs font-medium">
-            {progress}% Complete
-          </div>
-        </div>
-        
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 mt-2">
-          <div 
-            className="bg-blue-500 h-1.5 rounded-full animate-grow-width" 
-            style={{ width: `${progress}%`, animationDelay: `${(index * 100) + 300}ms` }}
-          ></div>
-        </div>
-        
-        <div className="flex items-center justify-between mt-4">
-          <div className="flex items-center space-x-4">
-            <div className="flex items-center">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-              </svg>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{teams} teams</span>
-            </div>
-            <div className="flex items-center">
-              <svg className="w-4 h-4 text-gray-500 dark:text-gray-400 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-              <span className="text-xs text-gray-500 dark:text-gray-400">{project.tasks || 0} tasks</span>
-            </div>
-          </div>
-          
-          <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-            <MoreHorizontal size={18} />
-          </button>
-        </div>
-      </div>
+      <button 
+        onClick={() => onEdit(project)}
+        className="w-full text-left px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+      >
+        Edit Project
+      </button>
+      <button 
+        onClick={() => onDelete(project)}
+        className="w-full text-left px-4 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-gray-100 dark:hover:bg-gray-700"
+      >
+        Delete Project
+      </button>
     </div>
   );
 };
@@ -80,69 +126,85 @@ const ProjectCard = ({ project, index }) => {
 const Projects = () => {
   const [selectedTab, setSelectedTab] = useState('all');
   const [viewType, setViewType] = useState('grid'); // 'grid' or 'list'
+  const [projects, setProjects] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [selectedProject, setSelectedProject] = useState(null);
+  const [menuPosition, setMenuPosition] = useState({ x: 0, y: 0 });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   
-  const projects = [
-    {
-      id: '1',
-      name: 'Website Redesign',
-      description: 'Completely revamp the company website with modern design principles and improved UX.',
-      progress: 65,
-      deadline: '2025-05-15',
-      status: 'In Progress',
-      teams: 2,
-      tasks: 12
-    },
-    {
-      id: '2',
-      name: 'Mobile App Development',
-      description: 'Create native iOS and Android applications with core functionality from our web platform.',
-      progress: 30,
-      deadline: '2025-06-30',
-      status: 'In Progress',
-      teams: 3,
-      tasks: 24
-    },
-    {
-      id: '3',
-      name: 'Marketing Campaign',
-      description: 'Launch Q2 marketing campaign across digital and traditional channels to increase brand awareness.',
-      progress: 85,
-      deadline: '2025-04-20',
-      status: 'In Progress',
-      teams: 1,
-      tasks: 8
-    },
-    {
-      id: '4',
-      name: 'Product Launch',
-      description: 'Coordinate the launch of our new flagship product including PR, marketing, and sales training.',
-      progress: 40,
-      deadline: '2025-07-10',
-      status: 'Not Started',
-      teams: 4,
-      tasks: 16
-    },
-    {
-      id: '5',
-      name: 'Office Relocation',
-      description: 'Plan and execute the move to our new headquarters with minimal disruption to operations.',
-      progress: 100,
-      deadline: '2025-03-01',
-      status: 'Completed',
-      teams: 2,
-      tasks: 20
-    },
-    {
-      id: '6',
-      name: 'Sales Training Program',
-      description: 'Develop and implement a comprehensive training program for the sales team on new products.',
-      progress: 55,
-      deadline: '2025-05-20',
-      status: 'In Progress',
-      teams: 2,
-      tasks: 15
-    }
-  ];
+  const navigate = useNavigate();
+
+  // Load projects data
+  useEffect(() => {
+    setTimeout(() => {
+      setProjects([
+        {
+          id: '1',
+          name: 'Website Redesign',
+          description: 'Completely revamp the company website with modern design principles and improved UX.',
+          progress: 65,
+          deadline: '2025-05-15',
+          status: 'In Progress',
+          teams: 2,
+          tasks: 12
+        },
+        {
+          id: '2',
+          name: 'Mobile App Development',
+          description: 'Create native iOS and Android applications with core functionality from our web platform.',
+          progress: 30,
+          deadline: '2025-06-30',
+          status: 'In Progress',
+          teams: 3,
+          tasks: 24
+        },
+        {
+          id: '3',
+          name: 'Marketing Campaign',
+          description: 'Launch Q2 marketing campaign across digital and traditional channels to increase brand awareness.',
+          progress: 85,
+          deadline: '2025-04-20',
+          status: 'In Progress',
+          teams: 1,
+          tasks: 8
+        },
+        {
+          id: '4',
+          name: 'Product Launch',
+          description: 'Coordinate the launch of our new flagship product including PR, marketing, and sales training.',
+          progress: 40,
+          deadline: '2025-07-10',
+          status: 'Not Started',
+          teams: 4,
+          tasks: 16
+        },
+        {
+          id: '5',
+          name: 'Office Relocation',
+          description: 'Plan and execute the move to our new headquarters with minimal disruption to operations.',
+          progress: 100,
+          deadline: '2025-03-01',
+          status: 'Completed',
+          teams: 2,
+          tasks: 20
+        },
+        {
+          id: '6',
+          name: 'Sales Training Program',
+          description: 'Develop and implement a comprehensive training program for the sales team on new products.',
+          progress: 55,
+          deadline: '2025-05-20',
+          status: 'In Progress',
+          teams: 2,
+          tasks: 15
+        }
+      ]);
+      setIsLoading(false);
+    }, 1000);
+  }, []);
   
   const tabs = [
     { id: 'all', label: 'All Projects' },
@@ -151,12 +213,21 @@ const Projects = () => {
     { id: 'draft', label: 'Not Started' }
   ];
   
+  // Filter projects based on tab and search
   const filteredProjects = projects.filter(project => {
+    // Apply tab filter
     if (selectedTab === 'all') return true;
     if (selectedTab === 'ongoing') return project.status === 'In Progress';
     if (selectedTab === 'completed') return project.status === 'Completed';
     if (selectedTab === 'draft') return project.status === 'Not Started';
     return true;
+  }).filter(project => {
+    // Apply search filter
+    if (!searchQuery) return true;
+    return (
+      project.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      project.description.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   });
   
   // Define getStatusColor function for the list view
@@ -174,6 +245,53 @@ const Projects = () => {
         return 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200';
     }
   };
+
+  const handleProjectClick = (project) => {
+    navigate(`/projects/${project.id}`);
+  };
+
+  const handleMenuClick = (project, e) => {
+    if (!e) return; // Guard against undefined event
+    
+    e.stopPropagation();
+    setSelectedProject(project);
+    setMenuPosition({ x: e.clientX, y: e.clientY });
+    setShowMenu(true);
+  };
+
+  const handleCreateProject = (newProject) => {
+    setProjects([...projects, newProject]);
+  };
+
+  const handleEditProject = (project) => {
+    setShowMenu(false);
+    // Navigate to project edit page or show edit modal
+    navigate(`/projects/${project.id}`);
+  };
+
+  const handleDeleteProject = (project) => {
+    setShowMenu(false);
+    setSelectedProject(project);
+    setShowDeleteConfirm(true);
+  };
+
+  const confirmDeleteProject = () => {
+    setProjects(projects.filter(p => p.id !== selectedProject.id));
+    setShowDeleteConfirm(false);
+    setSelectedProject(null);
+  };
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowMenu(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, []);
   
   return (
     <div className="p-6">
@@ -181,7 +299,10 @@ const Projects = () => {
       <div className="mb-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Projects</h1>
-          <button className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors">
+          <button 
+            onClick={() => setShowCreateModal(true)}
+            className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg flex items-center shadow-sm transition-colors"
+          >
             <Plus size={18} className="mr-2" />
             <span>New Project</span>
           </button>
@@ -193,12 +314,26 @@ const Projects = () => {
             <input
               type="text"
               placeholder="Search projects..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-10 pr-4 py-2 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500 focus:outline-none transition-all"
             />
             <div className="absolute left-3 top-2.5 text-gray-400">
               <Search size={18} />
             </div>
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" 
+                    d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
+          
           <div className="flex space-x-4">
             <button className="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg flex items-center text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-750">
               <Filter size={18} className="mr-2" />
@@ -246,11 +381,34 @@ const Projects = () => {
       </div>
       
       {/* Project List */}
-      {filteredProjects.length > 0 ? (
+      {isLoading ? (
+        <div className="animate-pulse grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(6)].map((_, index) => (
+            <div key={index} className="bg-white dark:bg-gray-800 rounded-xl shadow-sm p-5 border border-gray-200 dark:border-gray-700">
+              <div className="flex justify-between mb-4">
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/3"></div>
+                <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/6"></div>
+              </div>
+              <div className="h-10 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+              <div className="h-2 bg-gray-200 dark:bg-gray-700 rounded mb-4"></div>
+              <div className="flex justify-between">
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : filteredProjects.length > 0 ? (
         viewType === 'grid' ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredProjects.map((project, index) => (
-              <ProjectCard key={project.id} project={project} index={index} />
+              <ProjectCard 
+                key={project.id} 
+                project={project} 
+                index={index} 
+                onProjectClick={handleProjectClick}
+                onMenuClick={handleMenuClick}
+              />
             ))}
           </div>
         ) : (
@@ -271,8 +429,9 @@ const Projects = () => {
                 {filteredProjects.map((project, index) => (
                   <tr 
                     key={project.id} 
-                    className="hover:bg-gray-50 dark:hover:bg-gray-750 animate-fade-in"
+                    className="hover:bg-gray-50 dark:hover:bg-gray-750 animate-fade-in cursor-pointer"
                     style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => handleProjectClick(project)}
                   >
                     <td className="px-6 py-4">
                       <div className="flex items-center">
@@ -308,7 +467,13 @@ const Projects = () => {
                       {project.tasks}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                      <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+                      <button 
+                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuClick(project, e);
+                        }}
+                      >
                         <MoreHorizontal size={18} />
                       </button>
                     </td>
@@ -325,13 +490,63 @@ const Projects = () => {
           </div>
           <h3 className="text-lg font-medium">No projects found</h3>
           <p className="text-gray-500 dark:text-gray-400 mt-1 max-w-md">
-            {selectedTab === 'all' 
+            {selectedTab === 'all' && !searchQuery
               ? "You don't have any projects yet." 
-              : `You don't have any ${selectedTab === 'ongoing' ? 'in progress' : selectedTab} projects.`}
+              : `No projects match your current ${searchQuery ? 'search' : 'filter'}.`}
           </p>
-          <button className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors">
+          <button 
+            className="mt-4 px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors"
+            onClick={() => setShowCreateModal(true)}
+          >
             Create a project
           </button>
+        </div>
+      )}
+
+      {/* Create Project Modal */}
+      {showCreateModal && (
+        <CreateProjectModal 
+          isOpen={showCreateModal}
+          onClose={() => setShowCreateModal(false)}
+          onCreateProject={handleCreateProject}
+        />
+      )}
+
+      {/* Project Menu (context menu) */}
+      {showMenu && selectedProject && (
+        <ProjectMenu 
+          project={selectedProject}
+          position={menuPosition}
+          onClose={() => setShowMenu(false)}
+          onEdit={handleEditProject}
+          onDelete={handleDeleteProject}
+        />
+      )}
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-md mx-4">
+            <h3 className="text-xl font-semibold mb-4">Delete Project</h3>
+            <p className="mb-6 text-gray-600 dark:text-gray-300">
+              Are you sure you want to delete <span className="font-semibold">{selectedProject.name}</span>? 
+              This action cannot be undone and all associated data will be permanently lost.
+            </p>
+            <div className="flex justify-end space-x-3">
+              <button 
+                onClick={() => setShowDeleteConfirm(false)}
+                className="px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={confirmDeleteProject}
+                className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

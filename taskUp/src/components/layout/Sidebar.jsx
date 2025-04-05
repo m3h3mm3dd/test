@@ -18,24 +18,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
     { name: 'Settings', path: '/settings', icon: Settings }
   ];
 
-  const projects = [
-    { id: '1', name: 'Website Redesign', color: 'blue' },
-    { id: '2', name: 'Mobile App Development', color: 'purple' },
-    { id: '3', name: 'Marketing Campaign', color: 'green' }
-  ];
-
-  const getColorClass = (color) => {
-    const colors = {
-      blue: 'bg-blue-500',
-      purple: 'bg-purple-500',
-      green: 'bg-green-500',
-      red: 'bg-red-500',
-      yellow: 'bg-yellow-500',
-      indigo: 'bg-indigo-500'
-    };
-    return colors[color] || 'bg-gray-500';
-  };
-
   // Check if the path is active
   const isActivePath = (path) => {
     if (path === '/dashboard' && location.pathname === '/') {
@@ -81,25 +63,6 @@ const Sidebar = ({ collapsed, toggleSidebar }) => {
             </li>
           ))}
         </ul>
-
-        {!collapsed && (
-          <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-            <h3 className="px-2 text-xs font-semibold text-gray-500 uppercase tracking-wider">Your Projects</h3>
-            <ul className="mt-3 space-y-2">
-              {projects.map(project => (
-                <li key={project.id}>
-                  <Link 
-                    to={`/projects/${project.id}`}
-                    className="flex items-center p-2 text-gray-600 dark:text-gray-300 rounded-xl hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors duration-200"
-                  >
-                    <div className={`w-2 h-2 rounded-full ${getColorClass(project.color)} mr-3`} />
-                    <span className="truncate">{project.name}</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
       </nav>
 
       {/* User */}

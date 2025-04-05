@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
 import AddTaskModal from './tasks/AddTaskModal';
 
 const Dashboard = () => {
   const { darkMode } = useTheme();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [projects, setProjects] = useState([]);
   const [tasks, setTasks] = useState([]);
@@ -14,6 +15,7 @@ const Dashboard = () => {
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [priorityFilter, setPriorityFilter] = useState('all');
   const notificationRef = useRef(null);
+  const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
     // Simulate data loading
@@ -120,14 +122,18 @@ const Dashboard = () => {
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
 
-  // State for notification dropdown
-  const [showNotifications, setShowNotifications] = useState(false);
-
   const viewAllNotifications = () => {
     setShowNotifications(false);
-    // Navigate to all notifications page or expand the current view
-    console.log("View all notifications");
-    alert("This would navigate to a full notifications page in a real app");
+    // Navigate to all notifications page
+    navigate('/notifications');
+  };
+
+  const handleTaskClick = (taskId) => {
+    navigate(`/tasks/${taskId}`);
+  };
+
+  const handleProjectClick = (projectId) => {
+    navigate(`/projects/${projectId}`);
   };
 
   return (
@@ -245,7 +251,12 @@ const Dashboard = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {projects.map((project, index) => (
-                    <tr key={project.id} className="hover:bg-gray-50 dark:hover:bg-gray-750 animate-fade-in" style={{animationDelay: `${400 + index * 100}ms`}}>
+                    <tr
+                      key={project.id}
+                      className="hover:bg-gray-50 dark:hover:bg-gray-750 animate-fade-in cursor-pointer"
+                      style={{animationDelay: `${400 + index * 100}ms`}}
+                      onClick={() => handleProjectClick(project.id)}
+                    >
                       <td className="py-4 pl-3">
                         <div className="font-medium text-gray-900 dark:text-white">{project.name}</div>
                       </td>
@@ -289,7 +300,12 @@ const Dashboard = () => {
               
               <div className="space-y-4">
                 {(searchTerm || priorityFilter !== 'all' ? filteredTasks : tasks).slice(0, 4).map((task, index) => (
-                  <div key={task.id} className="flex items-start p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors duration-150 animate-fade-in" style={{animationDelay: `${700 + index * 100}ms`}}>
+                  <div
+                    key={task.id}
+                    className="flex items-start p-3 rounded-lg border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors duration-150 animate-fade-in cursor-pointer"
+                    style={{animationDelay: `${700 + index * 100}ms`}}
+                    onClick={() => handleTaskClick(task.id)}
+                  >
                     <div className={`w-3 h-3 mt-1.5 rounded-full ${getPriorityColor(task.priority)} mr-3 flex-shrink-0`}></div>
                     <div className="flex-1 min-w-0">
                       <div className="font-medium text-gray-900 dark:text-white truncate">{task.title}</div>
@@ -358,6 +374,17 @@ const Dashboard = () => {
                 {notifications.length === 0 && (
                   <div className="text-center py-8 text-gray-500 dark:text-gray-400">
                     <p>No notifications yet.</p>
+                  </div>
+                )}
+                
+                {notifications.length > 0 && (
+                  <div className="text-center mt-4">
+                    <button
+                      onClick={viewAllNotifications}
+                      className="text-blue-600 dark:text-blue-400 text-sm font-medium hover:text-blue-700 dark:hover:text-blue-300"
+                    >
+                      View all notifications
+                    </button>
                   </div>
                 )}
               </div>

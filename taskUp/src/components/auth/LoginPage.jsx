@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
@@ -13,6 +14,11 @@ const LoginPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
+  const { login } = useAuth();
+  
+  // Check if we have a success message from password reset
+  const message = location.state?.message || '';
   
   const validateEmail = (email) => {
     const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
@@ -27,7 +33,7 @@ const LoginPage = () => {
     return { minLength, hasUppercase, hasSpecialChar, valid: minLength && hasUppercase && hasSpecialChar };
   };
   
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     
     // Reset errors
@@ -52,39 +58,28 @@ const LoginPage = () => {
       return;
     } 
     
-    const pwdValidation = validatePassword(password);
-    if (!pwdValidation.valid) {
-      let passwordError = 'Password must contain:';
-      if (!pwdValidation.minLength) passwordError += ' at least 8 characters,';
-      if (!pwdValidation.hasUppercase) passwordError += ' an uppercase letter,';
-      if (!pwdValidation.hasSpecialChar) passwordError += ' a special character,';
-      
-      setErrors(prev => ({ ...prev, password: passwordError.slice(0, -1) }));
-      return;
-    }
+    // For the login page, we'll relax the password validation to allow any password
+    // since this is just for signing in, not creating a new account
     
     setLoading(true);
     
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
+    try {
+      // Use the login function from AuthContext
+      await login(email, password);
       
-      // Mock successful login and redirect to main page
-      localStorage.setItem('taskup_user', JSON.stringify({
-        id: '1',
-        name: 'John Doe',
-        email: email,
-        role: 'Admin'
+      // Navigate to the dashboard on successful login
+      navigate('/dashboard');
+    } catch (error) {
+      setErrors(prev => ({ 
+        ...prev, 
+        general: error.message || 'Failed to login. Please check your credentials.'
       }));
-      
-      // Redirect to the main page
-      navigate('./Dashboard.jsx');
-      
-    }, 1000);
+    } finally {
+      setLoading(false);
+    }
   };
   
   const handleForgotPassword = () => {
-    // Implement forgot password functionality
     navigate('/forgot-password');
   };
   
@@ -120,6 +115,12 @@ const LoginPage = () => {
         style={{ animationDelay: '200ms' }}
       >
         <div className="bg-white dark:bg-gray-800 py-8 px-4 shadow sm:rounded-lg sm:px-10 transform transition-all duration-300 hover:shadow-xl">
+          {message && (
+            <div className="mb-4 bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 p-3 rounded-md text-sm animate-fade-in">
+              {message}
+            </div>
+          )}
+          
           {errors.general && (
             <div className="mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-md text-sm animate-shake">
               {errors.general}
@@ -174,7 +175,6 @@ const LoginPage = () => {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  // Increased padding to pr-12 so the toggle icon isn't overlapping
                   className={`appearance-none block w-full px-3 py-2 border ${
                     errors.password
                       ? 'border-red-300 dark:border-red-700'
@@ -185,7 +185,6 @@ const LoginPage = () => {
                 <button
                   type="button"
                   onClick={togglePasswordVisibility}
-                  // Adjusted to right-3 for better alignment
                   className="absolute inset-y-0 right-3 flex items-center"
                 >
                   {showPassword ? (
@@ -223,11 +222,6 @@ const LoginPage = () => {
                 {errors.password && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400 animate-fade-in">
                     {errors.password}
-                  </p>
-                )}
-                {!errors.password && (
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    Must be at least 8 characters with 1 uppercase letter and 1 special character
                   </p>
                 )}
               </div>
