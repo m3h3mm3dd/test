@@ -6,7 +6,7 @@ from Db.session import Base
 
 
 class ChatMessage(Base):
-    """Chat message for project communication"""
+
     __tablename__ = "ChatMessage"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -20,33 +20,37 @@ class ChatMessage(Base):
     Project = relationship("Project", back_populates="ChatMessages")
     User = relationship("User")
 
-    @property
-    def FormattedTime(self):
-        """Format sent time for display"""
-        return self.SentAt.strftime("%I:%M %p")
 
-    @property
-    def TimeElapsed(self):
-        """Get human-readable elapsed time since message was sent"""
-        now = datetime.utcnow()
-        delta = now - self.SentAt
+    #lazim olsa uncomment edin
 
-        if delta.days > 0:
-            if delta.days == 1:
-                return "1 day ago"
-            else:
-                return f"{delta.days} days ago"
-        elif delta.seconds >= 3600:
-            hours = delta.seconds // 3600
-            if hours == 1:
-                return "1 hour ago"
-            else:
-                return f"{hours} hours ago"
-        elif delta.seconds >= 60:
-            minutes = delta.seconds // 60
-            if minutes == 1:
-                return "1 minute ago"
-            else:
-                return f"{minutes} minutes ago"
-        else:
-            return "Just now"
+
+    # @property
+    # def FormattedTime(self):
+    #     """Format sent time for display"""
+    #     return self.SentAt.strftime("%I:%M %p")
+    #
+    # @property
+    # def TimeElapsed(self):
+    #     """Get human-readable elapsed time since message was sent"""
+    #     now = datetime.utcnow()
+    #     delta = now - self.SentAt
+    #
+    #     if delta.days > 0:
+    #         if delta.days == 1:
+    #             return "1 day ago"
+    #         else:
+    #             return f"{delta.days} days ago"
+    #     elif delta.seconds >= 3600:
+    #         hours = delta.seconds // 3600
+    #         if hours == 1:
+    #             return "1 hour ago"
+    #         else:
+    #             return f"{hours} hours ago"
+    #     elif delta.seconds >= 60:
+    #         minutes = delta.seconds // 60
+    #         if minutes == 1:
+    #             return "1 minute ago"
+    #         else:
+    #             return f"{minutes} minutes ago"
+    #     else:
+    #         return "Just now"

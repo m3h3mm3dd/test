@@ -2,6 +2,10 @@ import uuid
 from sqlalchemy import Column, String, Integer, Boolean
 from Db.session import Base
 
+
+# frontendde language yeri yoxdu
+
+# mence bu file silinmelidi
 class Language(Base):
     __tablename__ = "Language"
 

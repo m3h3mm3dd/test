@@ -6,7 +6,7 @@ from Db.session import Base
 
 
 class TeamMember(Base):
-    """Team membership model linking users to teams with additional metadata"""
+
     __tablename__ = "TeamMember"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -21,7 +21,7 @@ class TeamMember(Base):
     Team = relationship("Team", back_populates="TeamMemberships")
     User = relationship("User")
 
-    # Ensure unique user per team
+    #  unique user per team
     __table_args__ = (
         {"sqlite_autoincrement": True},
     )

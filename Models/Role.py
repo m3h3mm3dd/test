@@ -9,8 +9,8 @@ class Role(Base):
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     Name = Column(String(50), unique=True, nullable=False)
     Description = Column(Text)
-    IsTeamRole = Column(Boolean, default=False)  # For team-specific roles like "Team Lead"
-    IsDefault = Column(Boolean, default=False)  # For system-defined default roles
+    IsTeamRole = Column(Boolean, default=False)  # For team  "Team Lead"
+    IsDefault = Column(Boolean, default=False)  # For  default roles
 
     # Relationships
     ProjectMember = relationship("ProjectMember", back_populates="Role", cascade="all, delete-orphan")

@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
-import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth } from './context/AuthContext';
+import React from 'react';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
 // Layout
@@ -18,13 +18,13 @@ import UserProfile from './components/user/UserProfile';
 import ChatPanel from './components/chat/ChatPanel';
 import Settings from './components/settings/Settings';
 import Analytics from './components/analytics/Analytics';
-import ForgotPassword from './components/auth/ForgotPassword';
 import Notifications from './components/notifications/Notifications';
 
 // Auth pages
 import LandingPage from './components/auth/LandingPage';
 import LoginPage from './components/auth/LoginPage';
 import SignupPage from './components/auth/SignupPage';
+import ForgotPassword from './components/auth/ForgotPassword';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -57,7 +57,7 @@ const PublicOnlyRoute = ({ children }) => {
   return children;
 };
 
-const App = () => {
+const AppRoutes = () => {
   const { darkMode } = useTheme();
 
   return (
@@ -85,7 +85,7 @@ const App = () => {
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<UserProfile />} />
-          <Route path="chat/:projectId" element={<ChatPanel projectName="Website Redesign" />} />
+          <Route path="chat/:projectId" element={<ChatPanel />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 
@@ -93,6 +93,14 @@ const App = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
+  );
+};
+
+const App = () => {
+  return (
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 };
 

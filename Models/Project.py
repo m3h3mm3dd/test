@@ -1,20 +1,22 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import Column, String, DateTime, Boolean, Integer, Text, ForeignKey
+from sqlalchemy import Column, String, DateTime, Boolean, Integer, Text, ForeignKey, Numeric
 from sqlalchemy.orm import relationship
 from Db.session import Base
 
 
 class Project(Base):
-    """Project model for storing project information"""
+
     __tablename__ = "Project"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     Name = Column(String(100), nullable=False)
     Description = Column(Text)
-    Deadline = Column(DateTime)
+   # Deadline = Column(DateTime)
     Progress = Column(Integer, default=0)
-    Status = Column(String(50), default="Not Started")
+    TotalBudget = Column(Numeric(12, 2), default=0)
+    RemainingBudget = Column(Numeric(12, 2), default=0)
+    Status = Column(String(50), default="In Progress")
     CreatedAt = Column(DateTime, default=datetime.utcnow)
     UpdatedAt = Column(DateTime, onupdate=datetime.utcnow)
     CreatedBy = Column(String(36), ForeignKey("User.Id"), nullable=False)
@@ -28,18 +30,20 @@ class Project(Base):
     Creator = relationship("User", foreign_keys=[CreatedBy], back_populates="ProjectsCreated")
     Scope = relationship("ProjectScope", back_populates="Project", uselist=False, cascade="all, delete-orphan")
     ChatMessages = relationship("ChatMessage", back_populates="Project", cascade="all, delete-orphan")
+    Expenses = relationship("Expense", back_populates="Project", cascade="all, delete-orphan")
+    Members = relationship("User", secondary="ProjectMember", viewonly=True)
 
-    @property
-    def TeamCount(self):
-        """Get number of teams assigned to this project"""
-        return len(self.Teams)
-
-    @property
-    def TaskCount(self):
-        """Get number of tasks in this project"""
-        return len(self.Tasks)
-
-    @property
-    def CompletedTaskCount(self):
-        """Get number of completed tasks in this project"""
-        return sum(1 for task in self.Tasks if task.Completed)
+    # @property
+    # def TeamCount(self):
+    #     """Get number of teams assigned to this project"""
+    #     return len(self.Teams)
+    #
+    # @property
+    # def TaskCount(self):
+    #     """Get number of tasks in this project"""
+    #     return len(self.Tasks)
+    #
+    # @property
+    # def CompletedTaskCount(self):
+    #     """Get number of completed tasks in this project"""
+    #     return sum(1 for task in self.Tasks if task.Completed)

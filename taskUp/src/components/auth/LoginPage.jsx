@@ -1,86 +1,79 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
 const LoginPage = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState({
+  const [localErrors, setLocalErrors] = useState({
     email: '',
-    password: '',
-    general: ''
+    password: ''
   });
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, error: authError, clearError } = useAuth();
+  
+  // Get redirect path from location state or default to dashboard
+  const from = location.state?.from?.pathname || '/dashboard';
   
   // Check if we have a success message from password reset
   const message = location.state?.message || '';
+  
+  // Clear auth errors when component unmounts or when inputs change
+  useEffect(() => {
+    return () => clearError();
+  }, [clearError]);
+  
+  useEffect(() => {
+    if (email || password) {
+      clearError();
+    }
+  }, [email, password, clearError]);
   
   const validateEmail = (email) => {
     const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
     return re.test(String(email).toLowerCase());
   };
   
-  const validatePassword = (password) => {
-    const minLength = password.length >= 8;
-    const hasUppercase = /[A-Z]/.test(password);
-    const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-    
-    return { minLength, hasUppercase, hasSpecialChar, valid: minLength && hasUppercase && hasSpecialChar };
-  };
-  
   const handleLogin = async (e) => {
     e.preventDefault();
     
-    // Reset errors
-    setErrors({
+    // Reset local errors
+    setLocalErrors({
       email: '',
-      password: '',
-      general: ''
+      password: ''
     });
     
     // Validate email
     if (!email) {
-      setErrors(prev => ({ ...prev, email: 'Email is required' }));
+      setLocalErrors(prev => ({ ...prev, email: 'Email is required' }));
       return;
     } else if (!validateEmail(email)) {
-      setErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
+      setLocalErrors(prev => ({ ...prev, email: 'Please enter a valid email address' }));
       return;
     }
     
     // Validate password
     if (!password) {
-      setErrors(prev => ({ ...prev, password: 'Password is required' }));
+      setLocalErrors(prev => ({ ...prev, password: 'Password is required' }));
       return;
     } 
     
-    // For the login page, we'll relax the password validation to allow any password
-    // since this is just for signing in, not creating a new account
-    
-    setLoading(true);
-    
     try {
+      setLoading(true);
       // Use the login function from AuthContext
       await login(email, password);
       
-      // Navigate to the dashboard on successful login
-      navigate('/dashboard');
+      // Navigate to the redirect path or dashboard on successful login
+      navigate(from, { replace: true });
     } catch (error) {
-      setErrors(prev => ({ 
-        ...prev, 
-        general: error.message || 'Failed to login. Please check your credentials.'
-      }));
-    } finally {
+      // Error handling is done by the auth context
+      console.error('Login error:', error);
       setLoading(false);
     }
-  };
-  
-  const handleForgotPassword = () => {
-    navigate('/forgot-password');
   };
   
   const togglePasswordVisibility = () => {
@@ -121,9 +114,9 @@ const LoginPage = () => {
             </div>
           )}
           
-          {errors.general && (
+          {authError && (
             <div className="mb-4 bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 p-3 rounded-md text-sm animate-shake">
-              {errors.general}
+              {authError}
             </div>
           )}
 
@@ -145,15 +138,15 @@ const LoginPage = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className={`appearance-none block w-full px-3 py-2 border ${
-                    errors.email
+                    localErrors.email
                       ? 'border-red-300 dark:border-red-700'
                       : 'border-gray-300 dark:border-gray-600'
                   } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white transition-colors duration-200`}
                   placeholder="your.email@example.com"
                 />
-                {errors.email && (
+                {localErrors.email && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400 animate-fade-in">
-                    {errors.email}
+                    {localErrors.email}
                   </p>
                 )}
               </div>
@@ -176,7 +169,7 @@ const LoginPage = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className={`appearance-none block w-full px-3 py-2 border ${
-                    errors.password
+                    localErrors.password
                       ? 'border-red-300 dark:border-red-700'
                       : 'border-gray-300 dark:border-gray-600'
                   } rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white pr-12 transition-colors duration-200`}
@@ -219,9 +212,9 @@ const LoginPage = () => {
                     </svg>
                   )}
                 </button>
-                {errors.password && (
+                {localErrors.password && (
                   <p className="mt-1 text-sm text-red-600 dark:text-red-400 animate-fade-in">
-                    {errors.password}
+                    {localErrors.password}
                   </p>
                 )}
               </div>
@@ -244,13 +237,12 @@ const LoginPage = () => {
               </div>
 
               <div className="text-sm">
-                <button
-                  type="button"
-                  onClick={handleForgotPassword}
+                <Link
+                  to="/forgot-password"
                   className="font-medium text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300"
                 >
                   Forgot your password?
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -271,18 +263,5 @@ const LoginPage = () => {
     </div>
   );
 };
-
-// Add these styles to index.css or a separate CSS file
-const additionalStyles = `
-@keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  20%, 60% { transform: translateX(-5px); }
-  40%, 80% { transform: translateX(5px); }
-}
-
-.animate-shake {
-  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
-}
-`;
 
 export default LoginPage;

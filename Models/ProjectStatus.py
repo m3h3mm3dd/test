@@ -12,5 +12,5 @@ class ProjectStatus(Base):
     Color = Column(String(50))  # For frontend color coding
     DisplayOrder = Column(Integer, default=0)  # For ordering in UI
 
-    # Relationships - removed cascade to prevent deleting projects when status changes
+    # Relationships
     Project = relationship("Project", back_populates="ProjectStatus")

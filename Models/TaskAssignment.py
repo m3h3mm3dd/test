@@ -20,7 +20,7 @@ class TaskAssignment(Base):
     User = relationship("User")
     Assigner = relationship("User", foreign_keys=[AssignedBy])
 
-    # Ensure unique user per task
+    #  unique user per task
     __table_args__ = (
         {"sqlite_autoincrement": True},
     )

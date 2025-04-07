@@ -16,7 +16,9 @@ from .Status import *
 from .SeedData import *
 from .AdminSetting import *
 from .AuditLog import *
-# Export all models
+from .TeamProject import *
+from .Expense import *
+
 __all__ = [
     'User',
     'Project',
@@ -33,5 +35,6 @@ __all__ = [
     'TaskAssignment',
     'ChatMessage',
     'AssignmentType',
-    'TeamProject'
+    'TeamProject',
+    'Expense'
 ]

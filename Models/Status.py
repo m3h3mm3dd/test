@@ -5,7 +5,7 @@ from Db.session import Base
 
 
 class Status(Base):
-    """Table for task status values"""
+
     __tablename__ = "Status"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -20,12 +20,12 @@ class Status(Base):
     IN_PROGRESS = "In Progress"
     COMPLETED = "Completed"
 
-    @classmethod
-    def get_status_color(cls, status_name):
-        """Get appropriate color for status"""
-        if status_name == cls.COMPLETED:
-            return "#22C55E"  # Green
-        elif status_name == cls.IN_PROGRESS:
-            return "#3B82F6"  # Blue
-        else:
-            return "#9CA3AF"  # Gray
+    # @classmethod
+    # def get_status_color(cls, status_name):
+    #     """Get appropriate color for status"""
+    #     if status_name == cls.COMPLETED:
+    #         return "#22C55E"  # Green
+    #     elif status_name == cls.IN_PROGRESS:
+    #         return "#3B82F6"  # Blue
+    #     else:
+    #         return "#9CA3AF"  # Gray

@@ -1,25 +1,31 @@
 import uuid
-from sqlalchemy import Boolean, Column, String, Integer, DateTime, ForeignKey, Text
-
 from datetime import datetime
+from sqlalchemy import Column, String, DateTime, Numeric, ForeignKey, Text
+from sqlalchemy.orm import relationship, validates
 from Db.session import Base
-from sqlalchemy.orm import relationship
 
-class AuditLog(Base):
-    __tablename__ = "AuditLog"
+
+class Expense(Base):
+
+    __tablename__ = "Expense"
+
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    UserId = Column(String(36), ForeignKey("User.Id"), nullable=True)
-    ActionType = Column(String(50), nullable=False)
-    EntityType = Column(String(50), nullable=False)
-    EntityId = Column(String(36))
-    ActionTime = Column(DateTime, default=datetime.utcnow)
-    IpAddress = Column(String(45))
-    UserAgent = Column(Text)
-    RequestMethod = Column(String(10))
-    RequestPath = Column(String(255))
-    ChangesMade = Column(Text)
-    StatusCode = Column(Integer)
+    TaskId = Column(String(36), ForeignKey("Task.Id", ondelete="CASCADE"), nullable=False)
+    Amount = Column(Numeric(10, 2), nullable=False)
+    Description = Column(Text)
+    ExpenseDate = Column(DateTime, nullable=False)
+    CreatedBy = Column(String(36), ForeignKey("User.Id"), nullable=False)
+    CreatedAt = Column(DateTime, default=datetime.utcnow)
 
-    IsDeleted = Column(Boolean, default=False)
+    # Relationships
+    Task = relationship("Task", back_populates="Expenses")
+    User = relationship("User", foreign_keys=[CreatedBy])
 
-    User = relationship("User", foreign_keys=[UserId])
+
+
+    # @validates('Amount')
+    # def validate_amount(self, key, amount):
+    #     """Validate expense amount is positive"""
+    #     if amount <= 0:
+    #         raise ValueError("Expense amount must be positive")
+    #     return amount

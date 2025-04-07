@@ -6,7 +6,7 @@ from Db.session import Base
 
 
 class TeamProject(Base):
-    """Association table for team to project many-to-many relationship"""
+
     __tablename__ = "TeamProject"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -18,7 +18,7 @@ class TeamProject(Base):
     Team = relationship("Team", back_populates="TeamProjects")
     Project = relationship("Project", back_populates="TeamProjects")
 
-    # Unique constraint for team-project pair
+    # Unique team-project pair
     __table_args__ = (
         {"sqlite_autoincrement": True},
     )

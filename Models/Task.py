@@ -6,17 +6,23 @@ from Db.session import Base
 
 
 class Task(Base):
-    """Task model representing a work item to be completed"""
+
     __tablename__ = "Task"
 
     Id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     ProjectId = Column(String(36), ForeignKey("Project.Id", ondelete="CASCADE"), nullable=False)
     TeamId = Column(String(36), ForeignKey("Team.Id", ondelete="CASCADE"), nullable=True)
+
+    #teama yoxsa usere
     AssignmentTypeId = Column(String(36), ForeignKey("AssignmentType.Id"), nullable=False)
+
     Title = Column(String(100), nullable=False)
     Description = Column(Text)
     IsSubtask = Column(Boolean, default=False)
+
+    #subtasklari create eleyende lazim ola biler
     ParentTaskId = Column(String(36), ForeignKey("Task.Id", ondelete="CASCADE"), nullable=True)
+
     Deadline = Column(DateTime)
     BudgetUsed = Column(Integer, default=0)
     PriorityId = Column(String(36), ForeignKey("Priority.Id"), nullable=False)
@@ -27,7 +33,7 @@ class Task(Base):
     IsDeleted = Column(Boolean, default=False)
     Completed = Column(Boolean, default=False)
 
-    # Constraints to ensure assignment integrity
+    # ensure assignment integrity
     __table_args__ = (
         CheckConstraint(
             "(TeamId IS NOT NULL AND EXISTS (SELECT 1 FROM AssignmentType WHERE Id = AssignmentTypeId AND Name = 'Team')) OR "
@@ -47,9 +53,10 @@ class Task(Base):
     Status = relationship("Status")
     AssignmentType = relationship("AssignmentType")
     Creator = relationship("User", foreign_keys=[CreatedBy], back_populates="TasksCreated")
+    Expenses = relationship("Expense", back_populates="Task", cascade="all, delete-orphan")
 
-    @validates('AssignmentTypeId', 'TeamId')
-    def validate_assignment(self, key, value):
-        """Ensure task assignment is valid based on type"""
-        # Validation logic will now rely on the database constraint
-        return value
+    # @validates('AssignmentTypeId', 'TeamId')
+    # def validate_assignment(self, key, value):
+    #     """Ensure task assignment is valid based on type"""
+    #     # Validation logic will now rely on the database constraint
+    #     return value

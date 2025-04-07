@@ -20,28 +20,31 @@ class Comment(Base):
     Task = relationship("Task", back_populates="Comments")
     User = relationship("User", back_populates="Comments")
 
-    @property
-    def TimeElapsed(self):
-        """Get human-readable elapsed time since comment was created"""
-        now = datetime.utcnow()
-        delta = now - self.CreatedAt
 
-        if delta.days > 0:
-            if delta.days == 1:
-                return "1 day ago"
-            else:
-                return f"{delta.days} days ago"
-        elif delta.seconds >= 3600:
-            hours = delta.seconds // 3600
-            if hours == 1:
-                return "1 hour ago"
-            else:
-                return f"{hours} hours ago"
-        elif delta.seconds >= 60:
-            minutes = delta.seconds // 60
-            if minutes == 1:
-                return "1 minute ago"
-            else:
-                return f"{minutes} minutes ago"
-        else:
-            return "Just now"
+    #lazim olsa uncomment edin
+
+    # @property
+    # def TimeElapsed(self):
+    #     """Get human-readable elapsed time since comment was created"""
+    #     now = datetime.utcnow()
+    #     delta = now - self.CreatedAt
+    #
+    #     if delta.days > 0:
+    #         if delta.days == 1:
+    #             return "1 day ago"
+    #         else:
+    #             return f"{delta.days} days ago"
+    #     elif delta.seconds >= 3600:
+    #         hours = delta.seconds // 3600
+    #         if hours == 1:
+    #             return "1 hour ago"
+    #         else:
+    #             return f"{hours} hours ago"
+    #     elif delta.seconds >= 60:
+    #         minutes = delta.seconds // 60
+    #         if minutes == 1:
+    #             return "1 minute ago"
+    #         else:
+    #             return f"{minutes} minutes ago"
+    #     else:
+    #         return "Just now"
