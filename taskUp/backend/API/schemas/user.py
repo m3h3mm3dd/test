@@ -35,7 +35,7 @@ class UserUpdate(BaseModel):
 # User password change
 class UserPasswordChange(BaseModel):
     CurrentPassword: str
-    NewPassword: constr(min_length=8)
+    NewPassword: constr(min_length=8) # type: ignore
     
     @validator('NewPassword')
     def password_complexity(cls, v):
@@ -71,7 +71,7 @@ class UserResponse(BaseModel):
     CreatedAt: datetime
     
     class Config:
-        orm_mode = True
+      from_attributes = True
 
 # User list response
 class UserListResponse(BaseModel):

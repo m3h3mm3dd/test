@@ -38,4 +38,4 @@ class ProjectStakeholderResponse(ProjectStakeholderBase):
     UserName: str  # Derived from the User relationship
     
     class Config:
-        orm_mode = True
+      from_attributes = True

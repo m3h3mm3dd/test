@@ -64,8 +64,7 @@ class TaskResponse(TaskBase):
     Priority: Dict[str, Any]  # Include priority data
     
     class Config:
-        orm_mode = True
-
+     from_attributes = True
 # Task detail response
 class TaskDetailResponse(TaskResponse):
     Project: Dict[str, Any]
@@ -76,7 +75,7 @@ class TaskDetailResponse(TaskResponse):
     Subtasks: List[Dict[str, Any]]
     
     class Config:
-        orm_mode = True
+     from_attributes = True
 
 # Task list response
 class TaskListResponse(BaseModel):

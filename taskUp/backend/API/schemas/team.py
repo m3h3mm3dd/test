@@ -28,8 +28,8 @@ class TeamResponse(TeamBase):
     MemberCount: int
     
     class Config:
-        orm_mode = True
-
+     from_attributes = True 
+ 
 # Team detail response
 class TeamDetailResponse(TeamResponse):
     Members: List[Dict[str, Any]]
@@ -38,7 +38,7 @@ class TeamDetailResponse(TeamResponse):
     LeadMember: Optional[Dict[str, Any]]
     
     class Config:
-        orm_mode = True
+     from_attributes = True
 
 # Team list response
 class TeamListResponse(BaseModel):

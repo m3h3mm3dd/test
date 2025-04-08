@@ -5,7 +5,7 @@ from decimal import Decimal
 
 # Base project schema
 class ProjectBase(BaseModel):
-    Name: constr(min_length=1, max_length=100)
+    Name: constr(min_length=1, max_length=100) # type: ignore
     Description: Optional[str] = None
     TotalBudget: Optional[Decimal] = 0.0
     
@@ -21,7 +21,7 @@ class ProjectCreate(ProjectBase):
 
 # Update project
 class ProjectUpdate(BaseModel):
-    Name: Optional[constr(min_length=1, max_length=100)] = None
+    Name: Optional[constr(min_length=1, max_length=100)] = None # type: ignore
     Description: Optional[str] = None
     TotalBudget: Optional[Decimal] = None
     Status: Optional[str] = None
@@ -43,7 +43,7 @@ class ProjectResponse(ProjectBase):
     CreatedBy: str
     
     class Config:
-        orm_mode = True
+     from_attributes = True
 
 # Project detail response
 class ProjectDetailResponse(ProjectResponse):
@@ -52,7 +52,7 @@ class ProjectDetailResponse(ProjectResponse):
     CompletedTaskCount: int
     
     class Config:
-        orm_mode = True
+     from_attributes = True
 
 # Project list response
 class ProjectListResponse(BaseModel):

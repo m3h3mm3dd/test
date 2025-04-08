@@ -17,4 +17,4 @@ class AttachmentResponse(BaseModel):
     HumanReadableSize: str  # Derived property
     
     class Config:
-        orm_mode = True
+      from_attributes = True

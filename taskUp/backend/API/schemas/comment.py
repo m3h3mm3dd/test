@@ -25,4 +25,4 @@ class CommentResponse(CommentBase):
     TimeElapsed: str  # Human-readable time since creation
     
     class Config:
-        orm_mode = True
+     from_attributes = True
