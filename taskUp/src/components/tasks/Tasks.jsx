@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, CheckCircle, Circle, Calendar, Clock, ChevronDown, Filter as FilterIcon } from 'lucide-react';
+import { api } from '../../services/api';
 import AddTaskModal from './AddTaskModal';
 
 const TaskItem = ({ task, index, toggleTask, onTaskClick }) => {
@@ -124,140 +125,87 @@ const TaskGroup = ({ date, tasks, toggleTask, onTaskClick }) => {
 
 const Tasks = () => {
   const navigate = useNavigate();
-  const [tasks, setTasks] = useState([
-    { 
-      id: '1', 
-      title: 'Design homepage mockup', 
-      project: 'Website Redesign', 
-      deadline: '2025-04-10', 
-      completed: false, 
-      status: 'In Progress', 
-      priority: 'High',
-      assignedTo: 'John Doe'
-    },
-    { 
-      id: '2', 
-      title: 'Implement authentication', 
-      project: 'Mobile App Development', 
-      deadline: '2025-04-12', 
-      completed: false, 
-      status: 'Not Started', 
-      priority: 'Medium',
-      assignedTo: 'Design Team'
-    },
-    { 
-      id: '3', 
-      title: 'Create content for social media', 
-      project: 'Marketing Campaign', 
-      deadline: '2025-04-08', 
-      completed: true, 
-      status: 'Completed', 
-      priority: 'High',
-      assignedTo: 'Marketing Team'
-    },
-    { 
-      id: '4', 
-      title: 'Optimize database queries', 
-      project: 'Mobile App Development', 
-      deadline: '2025-04-15', 
-      completed: false, 
-      status: 'In Progress', 
-      priority: 'Low',
-      assignedTo: 'Develop Team'
-    },
-    { 
-      id: '5', 
-      title: 'Fix navigation menu', 
-      project: 'Website Redesign', 
-      deadline: '2025-04-11', 
-      completed: false, 
-      status: 'Not Started', 
-      priority: 'Medium',
-      assignedTo: 'Sarah Miller'
-    },
-    { 
-      id: '6', 
-      title: 'Design email templates', 
-      project: 'Marketing Campaign', 
-      deadline: '2025-04-09', 
-      completed: false, 
-      status: 'In Progress', 
-      priority: 'Medium',
-      assignedTo: 'Marketing Team'
-    },
-    { 
-      id: '7', 
-      title: 'Update privacy policy', 
-      project: 'Website Redesign', 
-      deadline: '2025-04-20', 
-      completed: false, 
-      status: 'Not Started', 
-      priority: 'Low' 
-    },
-    { 
-      id: '8', 
-      title: 'Prepare Q2 marketing report', 
-      project: 'Marketing Campaign', 
-      deadline: '2025-04-30', 
-      completed: false, 
-      status: 'Not Started', 
-      priority: 'High' 
-    }
-  ]);
-
+  const [tasks, setTasks] = useState([]);
   const [filter, setFilter] = useState('all'); // all, today, upcoming, completed
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedProject, setSelectedProject] = useState('all');
   const [selectedPriority, setSelectedPriority] = useState('all');
   const [showAddTaskModal, setShowAddTaskModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedTask, setSelectedTask] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
+  const [teams, setTeams] = useState([]);
+  const [users, setUsers] = useState([]);
 
-  // Mock projects and teams for filters
-  const [projects, setProjects] = useState([
-    { id: '1', name: 'Website Redesign' },
-    { id: '2', name: 'Mobile App Development' },
-    { id: '3', name: 'Marketing Campaign' }
-  ]);
+  // Fetch tasks data
+  useEffect(() => {
+    const fetchTasksData = async () => {
+      try {
+        setIsLoading(true);
+        const tasksData = await api.getTasks();
+        setTasks(tasksData);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
 
-  const [teams, setTeams] = useState([
-    { id: '1', name: 'Design Team', color: 'blue' },
-    { id: '2', name: 'Develop Team', color: 'purple' },
-    { id: '3', name: 'Marketing Team', color: 'green' }
-  ]);
+    fetchTasksData();
+  }, []);
 
-  const [users, setUsers] = useState([
-    { id: '1', name: 'John Doe' },
-    { id: '2', name: 'Sarah Miller' },
-    { id: '3', name: 'Michael Chen' }
-  ]);
+  // Fetch projects, teams, and users for filters and task creation
+  useEffect(() => {
+    const fetchFilterData = async () => {
+      try {
+        const [projectsData, teamsData, usersData] = await Promise.all([
+          api.getProjects(),
+          api.getTeams(),
+          api.getUsers()
+        ]);
+        
+        setProjects(projectsData);
+        setTeams(teamsData);
+        setUsers(usersData);
+      } catch (error) {
+        console.error('Error fetching filter data:', error);
+      }
+    };
+
+    fetchFilterData();
+  }, []);
   
-  const toggleTask = (id) => {
-    setTasks(tasks.map(task => 
-      task.id === id ? { 
-        ...task, 
+  const toggleTask = async (id) => {
+    try {
+      const task = tasks.find(t => t.id === id);
+      const updatedTask = {
+        ...task,
         completed: !task.completed,
-        status: !task.completed ? 'Completed' : 'In Progress' 
-      } : task
-    ));
+        status: !task.completed ? 'Completed' : 'In Progress'
+      };
+      
+      await api.updateTask(id, updatedTask);
+      
+      setTasks(tasks.map(task => 
+        task.id === id ? updatedTask : task
+      ));
+    } catch (error) {
+      console.error('Error toggling task:', error);
+    }
   };
   
   const handleTaskClick = (task) => {
     navigate(`/tasks/${task.id}`, { state: { task } });
   };
 
-  const addTask = (newTask) => {
-    const taskId = `task-${Date.now()}`;
-    setTasks([
-      ...tasks,
-      {
-        id: taskId,
-        ...newTask,
-        completed: false,
-        status: 'Not Started'
-      }
-    ]);
-    setShowAddTaskModal(false);
+  const addTask = async (newTask) => {
+    try {
+      const createdTask = await api.createTask(newTask);
+      setTasks([...tasks, createdTask]);
+      setShowAddTaskModal(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+    }
   };
   
   const getTodayDate = () => {
@@ -456,7 +404,22 @@ const Tasks = () => {
       
       {/* Task List */}
       <div className="bg-gray-50 dark:bg-gray-900 rounded-xl p-6">
-        {groupedTasks.length > 0 ? (
+        {isLoading ? (
+          <div className="animate-pulse space-y-6">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-3">
+                <div className="flex items-center mb-3">
+                  <div className="h-5 bg-gray-200 dark:bg-gray-700 rounded w-1/4"></div>
+                  <div className="flex-1 h-px bg-gray-200 dark:bg-gray-700 ml-2"></div>
+                  <div className="ml-2 h-5 bg-gray-200 dark:bg-gray-700 rounded w-16"></div>
+                </div>
+                {[...Array(3)].map((_, j) => (
+                  <div key={j} className="h-16 bg-gray-200 dark:bg-gray-700 rounded-lg"></div>
+                ))}
+              </div>
+            ))}
+          </div>
+        ) : groupedTasks.length > 0 ? (
           groupedTasks.map((group, index) => (
             <TaskGroup 
               key={group.date} 

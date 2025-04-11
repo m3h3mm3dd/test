@@ -1,6 +1,6 @@
-import React from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from './context/AuthContext';
+import React, { useEffect } from 'react';
+import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { useAuth } from './context/AuthContext';
 import { useTheme } from './context/ThemeContext';
 
 // Layout
@@ -18,13 +18,13 @@ import UserProfile from './components/user/UserProfile';
 import ChatPanel from './components/chat/ChatPanel';
 import Settings from './components/settings/Settings';
 import Analytics from './components/analytics/Analytics';
+import ForgotPassword from './components/auth/ForgotPassword';
 import Notifications from './components/notifications/Notifications';
 
 // Auth pages
 import LandingPage from './components/auth/LandingPage';
 import LoginPage from './components/auth/LoginPage';
 import SignupPage from './components/auth/SignupPage';
-import ForgotPassword from './components/auth/ForgotPassword';
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -57,8 +57,27 @@ const PublicOnlyRoute = ({ children }) => {
   return children;
 };
 
-const AppRoutes = () => {
+const App = () => {
   const { darkMode } = useTheme();
+  const location = useLocation();
+
+  // Add auth-body class to body for authentication pages
+  useEffect(() => {
+    const isAuthPage = 
+      location.pathname === '/login' || 
+      location.pathname === '/signup' || 
+      location.pathname === '/forgot-password';
+    
+    if (isAuthPage) {
+      document.body.classList.add('auth-body');
+    } else {
+      document.body.classList.remove('auth-body');
+    }
+    
+    return () => {
+      document.body.classList.remove('auth-body');
+    };
+  }, [location]);
 
   return (
     <div className={`${darkMode ? 'dark' : ''}`}>
@@ -85,7 +104,7 @@ const AppRoutes = () => {
           <Route path="analytics" element={<Analytics />} />
           <Route path="settings" element={<Settings />} />
           <Route path="profile" element={<UserProfile />} />
-          <Route path="chat/:projectId" element={<ChatPanel />} />
+          <Route path="chat/:projectId" element={<ChatPanel projectName="Website Redesign" />} />
           <Route path="notifications" element={<Notifications />} />
         </Route>
 
@@ -93,14 +112,6 @@ const AppRoutes = () => {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
-  );
-};
-
-const App = () => {
-  return (
-    <AuthProvider>
-      <AppRoutes />
-    </AuthProvider>
   );
 };
 

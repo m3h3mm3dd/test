@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Search, Filter as FilterIcon, MoreHorizontal, Briefcase } from 'lucide-react';
+import { api } from '../../services/api';
 import ProjectCard from './ProjectCard';
 
 const CreateProjectModal = ({ isOpen, onClose, onCreateProject }) => {
@@ -13,7 +14,6 @@ const CreateProjectModal = ({ isOpen, onClose, onCreateProject }) => {
     if (!projectName || !description || !deadline) return;
 
     const newProject = {
-      id: `new-${Date.now()}`,
       name: projectName,
       description,
       deadline,
@@ -161,73 +161,21 @@ const Projects = () => {
   
   const navigate = useNavigate();
 
-  // Load projects data
+  // Load projects data from API
   useEffect(() => {
-    setTimeout(() => {
-      setProjects([
-        {
-          id: '1',
-          name: 'Website Redesign',
-          description: 'Completely revamp the company website with modern design principles and improved UX.',
-          progress: 65,
-          deadline: '2025-05-15',
-          status: 'In Progress',
-          teams: 2,
-          tasks: 12
-        },
-        {
-          id: '2',
-          name: 'Mobile App Development',
-          description: 'Create native iOS and Android applications with core functionality from our web platform.',
-          progress: 30,
-          deadline: '2025-06-30',
-          status: 'In Progress',
-          teams: 3,
-          tasks: 24
-        },
-        {
-          id: '3',
-          name: 'Marketing Campaign',
-          description: 'Launch Q2 marketing campaign across digital and traditional channels to increase brand awareness.',
-          progress: 85,
-          deadline: '2025-04-20',
-          status: 'In Progress',
-          teams: 1,
-          tasks: 8
-        },
-        {
-          id: '4',
-          name: 'Product Launch',
-          description: 'Coordinate the launch of our new flagship product including PR, marketing, and sales training.',
-          progress: 40,
-          deadline: '2025-07-10',
-          status: 'Not Started',
-          teams: 4,
-          tasks: 16
-        },
-        {
-          id: '5',
-          name: 'Office Relocation',
-          description: 'Plan and execute the move to our new headquarters with minimal disruption to operations.',
-          progress: 100,
-          deadline: '2025-03-01',
-          status: 'Completed',
-          teams: 2,
-          tasks: 20
-        },
-        {
-          id: '6',
-          name: 'Sales Training Program',
-          description: 'Develop and implement a comprehensive training program for the sales team on new products.',
-          progress: 55,
-          deadline: '2025-05-20',
-          status: 'In Progress',
-          teams: 2,
-          tasks: 15
-        }
-      ]);
-      setIsLoading(false);
-    }, 1000);
+    const fetchProjects = async () => {
+      try {
+        setIsLoading(true);
+        const data = await api.getProjects();
+        setProjects(data);
+      } catch (error) {
+        console.error('Error fetching projects:', error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjects();
   }, []);
   
   const tabs = [
@@ -288,8 +236,14 @@ const Projects = () => {
     setShowMenu(true);
   };
 
-  const handleCreateProject = (newProject) => {
-    setProjects([...projects, newProject]);
+  const handleCreateProject = async (newProject) => {
+    try {
+      const createdProject = await api.createProject(newProject);
+      setProjects([...projects, createdProject]);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      // Handle error - maybe show notification to user
+    }
   };
 
   const handleEditProject = (project) => {
@@ -301,10 +255,16 @@ const Projects = () => {
     setShowDeleteConfirm(true);
   };
 
-  const confirmDeleteProject = () => {
-    setProjects(projects.filter(p => p.id !== selectedProject.id));
-    setShowDeleteConfirm(false);
-    setSelectedProject(null);
+  const confirmDeleteProject = async () => {
+    try {
+      await api.deleteProject(selectedProject.id);
+      setProjects(projects.filter(p => p.id !== selectedProject.id));
+      setShowDeleteConfirm(false);
+      setSelectedProject(null);
+    } catch (error) {
+      console.error('Error deleting project:', error);
+      // Handle error - maybe show notification to user
+    }
   };
 
   return (

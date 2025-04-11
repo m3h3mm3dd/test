@@ -7,7 +7,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # Database URL - default to SQLite
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    f"sqlite:///{BASE_DIR}/taskup.db"
+    f"sqlite:///{BASE_DIR}/taskup.db?check_same_thread=False"
 )
 
 # JWT Authentication settings

@@ -6,6 +6,10 @@ from sqlalchemy.orm import Session
 
 from Db.config import ALLOWED_ORIGINS, API_V1_PREFIX
 from Db.session import get_db
+from Db.session import engine, Base
+import API.Models
+Base.metadata.create_all(bind=engine)
+
 from API.utils.config import APP_NAME, APP_DESCRIPTION, API_VERSION
 from API.utils.exceptions import BaseAppException
 

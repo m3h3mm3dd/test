@@ -15,11 +15,22 @@ router = APIRouter(
     responses={404: {"description": "Not found"}},
 )
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 def register(user: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    db_user = create_user(db, user)
-    return db_user
+    try:
+        db_user = create_user(db, user)
+        return db_user
+    except HTTPException as e:
+        # Re-raise HTTP exceptions
+        raise e
+    except Exception as e:
+        # Log and wrap other exceptions
+        print(f"Unexpected error during registration: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An unexpected error occurred during registration"
+        )
 
 @router.post("/token", response_model=Token)
 def login_for_access_token(login_data: LoginRequest, db: Session = Depends(get_db)):

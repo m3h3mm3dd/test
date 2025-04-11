@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../context/ThemeContext';
+import { api } from '../services/api';
 import AddTaskModal from './tasks/AddTaskModal';
 
 const Dashboard = () => {
@@ -18,30 +19,27 @@ const Dashboard = () => {
   const [showNotifications, setShowNotifications] = useState(false);
 
   useEffect(() => {
-    // Simulate data loading
-    setTimeout(() => {
-      setProjects([
-        { id: '1', name: 'Website Redesign', progress: 65, deadline: '2025-05-15', status: 'In Progress', teams: 2, tasks: 12 },
-        { id: '2', name: 'Mobile App Development', progress: 30, deadline: '2025-06-30', status: 'In Progress', teams: 3, tasks: 24 },
-        { id: '3', name: 'Marketing Campaign', progress: 85, deadline: '2025-04-20', status: 'In Progress', teams: 1, tasks: 8 }
-      ]);
-      
-      setTasks([
-        { id: '1', title: 'Design homepage mockup', project: 'Website Redesign', deadline: '2025-04-10', status: 'In Progress', priority: 'High' },
-        { id: '2', title: 'Implement authentication', project: 'Mobile App Development', deadline: '2025-04-12', status: 'Not Started', priority: 'Medium' },
-        { id: '3', title: 'Create content for social media', project: 'Marketing Campaign', deadline: '2025-04-08', status: 'Completed', priority: 'High' },
-        { id: '4', title: 'Optimize database queries', project: 'Mobile App Development', deadline: '2025-04-15', status: 'In Progress', priority: 'Low' },
-        { id: '5', title: 'Fix navigation menu', project: 'Website Redesign', deadline: '2025-04-11', status: 'Not Started', priority: 'Medium' }
-      ]);
-      
-      setNotifications([
-        { id: '1', message: 'John Doe assigned you a new task', time: '5 mins ago', read: false },
-        { id: '2', message: 'New comment on "Design homepage mockup"', time: '1 hour ago', read: false },
-        { id: '3', message: 'Your task "Setup developer environment" was approved', time: '3 hours ago', read: true }
-      ]);
-      
-      setIsLoading(false);
-    }, 1000);
+    // Fetch dashboard data using API service
+    const fetchDashboardData = async () => {
+      try {
+        // Use Promise.all to fetch data in parallel
+        const [projectsData, tasksData, notificationsData] = await Promise.all([
+          api.getProjects(),
+          api.getTasks({ limit: 5 }), // Get only recent tasks for dashboard
+          api.getNotifications({ limit: 3 }) // Get only recent notifications
+        ]);
+        
+        setProjects(projectsData);
+        setTasks(tasksData);
+        setNotifications(notificationsData);
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+        setIsLoading(false);
+      }
+    };
+
+    fetchDashboardData();
   }, []);
 
   // Filter tasks based on search term and priority
@@ -109,15 +107,26 @@ const Dashboard = () => {
     return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
   };
 
-  const markNotificationAsRead = (id) => {
-    setNotifications(notifications.map(notification => 
-      notification.id === id ? { ...notification, read: true } : notification
-    ));
+  const markNotificationAsRead = async (id) => {
+    try {
+      await api.markNotificationAsRead(id);
+      setNotifications(notifications.map(notification => 
+        notification.id === id ? { ...notification, read: true } : notification
+      ));
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+    }
   };
 
-  const handleAddTask = (newTask) => {
-    setTasks(prevTasks => [...prevTasks, {...newTask, id: `${prevTasks.length + 1}`}]);
-    setShowAddTaskModal(false);
+  const handleAddTask = async (newTask) => {
+    try {
+      const createdTask = await api.createTask(newTask);
+      setTasks(prevTasks => [createdTask, ...prevTasks]);
+      setShowAddTaskModal(false);
+    } catch (error) {
+      console.error('Error creating task:', error);
+      // Handle error - maybe show notification to user
+    }
   };
 
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
@@ -344,7 +353,14 @@ const Dashboard = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-semibold">Notifications</h2>
                 <button 
-                  onClick={() => setNotifications(notifications.map(n => ({...n, read: true})))}
+                  onClick={async () => {
+                    try {
+                      await api.markAllNotificationsAsRead();
+                      setNotifications(notifications.map(n => ({...n, read: true})));
+                    } catch (error) {
+                      console.error('Error marking all notifications as read:', error);
+                    }
+                  }}
                   className="text-blue-600 dark:text-blue-400 text-sm font-medium"
                 >
                   Mark all as read

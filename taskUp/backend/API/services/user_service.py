@@ -34,21 +34,29 @@ def create_user(db: Session, user: UserCreate) -> User:
         )
     
     # Create new user with hashed password
-    new_user = User(
-        Id=str(uuid.uuid4()),
-        Email=user.Email,
-        FirstName=user.FirstName,
-        LastName=user.LastName,
-        JobTitle=user.JobTitle,
-        PasswordHash=get_password_hash(user.Password),
-        Role="User"  # Default role
-    )
-    
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
-    
-    return new_user
+    try:
+        new_user = User(
+            Id=str(uuid.uuid4()),
+            Email=user.Email,
+            FirstName=user.FirstName,
+            LastName=user.LastName,
+            JobTitle=user.JobTitle,
+            PasswordHash=get_password_hash(user.Password),
+            Role="User"  # Default role
+        )
+        
+        db.add(new_user)
+        db.commit()
+        db.refresh(new_user)
+        
+        return new_user
+    except Exception as e:
+        db.rollback()
+        print(f"Error creating user: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error creating user: {str(e)}"
+        )
 
 def update_user(db: Session, user_id: str, user_update: UserUpdate) -> Optional[User]:
     """Update user details"""

@@ -27,4 +27,4 @@ class TeamMemberResponse(TeamMemberBase):
     UserName: str  # Derived from the User relationship
     
     class Config:
-        from_attributes = True  # Updated from orm_mode=True in Pydantic v2
+        from_attributes = True 

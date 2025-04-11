@@ -130,20 +130,35 @@ export const deleteProject = async (id) => {
 
 // ===== TASK SERVICES =====
 
-export const getTasks = async (projectId = null) => {
+export const getTasks = async (options = {}) => {
   if (USE_MOCK_DATA) {
     await delay(700);
     
     let tasks = [...mockData.tasks];
     
     // Filter by project if specified
-    if (projectId) {
-      tasks = tasks.filter(task => task.projectId === projectId);
+    if (options.projectId) {
+      tasks = tasks.filter(task => task.projectId === options.projectId);
+    }
+    
+    // Handle limit if specified
+    if (options.limit && options.limit > 0) {
+      tasks = tasks.slice(0, options.limit);
     }
     
     return tasks;
   } else {
-    const url = projectId ? `/api/projects/${projectId}/tasks` : '/api/tasks';
+    let url = '/api/tasks';
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (options.projectId) params.append('projectId', options.projectId);
+    if (options.limit) params.append('limit', options.limit);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    
     const response = await fetch(url);
     return response.json();
   }
@@ -315,6 +330,142 @@ export const createTeam = async (teamData) => {
   }
 };
 
+export const updateTeam = async (id, updates) => {
+  if (USE_MOCK_DATA) {
+    await delay(600);
+    
+    const teamIndex = mockData.teams.findIndex(t => t.id === id);
+    if (teamIndex === -1) {
+      throw new Error('Team not found');
+    }
+    
+    // Return updated team
+    return {
+      ...mockData.teams[teamIndex],
+      ...updates,
+      id
+    };
+  } else {
+    const response = await fetch(`/api/teams/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(updates)
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to update team');
+    }
+    
+    return response.json();
+  }
+};
+
+export const deleteTeam = async (id) => {
+  if (USE_MOCK_DATA) {
+    await delay(500);
+    
+    const teamIndex = mockData.teams.findIndex(t => t.id === id);
+    if (teamIndex === -1) {
+      throw new Error('Team not found');
+    }
+    
+    // In a real app, we would update our mockData
+    return { success: true };
+  } else {
+    const response = await fetch(`/api/teams/${id}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to delete team');
+    }
+    
+    return response.json();
+  }
+};
+
+export const addTeamMembers = async (teamId, newMembers) => {
+  if (USE_MOCK_DATA) {
+    await delay(600);
+    
+    const teamIndex = mockData.teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) {
+      throw new Error('Team not found');
+    }
+    
+    // In a real app, we would update our mockData
+    return { success: true, addedMembers: newMembers };
+  } else {
+    const response = await fetch(`/api/teams/${teamId}/members`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ members: newMembers })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to add team members');
+    }
+    
+    return response.json();
+  }
+};
+
+export const removeTeamMember = async (teamId, memberId) => {
+  if (USE_MOCK_DATA) {
+    await delay(500);
+    
+    const teamIndex = mockData.teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) {
+      throw new Error('Team not found');
+    }
+    
+    // In a real app, we would update our mockData
+    return { success: true };
+  } else {
+    const response = await fetch(`/api/teams/${teamId}/members/${memberId}`, {
+      method: 'DELETE'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to remove team member');
+    }
+    
+    return response.json();
+  }
+};
+
+export const updateTeamLeader = async (teamId, leaderId) => {
+  if (USE_MOCK_DATA) {
+    await delay(500);
+    
+    const teamIndex = mockData.teams.findIndex(t => t.id === teamId);
+    if (teamIndex === -1) {
+      throw new Error('Team not found');
+    }
+    
+    // In a real app, we would update our mockData
+    return { success: true };
+  } else {
+    const response = await fetch(`/api/teams/${teamId}/leader`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ leaderId })
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to update team leader');
+    }
+    
+    return response.json();
+  }
+};
+
 // ===== USER SERVICES =====
 
 export const getUsers = async () => {
@@ -353,12 +504,30 @@ export const getCurrentUser = async () => {
 
 // ===== NOTIFICATION SERVICES =====
 
-export const getNotifications = async () => {
+export const getNotifications = async (options = {}) => {
   if (USE_MOCK_DATA) {
     await delay(600);
-    return [...mockData.notifications];
+    
+    let notifications = [...mockData.notifications];
+    
+    // Handle limit if specified
+    if (options.limit && options.limit > 0) {
+      notifications = notifications.slice(0, options.limit);
+    }
+    
+    return notifications;
   } else {
-    const response = await fetch('/api/notifications');
+    let url = '/api/notifications';
+    
+    // Build query parameters
+    const params = new URLSearchParams();
+    if (options.limit) params.append('limit', options.limit);
+    
+    if (params.toString()) {
+      url += `?${params.toString()}`;
+    }
+    
+    const response = await fetch(url);
     return response.json();
   }
 };
@@ -381,6 +550,25 @@ export const markNotificationAsRead = async (id) => {
     
     if (!response.ok) {
       throw new Error('Failed to mark notification as read');
+    }
+    
+    return response.json();
+  }
+};
+
+export const markAllNotificationsAsRead = async () => {
+  if (USE_MOCK_DATA) {
+    await delay(400);
+    
+    // In a real app, we would update our mockData
+    return { success: true };
+  } else {
+    const response = await fetch('/api/notifications/read-all', {
+      method: 'POST'
+    });
+    
+    if (!response.ok) {
+      throw new Error('Failed to mark all notifications as read');
     }
     
     return response.json();
@@ -438,8 +626,8 @@ export const sendChatMessage = async (projectId, message) => {
   }
 };
 
-// Exporting all services as a default object
-export default {
+// Exporting all services as an object with api namespace
+export const api = {
   getProjects,
   getProject,
   createProject,
@@ -455,15 +643,24 @@ export default {
   getTeams,
   getTeam,
   createTeam,
+  updateTeam,
+  deleteTeam,
+  addTeamMembers,
+  removeTeamMember,
+  updateTeamLeader,
   
   getUsers,
   getCurrentUser,
   
   getNotifications,
   markNotificationAsRead,
+  markAllNotificationsAsRead,
   
   getAnalyticsData,
   
   getChatMessages,
   sendChatMessage
 };
+
+// Export the api object as default export
+export default api;
