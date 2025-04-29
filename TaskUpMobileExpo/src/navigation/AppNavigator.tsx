@@ -1,5 +1,5 @@
 import React from 'react'
-import { StyleSheet } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
@@ -13,6 +13,7 @@ import SettingsScreen from '../screens/SettingsScreen'
 import Screens from '../constants/Screens'
 import Colors from '../theme/Colors'
 import Metrics from '../theme/Metrics'
+import { Feather } from '@expo/vector-icons';
 
 const Stack = createNativeStackNavigator()
 const Tab = createBottomTabNavigator()
@@ -35,7 +36,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => (
-            <TabIcon name="home" color={color} />
+            <Feather name="home" size={24} color={color} />
           )
         }}
       />
@@ -45,7 +46,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Projects',
           tabBarIcon: ({ color }) => (
-            <TabIcon name="folder" color={color} />
+            <Feather name="folder" size={24} color={color} />
           )
         }}
       />
@@ -55,7 +56,7 @@ const MainTabs = () => {
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color }) => (
-            <TabIcon name="user" color={color} />
+            <Feather name="user" size={24} color={color} />
           )
         }}
       />
@@ -63,22 +64,11 @@ const MainTabs = () => {
   )
 }
 
-// Simple placeholder for icons - would be replaced with actual icons in real implementation
-const TabIcon = ({ name, color }) => {
-  return (
-    <Animated.View
-      style={[styles.iconContainer, { backgroundColor: color }]}
-      entering={FadeIn}
-      exiting={FadeOut}
-    />
-  )
-}
-
 const AppNavigator = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
-        initialRouteName={Screens.HOME}
+        initialRouteName="MainTabs"
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.background.light },
@@ -104,11 +94,6 @@ const styles = StyleSheet.create({
   tabBarLabel: {
     fontSize: 12,
     fontWeight: '500'
-  },
-  iconContainer: {
-    width: 24,
-    height: 24,
-    borderRadius: 4
   }
 })
 
