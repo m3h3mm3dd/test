@@ -1,6 +1,6 @@
 {
   "name": "taskupmobileexpo",
-  "main": "expo-router/entry",
+  "main": "./src/App.tsx",
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
