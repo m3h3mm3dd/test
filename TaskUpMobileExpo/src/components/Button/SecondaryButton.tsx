@@ -1,11 +1,12 @@
 import React from 'react'
-import { StyleSheet, Text, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { StyleSheet, Text, TouchableOpacity, ActivityIndicator, Platform } from 'react-native'
 import * as Haptics from 'expo-haptics'
 import Animated, { useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated'
 import { ButtonProps } from '../../types/UITypes'
 import Colors from '../../theme/Colors'
 import Typography from '../../theme/Typography'
 import Metrics from '../../theme/Metrics'
+import { triggerImpact } from '../../utils/HapticUtils'
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity)
 
@@ -22,7 +23,7 @@ const SecondaryButton = ({
   const scale = useSharedValue(1)
 
   const handlePress = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     onPress()
   }
 

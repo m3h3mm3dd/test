@@ -9,6 +9,7 @@ import Spacing from '../theme/Spacing'
 import ListItem from '../components/ListItem/ListItem'
 import PrimaryButton from '../components/Button/PrimaryButton'
 import SkeletonLoader from '../components/Skeleton/SkeletonLoader'
+import { triggerImpact } from '../utils/HapticUtils'
 
 const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView)
 
@@ -31,12 +32,12 @@ const HomeScreen = ({ navigation }) => {
   }, [])
 
   const handleTaskPress = (taskId) => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
     navigation.navigate('TaskScreen', { taskId })
   }
 
   const handleAddTask = () => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
     navigation.navigate('TaskScreen', { isNew: true })
   }
 
@@ -63,10 +64,10 @@ const HomeScreen = ({ navigation }) => {
   )
 
   return (
-    <AnimatedSafeAreaView style={styles.container} entering={FadeInUp}>
+    <AnimatedSafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
       
-      <Animated.View style={styles.header} entering={FadeInDown}>
+      <Animated.View style={styles.header}>
         <Text style={styles.title}>TaskUp</Text>
         <Text style={styles.subtitle}>Your daily tasks</Text>
       </Animated.View>
@@ -85,7 +86,7 @@ const HomeScreen = ({ navigation }) => {
         )}
       </View>
 
-      <Animated.View style={styles.footer} entering={FadeInUp.delay(300)}>
+      <Animated.View style={styles.footer}>
         <PrimaryButton
           title="Add New Task"
           onPress={handleAddTask}

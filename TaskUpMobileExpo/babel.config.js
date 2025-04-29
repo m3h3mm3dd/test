@@ -1,3 +1,4 @@
+
 module.exports = function(api) {
   api.cache(true);
   return {
@@ -7,7 +8,8 @@ module.exports = function(api) {
         root: ['./'],
         alias: {
           '@': './src',
-        }
+        },
+        extensions: ['.ios.js', '.android.js', '.js', '.ts', '.tsx', '.json']
       }],
       'react-native-reanimated/plugin',
     ],

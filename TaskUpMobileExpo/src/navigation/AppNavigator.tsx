@@ -1,22 +1,32 @@
-import React from 'react'
-import { StyleSheet, View } from 'react-native'
-import { NavigationContainer } from '@react-navigation/native'
-import { createNativeStackNavigator } from '@react-navigation/native-stack'
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs'
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated'
-
-import HomeScreen from '../screens/HomeScreen'
-import TaskScreen from '../screens/TaskScreen'
-import ProjectScreen from '../screens/ProjectScreen'
-import ProfileScreen from '../screens/ProfileScreen'
-import SettingsScreen from '../screens/SettingsScreen'
-import Screens from '../constants/Screens'
-import Colors from '../theme/Colors'
-import Metrics from '../theme/Metrics'
+// src/navigation/AppNavigator.tsx
+import React from 'react';
+import { StyleSheet, View, Text } from 'react-native';
+import { NavigationContainer } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Feather } from '@expo/vector-icons';
 
-const Stack = createNativeStackNavigator()
-const Tab = createBottomTabNavigator()
+// Import screens
+import HomeScreen from '../screens/HomeScreen';
+import TaskScreen from '../screens/TaskScreen';
+import ProjectScreen from '../screens/ProjectScreen';
+import ProfileScreen from '../screens/ProfileScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+
+// Import constants
+import Screens from '../constants/Screens';
+import Colors from '../theme/Colors';
+import Metrics from '../theme/Metrics';
+
+const Stack = createNativeStackNavigator();
+const Tab = createBottomTabNavigator();
+
+// Add a fallback component in case screens fail to load
+const FallbackScreen = () => (
+  <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+    <Text>Loading...</Text>
+  </View>
+);
 
 const MainTabs = () => {
   return (
@@ -32,7 +42,7 @@ const MainTabs = () => {
     >
       <Tab.Screen
         name={Screens.HOME}
-        component={HomeScreen}
+        component={HomeScreen || FallbackScreen}
         options={{
           tabBarLabel: 'Home',
           tabBarIcon: ({ color }) => (
@@ -42,7 +52,7 @@ const MainTabs = () => {
       />
       <Tab.Screen
         name={Screens.PROJECT}
-        component={ProjectScreen}
+        component={ProjectScreen || FallbackScreen}
         options={{
           tabBarLabel: 'Projects',
           tabBarIcon: ({ color }) => (
@@ -52,7 +62,7 @@ const MainTabs = () => {
       />
       <Tab.Screen
         name={Screens.PROFILE}
-        component={ProfileScreen}
+        component={ProfileScreen || FallbackScreen}
         options={{
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color }) => (
@@ -61,8 +71,8 @@ const MainTabs = () => {
         }}
       />
     </Tab.Navigator>
-  )
-}
+  );
+};
 
 const AppNavigator = () => {
   return (
@@ -72,16 +82,15 @@ const AppNavigator = () => {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: Colors.background.light },
-          animation: 'fade_from_bottom'
         }}
       >
         <Stack.Screen name="MainTabs" component={MainTabs} />
-        <Stack.Screen name={Screens.TASK} component={TaskScreen} />
-        <Stack.Screen name={Screens.SETTINGS} component={SettingsScreen} />
+        <Stack.Screen name={Screens.TASK} component={TaskScreen || FallbackScreen} />
+        <Stack.Screen name={Screens.SETTINGS} component={SettingsScreen || FallbackScreen} />
       </Stack.Navigator>
     </NavigationContainer>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   tabBar: {
@@ -95,6 +104,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500'
   }
-})
+});
 
-export default AppNavigator
+export default AppNavigator;
