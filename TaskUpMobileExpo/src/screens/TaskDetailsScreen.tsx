@@ -5,56 +5,40 @@ import {
   Text, 
   ScrollView, 
   TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
   TextInput,
-  ActivityIndicator,
-  FlatList
+  Dimensions,
+  StatusBar,
+  Keyboard
 } from 'react-native'
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
   withTiming,
+  withSequence,
   withSpring,
   FadeIn,
-  FadeInDown,
-  FadeInUp,
   SlideInRight,
-  SlideInLeft,
+  SlideInUp,
+  runOnJS,
   interpolate,
   Extrapolation
 } from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
 import { BlurView } from 'expo-blur'
+import * as Haptics from 'expo-haptics'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
-import Card from '../components/Card'
-import Button from '../components/Button/Button'
-import StatusPill from '../components/StatusPill'
 import Avatar from '../components/Avatar/Avatar'
-import Input from '../components/Input/Input'
 import AvatarStack from '../components/Avatar/AvatarStack'
-import SwipeableRow from '../components/SwipeableRow'
-import SkeletonLoader from '../components/SkeletonLoader'
-import FAB from '../components/FAB'
+import StatusPill from '../components/StatusPill'
 import { triggerImpact } from '../utils/HapticUtils'
+import { timeAgo, formatDateString } from '../utils/helpers'
 
+const { width, height } = Dimensions.get('window')
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
-
-interface Comment {
-  id: string
-  author: {
-    id: string
-    name: string
-    imageUrl?: string | null
-  }
-  text: string
-  timestamp: string
-}
 
 interface Subtask {
   id: string
@@ -65,842 +49,1111 @@ interface Subtask {
 interface Attachment {
   id: string
   name: string
-  type: 'image' | 'document' | 'link'
+  size: string
+  type: string
   url: string
   thumbnail?: string
-  size?: string
+  uploadedAt: string
+  uploadedBy: {
+    id: string
+    name: string
+  }
 }
 
-const TaskDetailsScreen = ({ route, navigation }) => {
+interface Comment {
+  id: string
+  text: string
+  createdAt: string
+  user: {
+    id: string
+    name: string
+    avatar?: string
+  }
+}
+
+interface TaskData {
+  id: string
+  title: string
+  description: string
+  status: 'todo' | 'in_progress' | 'completed' | 'blocked'
+  priority: 'low' | 'medium' | 'high'
+  dueDate: string
+  project: {
+    id: string
+    name: string
+    color: string
+  }
+  assignees: {
+    id: string
+    name: string
+    avatar?: string
+  }[]
+  creator: {
+    id: string
+    name: string
+    avatar?: string
+  }
+  subtasks: Subtask[]
+  attachments: Attachment[]
+  comments: Comment[]
+  createdAt: string
+  updatedAt: string
+  timeTracking?: {
+    estimated: number
+    spent: number
+  }
+  tags?: string[]
+}
+
+const TaskDetailsScreen = ({ navigation, route }) => {
   const { taskId } = route.params || {}
-  const insets = useSafeAreaInsets()
-  
-  // UI State
-  const [loading, setLoading] = useState(true)
-  const [editMode, setEditMode] = useState(false)
-  const [newComment, setNewComment] = useState('')
-  const [submittingComment, setSubmittingComment] = useState(false)
-  const [activeTab, setActiveTab] = useState<'details' | 'subtasks' | 'comments' | 'attachments'>('details')
-  
-  // Task Data
-  const [task, setTask] = useState({
-    id: '',
+  const [task, setTask] = useState<TaskData | null>(null)
+  const [activeTab, setActiveTab] = useState('info')
+  const [commentText, setCommentText] = useState('')
+  const [subtaskText, setSubtaskText] = useState('')
+  const [isEditing, setIsEditing] = useState(false)
+  const [editableFields, setEditableFields] = useState({
     title: '',
     description: '',
-    status: 'in-progress',
-    priority: 'high',
-    dueDate: '',
-    project: '',
-    assignees: [],
-    createdBy: {
-      id: '1',
-      name: 'Alex Johnson',
-      imageUrl: null
-    },
-    createdAt: ''
+    status: '',
+    priority: '',
+    dueDate: ''
   })
+  const [isStatusMenuOpen, setIsStatusMenuOpen] = useState(false)
+  const [isPriorityMenuOpen, setIsPriorityMenuOpen] = useState(false)
   
-  const [subtasks, setSubtasks] = useState<Subtask[]>([])
-  const [comments, setComments] = useState<Comment[]>([])
-  const [attachments, setAttachments] = useState<Attachment[]>([])
-  
-  // Animation values
-  const scrollY = useSharedValue(0)
-  const headerHeight = useSharedValue(250)
-  const editFormHeight = useSharedValue(0)
-  const commentInputHeight = useSharedValue(50)
-  
-  // Refs
+  const insets = useSafeAreaInsets()
   const commentInputRef = useRef<TextInput>(null)
+  
+  // Animated values
+  const scrollY = useSharedValue(0)
+  const headerHeight = useSharedValue(60 + insets.top)
+  const headerTitleOpacity = useSharedValue(0)
+  const statusMenuHeight = useSharedValue(0)
+  const priorityMenuHeight = useSharedValue(0)
+  const keyboardHeight = useSharedValue(0)
+  const commentContainerHeight = useSharedValue(56)
   
   // Load task data
   useEffect(() => {
-    // Simulating API call to fetch task data
-    const timer = setTimeout(() => {
-      setTask({
-        id: taskId || '1',
-        title: 'Design System Updates',
-        description: 'Update button and card components with new styling guidelines. Implement new color scheme and typography across all UI elements following the latest design system specifications.',
-        status: 'in-progress',
+    // Simulate data fetching
+    setTimeout(() => {
+      const mockTask: TaskData = {
+        id: 'task-001',
+        title: 'Design Dashboard UI Components',
+        description: 'Create all necessary UI components for the new dashboard interface. Follow the design system guidelines and ensure consistency across all elements. Include dark mode versions of all components.',
+        status: 'in_progress',
         priority: 'high',
-        dueDate: '2025-05-10',
-        project: 'Mobile App Redesign',
+        dueDate: '2025-05-15T00:00:00.000Z',
+        project: {
+          id: 'proj-001',
+          name: 'Website Redesign',
+          color: '#3D5AFE'
+        },
         assignees: [
-          { id: '1', name: 'Alex Johnson', imageUrl: null },
-          { id: '2', name: 'Morgan Smith', imageUrl: null }
+          {
+            id: 'user-001',
+            name: 'Alex Johnson'
+          },
+          {
+            id: 'user-002',
+            name: 'Morgan Smith'
+          }
         ],
-        createdBy: {
-          id: '1',
-          name: 'Alex Johnson',
-          imageUrl: null
+        creator: {
+          id: 'user-003',
+          name: 'Jamie Parker'
         },
-        createdAt: '2025-04-25'
+        subtasks: [
+          {
+            id: 'subtask-001',
+            title: 'Design navigation component',
+            completed: true
+          },
+          {
+            id: 'subtask-002',
+            title: 'Create card components with variants',
+            completed: true
+          },
+          {
+            id: 'subtask-003',
+            title: 'Design data visualization widgets',
+            completed: false
+          },
+          {
+            id: 'subtask-004',
+            title: 'Implement dark mode versions',
+            completed: false
+          }
+        ],
+        attachments: [
+          {
+            id: 'att-001',
+            name: 'Dashboard Wireframes.pdf',
+            size: '2.4 MB',
+            type: 'pdf',
+            url: 'https://example.com/files/dashboard-wireframes.pdf',
+            uploadedAt: '2025-04-20T14:30:00.000Z',
+            uploadedBy: {
+              id: 'user-003',
+              name: 'Jamie Parker'
+            }
+          },
+          {
+            id: 'att-002',
+            name: 'Component Specs.docx',
+            size: '1.8 MB',
+            type: 'document',
+            url: 'https://example.com/files/component-specs.docx',
+            uploadedAt: '2025-04-22T09:15:00.000Z',
+            uploadedBy: {
+              id: 'user-001',
+              name: 'Alex Johnson'
+            }
+          }
+        ],
+        comments: [
+          {
+            id: 'comment-001',
+            text: 'I\'ve uploaded the wireframes for reference. Let me know if you need any clarification on the design.',
+            createdAt: '2025-04-20T14:35:00.000Z',
+            user: {
+              id: 'user-003',
+              name: 'Jamie Parker'
+            }
+          },
+          {
+            id: 'comment-002',
+            text: 'I think we should prioritize the data visualization components since they\'ll take the most time to implement.',
+            createdAt: '2025-04-22T10:20:00.000Z',
+            user: {
+              id: 'user-002',
+              name: 'Morgan Smith'
+            }
+          }
+        ],
+        createdAt: '2025-04-18T09:00:00.000Z',
+        updatedAt: '2025-04-22T10:20:00.000Z',
+        timeTracking: {
+          estimated: 24,
+          spent: 10
+        },
+        tags: ['Design', 'UI', 'Dashboard']
+      }
+      
+      setTask(mockTask)
+      
+      // Set editable fields with current values
+      setEditableFields({
+        title: mockTask.title,
+        description: mockTask.description,
+        status: mockTask.status,
+        priority: mockTask.priority,
+        dueDate: mockTask.dueDate
       })
-      
-      setSubtasks([
-        { id: '1', title: 'Update button component styles', completed: true },
-        { id: '2', title: 'Implement new card shadows', completed: false },
-        { id: '3', title: 'Apply typography changes', completed: false },
-        { id: '4', title: 'Update color palette', completed: true }
-      ])
-      
-      setComments([
-        {
-          id: '1',
-          author: { id: '2', name: 'Morgan Smith', imageUrl: null },
-          text: 'I started working on the button component. Should we use the new shadows for all states or just for hover?',
-          timestamp: '2025-04-26T10:32:00Z'
-        },
-        {
-          id: '2',
-          author: { id: '1', name: 'Alex Johnson', imageUrl: null },
-          text: 'Let\'s apply the new shadows to all states to maintain consistency. The design team specified this in the documentation.',
-          timestamp: '2025-04-26T11:15:00Z'
-        }
-      ])
-      
-      setAttachments([
-        {
-          id: '1',
-          name: 'Design System Documentation.pdf',
-          type: 'document',
-          url: '#',
-          size: '2.4 MB'
-        },
-        {
-          id: '2',
-          name: 'Button Component Mockup.png',
-          type: 'image',
-          url: '#',
-          thumbnail: '#',
-          size: '856 KB'
-        }
-      ])
-      
-      setLoading(false)
-    }, 1500)
-    
-    return () => clearTimeout(timer)
+    }, 1000)
   }, [taskId])
   
-  // Handle subtask toggle
-  const toggleSubtask = (id: string) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    
-    setSubtasks(prev => prev.map(subtask => {
-      if (subtask.id === id) {
-        return { ...subtask, completed: !subtask.completed }
+  // Setup keyboard listeners
+  useEffect(() => {
+    const keyboardWillShowListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (event) => {
+        keyboardHeight.value = event.endCoordinates.height
+        commentContainerHeight.value = withTiming(56 + Math.min(100, event.endCoordinates.height / 4))
       }
-      return subtask
-    }))
+    )
+    
+    const keyboardWillHideListener = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        keyboardHeight.value = 0
+        commentContainerHeight.value = withTiming(56)
+      }
+    )
+    
+    return () => {
+      keyboardWillShowListener.remove()
+      keyboardWillHideListener.remove()
+    }
+  }, [])
+  
+  // Handle back press
+  const handleBackPress = () => {
+    triggerImpact()
+    navigation.goBack()
   }
   
-  // Handle comment submission
-  const submitComment = () => {
-    if (!newComment.trim()) return
-    
-    setSubmittingComment(true)
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    
-    // Simulate API delay
-    setTimeout(() => {
-      const newCommentObj: Comment = {
-        id: Date.now().toString(),
-        author: { id: '1', name: 'Alex Johnson', imageUrl: null },
-        text: newComment.trim(),
-        timestamp: new Date().toISOString()
-      }
-      
-      setComments(prev => [...prev, newCommentObj])
-      setNewComment('')
-      setSubmittingComment(false)
-    }, 500)
-  }
-  
-  // Handle scroll events
-  const handleScroll = (event) => {
-    const y = event.nativeEvent.contentOffset.y
-    scrollY.value = y
-    
-    // Collapse/expand header based on scroll position
-    const newHeight = Math.max(120, 250 - y)
-    headerHeight.value = withTiming(newHeight, { duration: 100 })
+  // Handle tab change
+  const handleTabChange = (tab) => {
+    triggerImpact()
+    setActiveTab(tab)
   }
   
   // Toggle edit mode
-  const toggleEditMode = () => {
-    setEditMode(prev => !prev)
-    editFormHeight.value = withTiming(editMode ? 0 : 300, { duration: 300 })
-  }
-  
-  // Handle status change
-  const changeStatus = (status: string) => {
+  const handleEditToggle = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    setTask(prev => ({ ...prev, status }))
+    
+    if (isEditing) {
+      // Save changes
+      if (task) {
+        setTask({
+          ...task,
+          title: editableFields.title,
+          description: editableFields.description,
+          status: editableFields.status,
+          priority: editableFields.priority,
+          dueDate: editableFields.dueDate
+        })
+      }
+    }
+    
+    setIsEditing(!isEditing)
   }
   
-  // Handle priority change
-  const changePriority = (priority: string) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    setTask(prev => ({ ...prev, priority }))
+  // Toggle subtask completion
+  const handleSubtaskToggle = (subtaskId) => {
+    triggerImpact()
+    
+    if (!task) return
+    
+    setTask({
+      ...task,
+      subtasks: task.subtasks.map(subtask =>
+        subtask.id === subtaskId
+          ? { ...subtask, completed: !subtask.completed }
+          : subtask
+      )
+    })
+  }
+  
+  // Add new subtask
+  const handleAddSubtask = () => {
+    if (!subtaskText.trim() || !task) return
+    
+    triggerImpact()
+    
+    const newSubtask: Subtask = {
+      id: `subtask-${Date.now()}`,
+      title: subtaskText.trim(),
+      completed: false
+    }
+    
+    setTask({
+      ...task,
+      subtasks: [...task.subtasks, newSubtask]
+    })
+    
+    setSubtaskText('')
+  }
+  
+  // Submit new comment
+  const handleSubmitComment = () => {
+    if (!commentText.trim() || !task) return
+    
+    triggerImpact()
+    
+    const newComment: Comment = {
+      id: `comment-${Date.now()}`,
+      text: commentText.trim(),
+      createdAt: new Date().toISOString(),
+      user: {
+        id: 'user-001', // Current user
+        name: 'Alex Johnson'
+      }
+    }
+    
+    setTask({
+      ...task,
+      comments: [...task.comments, newComment]
+    })
+    
+    setCommentText('')
+    Keyboard.dismiss()
+  }
+  
+  // Toggle status menu
+  const handleStatusMenuToggle = () => {
+    triggerImpact()
+    
+    setIsStatusMenuOpen(!isStatusMenuOpen)
+    statusMenuHeight.value = withTiming(
+      isStatusMenuOpen ? 0 : 200,
+      { duration: 300 }
+    )
+    
+    // Close priority menu if open
+    if (isPriorityMenuOpen) {
+      setIsPriorityMenuOpen(false)
+      priorityMenuHeight.value = withTiming(0, { duration: 300 })
+    }
+  }
+  
+  // Toggle priority menu
+  const handlePriorityMenuToggle = () => {
+    triggerImpact()
+    
+    setIsPriorityMenuOpen(!isPriorityMenuOpen)
+    priorityMenuHeight.value = withTiming(
+      isPriorityMenuOpen ? 0 : 150,
+      { duration: 300 }
+    )
+    
+    // Close status menu if open
+    if (isStatusMenuOpen) {
+      setIsStatusMenuOpen(false)
+      statusMenuHeight.value = withTiming(0, { duration: 300 })
+    }
+  }
+  
+  // Change task status
+  const handleStatusChange = (status) => {
+    if (!task) return
+    
+    triggerImpact()
+    setEditableFields({ ...editableFields, status })
+    
+    if (!isEditing) {
+      setTask({
+        ...task,
+        status
+      })
+    }
+    
+    // Close menu
+    setIsStatusMenuOpen(false)
+    statusMenuHeight.value = withTiming(0, { duration: 300 })
+  }
+  
+  // Change task priority
+  const handlePriorityChange = (priority) => {
+    if (!task) return
+    
+    triggerImpact()
+    setEditableFields({ ...editableFields, priority })
+    
+    if (!isEditing) {
+      setTask({
+        ...task,
+        priority
+      })
+    }
+    
+    // Close menu
+    setIsPriorityMenuOpen(false)
+    priorityMenuHeight.value = withTiming(0, { duration: 300 })
+  }
+  
+  // Scroll handler for animations
+  const handleScroll = (event) => {
+    const offsetY = event.nativeEvent.contentOffset.y
+    scrollY.value = offsetY
+    
+    // Show/hide header title based on scroll position
+    if (offsetY > 60) {
+      headerTitleOpacity.value = withTiming(
+        Math.min(1, (offsetY - 60) / 30),
+        { duration: 200 }
+      )
+    } else {
+      headerTitleOpacity.value = withTiming(0, { duration: 200 })
+    }
+  }
+  
+  // Get formatted status text
+  const getStatusText = (status) => {
+    switch (status) {
+      case 'todo': return 'To Do'
+      case 'in_progress': return 'In Progress'
+      case 'completed': return 'Completed'
+      case 'blocked': return 'Blocked'
+      default: return 'Unknown'
+    }
+  }
+  
+  // Get status color
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'todo': return Colors.neutrals.gray600
+      case 'in_progress': return Colors.primary.blue
+      case 'completed': return Colors.status.success
+      case 'blocked': return Colors.status.error
+      default: return Colors.neutrals.gray600
+    }
+  }
+  
+  // Get priority text and color
+  const getPriorityConfig = (priority) => {
+    switch (priority) {
+      case 'low':
+        return { text: 'Low', color: Colors.status.success }
+      case 'medium':
+        return { text: 'Medium', color: Colors.status.warning }
+      case 'high':
+        return { text: 'High', color: Colors.status.error }
+      default:
+        return { text: 'Unknown', color: Colors.neutrals.gray600 }
+    }
+  }
+  
+  // Get file icon based on type
+  const getFileIcon = (type) => {
+    switch (type) {
+      case 'pdf': return 'file-text'
+      case 'image': return 'image'
+      case 'document': return 'file'
+      case 'spreadsheet': return 'grid'
+      case 'presentation': return 'monitor'
+      default: return 'file'
+    }
+  }
+  
+  // Calculate progress
+  const calculateProgress = () => {
+    if (!task || !task.subtasks.length) return 0
+    
+    const completed = task.subtasks.filter(subtask => subtask.completed).length
+    return completed / task.subtasks.length
   }
   
   // Animated styles
-  const headerAnimatedStyle = useAnimatedStyle(() => {
+  const headerTitleStyle = useAnimatedStyle(() => {
     return {
-      height: headerHeight.value
+      opacity: headerTitleOpacity.value
     }
   })
   
-  const titleOpacityStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      headerHeight.value,
-      [120, 180],
-      [0, 1],
-      Extrapolation.CLAMP
-    )
-    
+  const statusMenuStyle = useAnimatedStyle(() => {
     return {
-      opacity
+      height: statusMenuHeight.value,
+      overflow: 'hidden'
     }
   })
   
-  const headerContentStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      headerHeight.value,
-      [120, 180],
-      [0, 1],
-      Extrapolation.CLAMP
-    )
-    
+  const priorityMenuStyle = useAnimatedStyle(() => {
     return {
-      opacity,
+      height: priorityMenuHeight.value,
+      overflow: 'hidden'
+    }
+  })
+  
+  const commentContainerStyle = useAnimatedStyle(() => {
+    return {
+      // Transform uses the keyboard height
       transform: [
         { 
           translateY: interpolate(
-            headerHeight.value,
-            [120, 250],
-            [-20, 0],
+            keyboardHeight.value,
+            [0, 300],
+            [0, -20],
             Extrapolation.CLAMP
-          )
+          ) 
         }
       ]
     }
   })
   
-  const headerTitleStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      headerHeight.value,
-      [150, 200],
-      [1, 0],
-      Extrapolation.CLAMP
-    )
-    
-    return {
-      opacity
-    }
-  })
-  
-  const editFormStyle = useAnimatedStyle(() => {
-    return {
-      height: editFormHeight.value,
-      opacity: editFormHeight.value === 0 ? 0 : 1
-    }
-  })
-  
-  // Calculate subtask progress
-  const completedSubtasks = subtasks.filter(st => st.completed).length
-  const totalSubtasks = subtasks.length
-  const subtaskProgress = totalSubtasks ? completedSubtasks / totalSubtasks : 0
-  
-  // Render loading state
-  if (loading) {
+  if (!task) {
     return (
-      <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={[styles.header, { height: 250 }]}>
-          <View style={styles.headerControls}>
-            <TouchableOpacity 
-              style={styles.backButton}
-              onPress={() => navigation.goBack()}
-            >
-              <Feather name="arrow-left" size={24} color="#fff" />
-            </TouchableOpacity>
-            
-            <SkeletonLoader width={80} height={32} borderRadius={16} backgroundColor="rgba(255, 255, 255, 0.15)" />
-          </View>
-          
-          <View style={styles.headerContent}>
-            <SkeletonLoader width="80%" height={28} borderRadius={4} backgroundColor="rgba(255, 255, 255, 0.15)" style={{ marginBottom: 12 }} />
-            <SkeletonLoader width="60%" height={18} borderRadius={4} backgroundColor="rgba(255, 255, 255, 0.15)" />
-          </View>
-        </View>
-        
-        <View style={styles.tabsContainer}>
-          <SkeletonLoader.Row style={styles.tabs}>
-            {['details', 'subtasks', 'comments', 'attachments'].map((_, index) => (
-              <SkeletonLoader 
-                key={index}
-                width={80} 
-                height={40}
-                borderRadius={20}
-                backgroundColor={Colors.neutrals.gray200}
-                style={{ marginRight: 8 }}
-              />
-            ))}
-          </SkeletonLoader.Row>
-        </View>
-        
-        <ScrollView style={styles.content}>
-          <View style={styles.section}>
-            <SkeletonLoader.Task style={{ marginBottom: 16 }} />
-            <SkeletonLoader.Task style={{ marginBottom: 16 }} />
-            <SkeletonLoader.Task />
-          </View>
-        </ScrollView>
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={Colors.primary.blue} />
       </View>
     )
   }
   
-  // Render different tab content based on activeTab
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'details':
-        return (
-          <Animated.View 
-            entering={FadeIn.delay(100).duration(300)}
-            style={styles.section}
-          >
-            <View style={styles.metaSection}>
-              <Animated.View 
-                entering={FadeInDown.delay(200).duration(400)}
-                style={styles.metaItem}
-              >
-                <Text style={styles.metaLabel}>Project</Text>
-                <Card 
-                  style={styles.projectCard}
-                  animationType="spring"
-                  elevation={2}
-                  borderRadius={8}
-                  onPress={() => navigation.navigate('ProjectDetails', { projectId: '1' })}
-                >
-                  <View style={styles.projectCardContent}>
-                    <View style={[styles.projectIcon, { backgroundColor: 'rgba(61, 90, 254, 0.1)' }]}>
-                      <Feather name="smartphone" size={16} color={Colors.primary.blue} />
-                    </View>
-                    <Text style={styles.projectName}>{task.project}</Text>
-                    <Feather name="chevron-right" size={16} color={Colors.neutrals.gray600} />
-                  </View>
-                </Card>
-              </Animated.View>
-              
-              <Animated.View 
-                entering={FadeInDown.delay(300).duration(400)}
-                style={styles.metaItem}
-              >
-                <Text style={styles.metaLabel}>Status</Text>
-                <View style={styles.pillsContainer}>
-                  <TouchableOpacity onPress={() => changeStatus('pending')}>
-                    <StatusPill 
-                      label="To Do" 
-                      type={task.status === 'pending' ? 'pending' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.status === 'pending' && styles.activePill
-                      ]} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity onPress={() => changeStatus('in-progress')}>
-                    <StatusPill 
-                      label="In Progress" 
-                      type={task.status === 'in-progress' ? 'in-progress' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.status === 'in-progress' && styles.activePill
-                      ]} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity onPress={() => changeStatus('completed')}>
-                    <StatusPill 
-                      label="Completed" 
-                      type={task.status === 'completed' ? 'completed' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.status === 'completed' && styles.activePill
-                      ]} 
-                    />
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-              
-              <Animated.View 
-                entering={FadeInDown.delay(400).duration(400)}
-                style={styles.metaItem}
-              >
-                <Text style={styles.metaLabel}>Priority</Text>
-                <View style={styles.pillsContainer}>
-                  <TouchableOpacity onPress={() => changePriority('low')}>
-                    <StatusPill 
-                      label="Low" 
-                      priority={task.priority === 'low' ? 'low' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.priority === 'low' && styles.activePill
-                      ]} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity onPress={() => changePriority('medium')}>
-                    <StatusPill 
-                      label="Medium" 
-                      priority={task.priority === 'medium' ? 'medium' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.priority === 'medium' && styles.activePill
-                      ]} 
-                    />
-                  </TouchableOpacity>
-                  
-                  <TouchableOpacity onPress={() => changePriority('high')}>
-                    <StatusPill 
-                      label="High" 
-                      priority={task.priority === 'high' ? 'high' : 'default'} 
-                      style={[
-                        styles.pill, 
-                        task.priority === 'high' && styles.activePill
-                      ]} 
-                      animate={task.priority === 'high'}
-                    />
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-              
-              <Animated.View 
-                entering={FadeInDown.delay(500).duration(400)}
-                style={styles.metaItem}
-              >
-                <Text style={styles.metaLabel}>Due Date</Text>
-                <View style={styles.dueDateContainer}>
-                  <Feather name="calendar" size={16} color={Colors.neutrals.gray600} />
-                  <Text style={styles.dueDate}>{task.dueDate}</Text>
-                  <TouchableOpacity style={styles.editDateButton}>
-                    <Feather name="edit-3" size={14} color={Colors.primary.blue} />
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-              
-              <Animated.View 
-                entering={FadeInDown.delay(600).duration(400)}
-                style={styles.metaItem}
-              >
-                <Text style={styles.metaLabel}>Assignees</Text>
-                <View style={styles.assigneesContainer}>
-                  <AvatarStack 
-                    users={task.assignees}
-                    maxDisplay={3}
-                    size={36}
-                    expanded={true}
-                  />
-                  <TouchableOpacity style={styles.addAssigneeButton}>
-                    <Feather name="plus" size={16} color={Colors.primary.blue} />
-                    <Text style={styles.addAssigneeText}>Add</Text>
-                  </TouchableOpacity>
-                </View>
-              </Animated.View>
-            </View>
-            
-            <Animated.View 
-              entering={FadeInDown.delay(700).duration(400)}
-              style={styles.descriptionSection}
-            >
-              <Text style={styles.sectionTitle}>Description</Text>
-              <Card style={styles.descriptionCard}>
-                <Text style={styles.description}>{task.description}</Text>
-                <TouchableOpacity style={styles.editDescriptionButton}>
-                  <Feather name="edit-2" size={16} color={Colors.primary.blue} />
-                </TouchableOpacity>
-              </Card>
-            </Animated.View>
-          </Animated.View>
-        )
+  return (
+    <View style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+      
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: insets.top }]}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={handleBackPress}
+        >
+          <Feather name="arrow-left" size={24} color={Colors.neutrals.gray800} />
+        </TouchableOpacity>
         
-      case 'subtasks':
-        return (
-          <Animated.View 
-            entering={FadeIn.delay(100).duration(300)}
-            style={styles.section}
-          >
-            <View style={styles.subtasksHeader}>
-              <Text style={styles.sectionTitle}>Subtasks</Text>
-              <View style={styles.subtasksProgress}>
-                <View style={styles.progressTrack}>
-                  <Animated.View 
-                    style={[
-                      styles.progressFill, 
-                      { width: `${Math.round(subtaskProgress * 100)}%` }
-                    ]}
-                    entering={FadeInRight.duration(1000)}
-                  />
-                </View>
-                <Text style={styles.progressText}>
-                  {completedSubtasks}/{totalSubtasks} completed
-                </Text>
-              </View>
+        <Animated.Text style={[styles.headerTitle, headerTitleStyle]} numberOfLines={1}>
+          {task.title}
+        </Animated.Text>
+        
+        <TouchableOpacity 
+          style={[
+            styles.editButton,
+            isEditing && { backgroundColor: Colors.primary.blue }
+          ]}
+          onPress={handleEditToggle}
+        >
+          <Feather 
+            name={isEditing ? "check" : "edit-2"} 
+            size={20} 
+            color={isEditing ? Colors.neutrals.white : Colors.neutrals.gray800} 
+          />
+        </TouchableOpacity>
+      </View>
+      
+      {/* Main Content */}
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={16}
+      >
+        {/* Title Section */}
+        <View style={styles.titleSection}>
+          {isEditing ? (
+            <TextInput
+              style={styles.titleInput}
+              value={editableFields.title}
+              onChangeText={(text) => setEditableFields({ ...editableFields, title: text })}
+              placeholder="Task title"
+            />
+          ) : (
+            <Text style={styles.taskTitle}>{task.title}</Text>
+          )}
+          
+          <View style={styles.metaContainer}>
+            <View style={styles.projectBadge}>
+              <View 
+                style={[
+                  styles.projectColor, 
+                  { backgroundColor: task.project.color }
+                ]} 
+              />
+              <Text style={styles.projectName}>{task.project.name}</Text>
             </View>
             
-            <View style={styles.subtasksList}>
-              {subtasks.map((subtask, index) => (
-                <Animated.View 
-                  key={subtask.id}
-                  entering={FadeInDown.delay(200 + index * 100).duration(400)}
+            <View style={styles.dateContainer}>
+              <Feather name="calendar" size={14} color={Colors.neutrals.gray600} />
+              <Text style={styles.dateText}>{formatDateString(task.dueDate)}</Text>
+            </View>
+          </View>
+        </View>
+        
+        {/* Status and Priority */}
+        <View style={styles.statusSection}>
+          <View style={styles.statusContainer}>
+            <Text style={styles.statusLabel}>Status</Text>
+            <TouchableOpacity
+              style={styles.statusSelector}
+              onPress={handleStatusMenuToggle}
+            >
+              <View 
+                style={[
+                  styles.statusDot,
+                  { backgroundColor: getStatusColor(isEditing ? editableFields.status : task.status) }
+                ]} 
+              />
+              <Text style={styles.statusText}>
+                {getStatusText(isEditing ? editableFields.status : task.status)}
+              </Text>
+              <Feather name="chevron-down" size={16} color={Colors.neutrals.gray600} />
+            </TouchableOpacity>
+            
+            {/* Status Dropdown Menu */}
+            <Animated.View style={[styles.dropdownMenu, statusMenuStyle]}>
+              {['todo', 'in_progress', 'completed', 'blocked'].map((status) => (
+                <TouchableOpacity
+                  key={status}
+                  style={[
+                    styles.dropdownItem,
+                    (isEditing ? editableFields.status : task.status) === status && styles.dropdownItemActive
+                  ]}
+                  onPress={() => handleStatusChange(status)}
                 >
-                  <SwipeableRow
-                    rightActions={[
-                      {
-                        icon: 'trash-2',
-                        label: 'Delete',
-                        color: Colors.secondary.red,
-                        onPress: () => {
-                          setSubtasks(prev => prev.filter(st => st.id !== subtask.id))
-                        },
-                        destructive: true
-                      }
+                  <View 
+                    style={[
+                      styles.statusDot,
+                      { backgroundColor: getStatusColor(status) }
+                    ]} 
+                  />
+                  <Text 
+                    style={[
+                      styles.dropdownItemText,
+                      (isEditing ? editableFields.status : task.status) === status && styles.dropdownItemTextActive
                     ]}
                   >
-                    <TouchableOpacity 
-                      style={styles.subtaskItem}
-                      onPress={() => toggleSubtask(subtask.id)}
+                    {getStatusText(status)}
+                  </Text>
+                  
+                  {(isEditing ? editableFields.status : task.status) === status && (
+                    <Feather name="check" size={16} color={Colors.primary.blue} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+          </View>
+          
+          <View style={styles.priorityContainer}>
+            <Text style={styles.priorityLabel}>Priority</Text>
+            <TouchableOpacity
+              style={styles.prioritySelector}
+              onPress={handlePriorityMenuToggle}
+            >
+              <View 
+                style={[
+                  styles.priorityDot,
+                  { backgroundColor: getPriorityConfig(isEditing ? editableFields.priority : task.priority).color }
+                ]} 
+              />
+              <Text style={styles.priorityText}>
+                {getPriorityConfig(isEditing ? editableFields.priority : task.priority).text}
+              </Text>
+              <Feather name="chevron-down" size={16} color={Colors.neutrals.gray600} />
+            </TouchableOpacity>
+            
+            {/* Priority Dropdown Menu */}
+            <Animated.View style={[styles.dropdownMenu, priorityMenuStyle]}>
+              {['low', 'medium', 'high'].map((priority) => (
+                <TouchableOpacity
+                  key={priority}
+                  style={[
+                    styles.dropdownItem,
+                    (isEditing ? editableFields.priority : task.priority) === priority && styles.dropdownItemActive
+                  ]}
+                  onPress={() => handlePriorityChange(priority)}
+                >
+                  <View 
+                    style={[
+                      styles.priorityDot,
+                      { backgroundColor: getPriorityConfig(priority).color }
+                    ]} 
+                  />
+                  <Text 
+                    style={[
+                      styles.dropdownItemText,
+                      (isEditing ? editableFields.priority : task.priority) === priority && styles.dropdownItemTextActive
+                    ]}
+                  >
+                    {getPriorityConfig(priority).text}
+                  </Text>
+                  
+                  {(isEditing ? editableFields.priority : task.priority) === priority && (
+                    <Feather name="check" size={16} color={Colors.primary.blue} />
+                  )}
+                </TouchableOpacity>
+              ))}
+            </Animated.View>
+          </View>
+        </View>
+        
+        {/* Assignees */}
+        <View style={styles.assigneesSection}>
+          <Text style={styles.sectionTitle}>Assignees</Text>
+          <View style={styles.assigneesContainer}>
+            {task.assignees.map((assignee) => (
+              <View key={assignee.id} style={styles.assigneeItem}>
+                <Avatar
+                  name={assignee.name}
+                  imageUrl={assignee.avatar}
+                  size={36}
+                />
+                <Text style={styles.assigneeName}>{assignee.name}</Text>
+              </View>
+            ))}
+            
+            <TouchableOpacity style={styles.addAssigneeButton}>
+              <Feather name="plus" size={20} color={Colors.primary.blue} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        
+        {/* Tab Navigation */}
+        <View style={styles.tabsContainer}>
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'info' && styles.activeTab
+            ]}
+            onPress={() => handleTabChange('info')}
+          >
+            <Text 
+              style={[
+                styles.tabText,
+                activeTab === 'info' && styles.activeTabText
+              ]}
+            >
+              Details
+            </Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'subtasks' && styles.activeTab
+            ]}
+            onPress={() => handleTabChange('subtasks')}
+          >
+            <Text 
+              style={[
+                styles.tabText,
+                activeTab === 'subtasks' && styles.activeTabText
+              ]}
+            >
+              Subtasks
+            </Text>
+            <View style={styles.subtaskCount}>
+              <Text style={styles.subtaskCountText}>{task.subtasks.length}</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'attachments' && styles.activeTab
+            ]}
+            onPress={() => handleTabChange('attachments')}
+          >
+            <Text 
+              style={[
+                styles.tabText,
+                activeTab === 'attachments' && styles.activeTabText
+              ]}
+            >
+              Files
+            </Text>
+            <View style={styles.subtaskCount}>
+              <Text style={styles.subtaskCountText}>{task.attachments.length}</Text>
+            </View>
+          </TouchableOpacity>
+          
+          <TouchableOpacity
+            style={[
+              styles.tab,
+              activeTab === 'comments' && styles.activeTab
+            ]}
+            onPress={() => handleTabChange('comments')}
+          >
+            <Text 
+              style={[
+                styles.tabText,
+                activeTab === 'comments' && styles.activeTabText
+              ]}
+            >
+              Comments
+            </Text>
+            <View style={styles.subtaskCount}>
+              <Text style={styles.subtaskCountText}>{task.comments.length}</Text>
+            </View>
+          </TouchableOpacity>
+        </View>
+        
+        {/* Tab Content */}
+        <View style={styles.tabContent}>
+          {/* Info Tab */}
+          {activeTab === 'info' && (
+            <Animated.View 
+              style={styles.infoContainer}
+              entering={FadeIn.duration(300)}
+            >
+              <Text style={styles.sectionTitle}>Description</Text>
+              {isEditing ? (
+                <TextInput
+                  style={styles.descriptionInput}
+                  value={editableFields.description}
+                  onChangeText={(text) => setEditableFields({ ...editableFields, description: text })}
+                  placeholder="Task description"
+                  multiline
+                  numberOfLines={5}
+                />
+              ) : (
+                <Text style={styles.descriptionText}>{task.description}</Text>
+              )}
+              
+              {/* Time Tracking */}
+              {task.timeTracking && (
+                <View style={styles.timeTrackingSection}>
+                  <Text style={styles.sectionTitle}>Time Tracking</Text>
+                  <View style={styles.timeTrackingBar}>
+                    <View 
+                      style={[
+                        styles.timeTrackingProgress, 
+                        { 
+                          width: `${Math.min(
+                            100, 
+                            (task.timeTracking.spent / task.timeTracking.estimated) * 100
+                          )}%` 
+                        }
+                      ]} 
+                    />
+                  </View>
+                  <View style={styles.timeTrackingLabels}>
+                    <Text style={styles.timeLabel}>
+                      {task.timeTracking.spent}h logged
+                    </Text>
+                    <Text style={styles.timeLabel}>
+                      {task.timeTracking.estimated}h estimated
+                    </Text>
+                  </View>
+                </View>
+              )}
+              
+              {/* Tags */}
+              {task.tags && task.tags.length > 0 && (
+                <View style={styles.tagsSection}>
+                  <Text style={styles.sectionTitle}>Tags</Text>
+                  <View style={styles.tagsContainer}>
+                    {task.tags.map((tag, index) => (
+                      <View key={index} style={styles.tag}>
+                        <Text style={styles.tagText}>{tag}</Text>
+                      </View>
+                    ))}
+                    
+                    {isEditing && (
+                      <TouchableOpacity style={styles.addTagButton}>
+                        <Feather name="plus" size={14} color={Colors.primary.blue} />
+                        <Text style={styles.addTagText}>Add Tag</Text>
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </View>
+              )}
+              
+              {/* Additional Details */}
+              <View style={styles.detailsSection}>
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Created by</Text>
+                  <Text style={styles.detailValue}>{task.creator.name}</Text>
+                </View>
+                
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Created on</Text>
+                  <Text style={styles.detailValue}>{formatDateString(task.createdAt, { year: 'numeric' })}</Text>
+                </View>
+                
+                <View style={styles.detailItem}>
+                  <Text style={styles.detailLabel}>Last updated</Text>
+                  <Text style={styles.detailValue}>{timeAgo(task.updatedAt)}</Text>
+                </View>
+              </View>
+            </Animated.View>
+          )}
+          
+          {/* Subtasks Tab */}
+          {activeTab === 'subtasks' && (
+            <Animated.View 
+              style={styles.subtasksContainer}
+              entering={FadeIn.duration(300)}
+            >
+              <View style={styles.progressSection}>
+                <View style={styles.progressTextContainer}>
+                  <Text style={styles.progressLabel}>Progress</Text>
+                  <Text style={styles.progressPercentage}>
+                    {Math.round(calculateProgress() * 100)}%
+                  </Text>
+                </View>
+                
+                <View style={styles.progressBar}>
+                  <View 
+                    style={[
+                      styles.progressFill, 
+                      { width: `${calculateProgress() * 100}%` }
+                    ]} 
+                  />
+                </View>
+              </View>
+              
+              <View style={styles.subtasksList}>
+                {task.subtasks.map((subtask, index) => (
+                  <Animated.View
+                    key={subtask.id}
+                    entering={SlideInUp.delay(index * 100).duration(300)}
+                  >
+                    <TouchableOpacity
+                      style={[
+                        styles.subtaskItem,
+                        subtask.completed && styles.subtaskCompleted
+                      ]}
+                      onPress={() => handleSubtaskToggle(subtask.id)}
                       activeOpacity={0.7}
                     >
                       <View 
                         style={[
-                          styles.checkbox, 
+                          styles.checkbox,
                           subtask.completed && styles.checkboxChecked
                         ]}
                       >
                         {subtask.completed && (
-                          <Feather name="check" size={14} color="#fff" />
+                          <Feather name="check" size={14} color={Colors.neutrals.white} />
                         )}
                       </View>
+                      
                       <Text 
                         style={[
                           styles.subtaskTitle,
-                          subtask.completed && styles.subtaskCompleted
+                          subtask.completed && styles.subtaskTitleCompleted
                         ]}
                       >
                         {subtask.title}
                       </Text>
                     </TouchableOpacity>
-                  </SwipeableRow>
-                </Animated.View>
-              ))}
-            </View>
-            
-            <Animated.View 
-              entering={FadeInUp.delay(600).duration(400)}
-              style={styles.addSubtaskContainer}
-            >
-              <Button
-                title="Add Subtask"
-                icon="plus"
-                variant="secondary"
-                onPress={() => {}}
-                style={styles.addSubtaskButton}
-                animationType="spring"
-              />
-            </Animated.View>
-          </Animated.View>
-        )
-        
-      case 'comments':
-        return (
-          <Animated.View 
-            entering={FadeIn.delay(100).duration(300)}
-            style={[styles.section, styles.commentsSection]}
-          >
-            <Text style={styles.sectionTitle}>Comments</Text>
-            
-            <View style={styles.commentsList}>
-              {comments.map((comment, index) => (
-                <Animated.View 
-                  key={comment.id}
-                  entering={
-                    comment.author.id === '1' 
-                      ? SlideInRight.delay(200 + index * 100).duration(400) 
-                      : SlideInLeft.delay(200 + index * 100).duration(400)
-                  }
+                  </Animated.View>
+                ))}
+              </View>
+              
+              {/* Add Subtask Input */}
+              <View style={styles.addSubtaskContainer}>
+                <TextInput
+                  style={styles.addSubtaskInput}
+                  value={subtaskText}
+                  onChangeText={setSubtaskText}
+                  placeholder="Add a subtask..."
+                  returnKeyType="done"
+                  onSubmitEditing={handleAddSubtask}
+                />
+                
+                <TouchableOpacity
                   style={[
-                    styles.commentContainer,
-                    comment.author.id === '1' && styles.ownCommentContainer
+                    styles.addSubtaskButton,
+                    !subtaskText.trim() && styles.addSubtaskButtonDisabled
                   ]}
+                  onPress={handleAddSubtask}
+                  disabled={!subtaskText.trim()}
                 >
-                  <View style={styles.commentHeader}>
-                    <Avatar 
-                      name={comment.author.name}
-                      imageUrl={comment.author.imageUrl}
-                      size={32}
-                      ringColor={comment.author.id === '1' ? Colors.primary.blue : undefined}
-                    />
-                    <View style={styles.commentAuthorContainer}>
-                      <Text style={styles.commentAuthor}>{comment.author.name}</Text>
-                      <Text style={styles.commentTimestamp}>
-                        {new Date(comment.timestamp).toLocaleString()}
-                      </Text>
-                    </View>
-                  </View>
-                  
-                  <View 
-                    style={[
-                      styles.commentBubble,
-                      comment.author.id === '1' 
-                        ? styles.ownCommentBubble 
-                        : styles.otherCommentBubble
-                    ]}
+                  <Feather 
+                    name="plus" 
+                    size={20} 
+                    color={subtaskText.trim() ? Colors.neutrals.white : Colors.neutrals.gray400} 
+                  />
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          )}
+          
+          {/* Attachments Tab */}
+          {activeTab === 'attachments' && (
+            <Animated.View 
+              style={styles.attachmentsContainer}
+              entering={FadeIn.duration(300)}
+            >
+              <Text style={styles.sectionTitle}>Files & Attachments</Text>
+              
+              <View style={styles.attachmentsList}>
+                {task.attachments.map((attachment, index) => (
+                  <Animated.View
+                    key={attachment.id}
+                    entering={SlideInRight.delay(index * 100).duration(300)}
                   >
-                    <Text style={styles.commentText}>{comment.text}</Text>
-                  </View>
-                </Animated.View>
-              ))}
-            </View>
-          </Animated.View>
-        )
-        
-      case 'attachments':
-        return (
-          <Animated.View 
-            entering={FadeIn.delay(100).duration(300)}
-            style={styles.section}
-          >
-            <Text style={styles.sectionTitle}>Attachments</Text>
-            
-            <View style={styles.attachmentsList}>
-              {attachments.map((attachment, index) => (
-                <Animated.View 
-                  key={attachment.id}
-                  entering={FadeInDown.delay(200 + index * 100).duration(400)}
-                >
-                  <Card 
-                    style={styles.attachmentCard}
-                    animationType="scale"
-                    onPress={() => {}}
-                  >
-                    <View style={styles.attachmentContent}>
+                    <TouchableOpacity style={styles.attachmentItem} activeOpacity={0.7}>
                       <View 
                         style={[
-                          styles.attachmentIconContainer,
-                          attachment.type === 'image' && styles.imageIconContainer,
-                          attachment.type === 'document' && styles.documentIconContainer
+                          styles.attachmentIcon,
+                          { backgroundColor: Colors.primary.blue + '15' }
                         ]}
                       >
                         <Feather 
-                          name={
-                            attachment.type === 'image' 
-                              ? 'image' 
-                              : attachment.type === 'document' 
-                                ? 'file-text' 
-                                : 'link'
-                          } 
+                          name={getFileIcon(attachment.type)} 
                           size={20} 
-                          color="#fff" 
+                          color={Colors.primary.blue} 
                         />
                       </View>
                       
-                      <View style={styles.attachmentDetails}>
-                        <Text style={styles.attachmentName}>{attachment.name}</Text>
-                        <Text style={styles.attachmentMeta}>{attachment.size}</Text>
+                      <View style={styles.attachmentInfo}>
+                        <Text style={styles.attachmentName} numberOfLines={1}>
+                          {attachment.name}
+                        </Text>
+                        <Text style={styles.attachmentMeta}>
+                          {attachment.size} • Uploaded {timeAgo(attachment.uploadedAt)}
+                        </Text>
                       </View>
                       
                       <TouchableOpacity style={styles.downloadButton}>
                         <Feather name="download" size={18} color={Colors.primary.blue} />
                       </TouchableOpacity>
-                    </View>
-                  </Card>
-                </Animated.View>
-              ))}
-            </View>
-            
-            <Animated.View 
-              entering={FadeInUp.delay(600).duration(400)}
-              style={styles.addAttachmentContainer}
-            >
-              <Button
-                title="Add Attachment"
-                icon="paperclip"
-                variant="secondary"
-                onPress={() => {}}
-                style={styles.addAttachmentButton}
-                animationType="spring"
-              />
+                    </TouchableOpacity>
+                  </Animated.View>
+                ))}
+              </View>
+              
+              <TouchableOpacity style={styles.uploadButton}>
+                <Feather name="upload" size={18} color={Colors.primary.blue} />
+                <Text style={styles.uploadButtonText}>Upload File</Text>
+              </TouchableOpacity>
             </Animated.View>
-          </Animated.View>
-        )
-    }
-  }
-  
-  // Render tab buttons
-  const renderTab = (id: typeof activeTab, label: string, icon: keyof typeof Feather.glyphMap) => {
-    const isActive = activeTab === id
-    
-    return (
-      <TouchableOpacity 
-        style={[styles.tabButton, isActive && styles.activeTabButton]} 
-        onPress={() => setActiveTab(id)}
-      >
-        <Feather 
-          name={icon} 
-          size={16} 
-          color={isActive ? Colors.primary.blue : Colors.neutrals.gray600} 
-        />
-        <Text 
-          style={[
-            styles.tabLabel, 
-            isActive && styles.activeTabLabel
-          ]}
-        >
-          {label}
-        </Text>
-      </TouchableOpacity>
-    )
-  }
-  
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <Animated.View style={[styles.header, headerAnimatedStyle]}>
-        <View style={styles.headerControls}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={() => navigation.goBack()}
-          >
-            <Feather name="arrow-left" size={24} color="#fff" />
-          </TouchableOpacity>
+          )}
           
-          <Animated.View style={headerTitleStyle}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {task.title}
-            </Text>
-          </Animated.View>
-          
-          <TouchableOpacity 
-            style={styles.moreButton}
-            onPress={() => {}}
-          >
-            <Feather name="more-vertical" size={24} color="#fff" />
-          </TouchableOpacity>
+          {/* Comments Tab */}
+          {activeTab === 'comments' && (
+            <Animated.View 
+              style={styles.commentsContainer}
+              entering={FadeIn.duration(300)}
+            >
+              <Text style={styles.sectionTitle}>Discussion</Text>
+              
+              <View style={styles.commentsList}>
+                {task.comments.map((comment, index) => (
+                  <Animated.View
+                    key={comment.id}
+                    entering={SlideInRight.delay(index * 100).duration(300)}
+                  >
+                    <View style={styles.commentItem}>
+                      <Avatar
+                        name={comment.user.name}
+                        imageUrl={comment.user.avatar}
+                        size={36}
+                      />
+                      
+                      <View style={styles.commentContent}>
+                        <View style={styles.commentHeader}>
+                          <Text style={styles.commentAuthor}>{comment.user.name}</Text>
+                          <Text style={styles.commentTime}>{timeAgo(comment.createdAt)}</Text>
+                        </View>
+                        
+                        <Text style={styles.commentText}>{comment.text}</Text>
+                      </View>
+                    </View>
+                  </Animated.View>
+                ))}
+              </View>
+              
+              {/* Empty space to prevent comment input from covering content */}
+              <View style={{ height: 80 }} />
+            </Animated.View>
+          )}
         </View>
-        
-        <Animated.View style={[styles.headerContent, headerContentStyle]}>
-          <Text style={styles.headerTaskTitle} numberOfLines={2}>
-            {task.title}
-          </Text>
-          
-          <View style={styles.taskMeta}>
-            <StatusPill 
-              label={
-                task.status === 'in-progress' 
-                  ? 'In Progress' 
-                  : task.status === 'completed' 
-                    ? 'Completed' 
-                    : 'To Do'
-              } 
-              type={task.status as any} 
-              style={styles.headerPill}
-              small
-            />
-            
-            <StatusPill 
-              label={
-                task.priority === 'high' 
-                  ? 'High Priority' 
-                  : task.priority === 'medium' 
-                    ? 'Medium Priority' 
-                    : 'Low Priority'
-              } 
-              priority={task.priority as any} 
-              style={styles.headerPill}
-              small
-            />
-          </View>
-        </Animated.View>
-      </Animated.View>
-      
-      <View style={styles.tabsContainer}>
-        <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabs}
-        >
-          {renderTab('details', 'Details', 'info')}
-          {renderTab('subtasks', 'Subtasks', 'check-square')}
-          {renderTab('comments', 'Comments', 'message-square')}
-          {renderTab('attachments', 'Attachments', 'paperclip')}
-        </ScrollView>
-      </View>
-      
-      <ScrollView 
-        style={styles.content}
-        onScroll={handleScroll}
-        scrollEventThrottle={16}
-      >
-        {renderTabContent()}
-        
-        <View style={{ height: 100 }} />
       </ScrollView>
       
+      {/* Comment Input (only visible in Comments tab) */}
       {activeTab === 'comments' && (
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 20}
-          style={styles.commentInputContainer}
+        <Animated.View 
+          style={[
+            styles.commentInputContainer,
+            { paddingBottom: insets.bottom ? insets.bottom : 16 },
+            commentContainerStyle
+          ]}
         >
-          <View style={styles.commentInputWrapper}>
-            <TextInput
-              ref={commentInputRef}
-              style={styles.commentInput}
-              placeholder="Type a comment..."
-              value={newComment}
-              onChangeText={setNewComment}
-              multiline
+          <Avatar
+            name="Alex Johnson" // Current user
+            size={36}
+          />
+          
+          <TextInput
+            ref={commentInputRef}
+            style={styles.commentInput}
+            value={commentText}
+            onChangeText={setCommentText}
+            placeholder="Add a comment..."
+            multiline
+          />
+          
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !commentText.trim() && styles.sendButtonDisabled
+            ]}
+            onPress={handleSubmitComment}
+            disabled={!commentText.trim()}
+          >
+            <Feather 
+              name="send" 
+              size={20} 
+              color={commentText.trim() ? Colors.primary.blue : Colors.neutrals.gray400} 
             />
-            
-            <TouchableOpacity 
-              style={[
-                styles.sendButton,
-                (!newComment.trim() || submittingComment) && styles.sendButtonDisabled
-              ]}
-              onPress={submitComment}
-              disabled={!newComment.trim() || submittingComment}
-            >
-              {submittingComment ? (
-                <ActivityIndicator size="small" color="#fff" />
-              ) : (
-                <Feather name="send" size={16} color="#fff" />
-              )}
-            </TouchableOpacity>
-          </View>
-        </KeyboardAvoidingView>
+          </TouchableOpacity>
+        </Animated.View>
       )}
-      
-      <FAB
-        onPress={() => {
-          if (activeTab === 'subtasks') {
-            // Logic to add subtask
-          } else if (activeTab === 'attachments') {
-            // Logic to add attachment
-          } else {
-            // Generic action
-          }
-        }}
-        icon={
-          activeTab === 'subtasks' 
-            ? 'check-square' 
-            : activeTab === 'attachments' 
-              ? 'paperclip' 
-              : 'edit'
-        }
-        position="bottomRight"
-        gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-      />
     </View>
   )
 }
@@ -910,410 +1163,504 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.light
   },
-  header: {
-    height: 250,
-    backgroundColor: Colors.primary.blue,
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.lg,
-    justifyContent: 'space-between'
-  },
-  headerControls: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    height: 56
+    backgroundColor: Colors.background.light
+  },
+  header: {
+    height: 60,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    backgroundColor: Colors.background.light,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200,
+    zIndex: 10
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  moreButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center'
   },
   headerTitle: {
+    position: 'absolute',
+    left: 70,
+    right: 70,
+    textAlign: 'center',
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.white,
-    maxWidth: 200
+    color: Colors.neutrals.gray900
   },
-  headerContent: {
-    flex: 1,
-    justifyContent: 'flex-end'
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.neutrals.gray100,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
-  headerTaskTitle: {
+  scrollView: {
+    flex: 1
+  },
+  scrollContent: {
+    paddingBottom: 40
+  },
+  titleSection: {
+    padding: 20
+  },
+  taskTitle: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.white,
-    marginBottom: Spacing.sm
+    color: Colors.neutrals.gray900,
+    marginBottom: 12
   },
-  taskMeta: {
+  titleInput: {
+    fontSize: Typography.sizes.title,
+    fontWeight: Typography.weights.bold,
+    color: Colors.neutrals.gray900,
+    marginBottom: 12,
+    padding: 0
+  },
+  metaContainer: {
     flexDirection: 'row',
     alignItems: 'center'
   },
-  headerPill: {
-    marginRight: Spacing.sm
-  },
-  tabsContainer: {
-    paddingVertical: Spacing.sm,
-    backgroundColor: Colors.neutrals.white,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 3,
-    zIndex: 2
-  },
-  tabs: {
-    paddingHorizontal: Spacing.lg
-  },
-  tabButton: {
+  projectBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: Spacing.sm,
-    paddingHorizontal: Spacing.md,
-    borderRadius: 20,
-    marginRight: Spacing.sm
+    backgroundColor: Colors.neutrals.gray100,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16
   },
-  activeTabButton: {
-    backgroundColor: 'rgba(61, 90, 254, 0.1)'
-  },
-  tabLabel: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutrals.gray600,
-    marginLeft: Spacing.xs
-  },
-  activeTabLabel: {
-    color: Colors.primary.blue
-  },
-  content: {
-    flex: 1
-  },
-  section: {
-    padding: Spacing.lg
-  },
-  metaSection: {
-    marginBottom: Spacing.lg
-  },
-  metaItem: {
-    marginBottom: Spacing.md
-  },
-  metaLabel: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutrals.gray700,
-    marginBottom: Spacing.xs
-  },
-  projectCard: {
-    padding: Spacing.md
-  },
-  projectCardContent: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  projectIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.sm
+  projectColor: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 6
   },
   projectName: {
-    fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray900,
-    flex: 1
-  },
-  pillsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: Spacing.xs
-  },
-  pill: {
-    marginRight: Spacing.sm,
-    marginBottom: Spacing.sm
-  },
-  activePill: {
-    transform: [{ scale: 1.05 }]
-  },
-  dueDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 8,
-    padding: Spacing.md,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 1
-  },
-  dueDate: {
-    fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray900,
-    marginLeft: Spacing.sm,
-    flex: 1
-  },
-  editDateButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: 'rgba(61, 90, 254, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  assigneesContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 8,
-    padding: Spacing.md,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 1
-  },
-  addAssigneeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 16,
-    backgroundColor: 'rgba(61, 90, 254, 0.1)'
-  },
-  addAssigneeText: {
-    fontSize: Typography.sizes.bodySmall,
+    fontSize: Typography.sizes.caption,
     fontWeight: Typography.weights.medium,
-    color: Colors.primary.blue,
+    color: Colors.neutrals.gray700
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12
+  },
+  dateText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600,
     marginLeft: 4
   },
-  descriptionSection: {
-    marginBottom: Spacing.lg
+  statusSection: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
+  },
+  statusContainer: {
+    flex: 1,
+    marginRight: 8
+  },
+  statusLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600,
+    marginBottom: 8
+  },
+  statusSelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  statusDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6
+  },
+  statusText: {
+    flex: 1,
+    fontSize: Typography.sizes.bodySmall,
+    fontWeight: Typography.weights.medium,
+    color: Colors.neutrals.gray800
+  },
+  priorityContainer: {
+    flex: 1,
+    marginLeft: 8
+  },
+  priorityLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600,
+    marginBottom: 8
+  },
+  prioritySelector: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10
+  },
+  priorityDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 6
+  },
+  priorityText: {
+    flex: 1,
+    fontSize: Typography.sizes.bodySmall,
+    fontWeight: Typography.weights.medium,
+    color: Colors.neutrals.gray800
+  },
+  dropdownMenu: {
+    backgroundColor: Colors.neutrals.white,
+    borderRadius: 8,
+    marginTop: 8,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+    zIndex: 100
+  },
+  dropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
+  },
+  dropdownItemActive: {
+    backgroundColor: Colors.primary.blue + '10'
+  },
+  dropdownItemText: {
+    flex: 1,
+    fontSize: Typography.sizes.body,
+    color: Colors.neutrals.gray800
+  },
+  dropdownItemTextActive: {
+    fontWeight: Typography.weights.medium,
+    color: Colors.primary.blue
+  },
+  assigneesSection: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
   },
   sectionTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     color: Colors.neutrals.gray900,
-    marginBottom: Spacing.md
+    marginBottom: 16
   },
-  descriptionCard: {
-    padding: Spacing.lg,
-    backgroundColor: Colors.neutrals.white
+  assigneesContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap'
   },
-  description: {
+  assigneeItem: {
+    alignItems: 'center',
+    marginRight: 16,
+    marginBottom: 8
+  },
+  assigneeName: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray700,
+    marginTop: 4,
+    textAlign: 'center'
+  },
+  addAssigneeButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.neutrals.gray100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    marginRight: 24
+  },
+  activeTab: {
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary.blue
+  },
+  tabText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.neutrals.gray600
+  },
+  activeTabText: {
+    color: Colors.primary.blue,
+    fontWeight: Typography.weights.semibold
+  },
+  subtaskCount: {
+    backgroundColor: Colors.neutrals.gray200,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    marginLeft: 6
+  },
+  subtaskCountText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray700,
+    fontWeight: Typography.weights.medium
+  },
+  tabContent: {
+    flex: 1
+  },
+  infoContainer: {
+    padding: 20
+  },
+  descriptionText: {
     fontSize: Typography.sizes.body,
     lineHeight: 24,
-    color: Colors.neutrals.gray800
+    color: Colors.neutrals.gray800,
+    marginBottom: 24
   },
-  editDescriptionButton: {
-    position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(61, 90, 254, 0.1)',
-    justifyContent: 'center',
-    alignItems: 'center'
+  descriptionInput: {
+    fontSize: Typography.sizes.body,
+    lineHeight: 24,
+    color: Colors.neutrals.gray800,
+    marginBottom: 24,
+    padding: 12,
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 8,
+    minHeight: 120,
+    textAlignVertical: 'top'
   },
-  subtasksHeader: {
-    marginBottom: Spacing.md
+  timeTrackingSection: {
+    marginBottom: 24
   },
-  subtasksProgress: {
-    marginTop: Spacing.sm
-  },
-  progressTrack: {
-    height: 6,
+  timeTrackingBar: {
+    height: 8,
     backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 3,
-    marginBottom: Spacing.xs,
+    borderRadius: 4,
+    overflow: 'hidden',
+    marginBottom: 8
+  },
+  timeTrackingProgress: {
+    height: '100%',
+    backgroundColor: Colors.primary.blue,
+    borderRadius: 4
+  },
+  timeTrackingLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between'
+  },
+  timeLabel: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600
+  },
+  tagsSection: {
+    marginBottom: 24
+  },
+  tagsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap'
+  },
+  tag: {
+    backgroundColor: Colors.primary.blue + '15',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8
+  },
+  tagText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.primary.blue,
+    fontWeight: Typography.weights.medium
+  },
+  addTagButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.primary.blue,
+    borderStyle: 'dashed',
+    marginRight: 8,
+    marginBottom: 8
+  },
+  addTagText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.primary.blue,
+    fontWeight: Typography.weights.medium,
+    marginLeft: 4
+  },
+  detailsSection: {
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 12,
+    padding: 16
+  },
+  detailItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
+  },
+  detailLabel: {
+    fontSize: Typography.sizes.bodySmall,
+    color: Colors.neutrals.gray600
+  },
+  detailValue: {
+    fontSize: Typography.sizes.bodySmall,
+    color: Colors.neutrals.gray800,
+    fontWeight: Typography.weights.medium
+  },
+  subtasksContainer: {
+    padding: 20
+  },
+  progressSection: {
+    marginBottom: 20
+  },
+  progressTextContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  progressLabel: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.neutrals.gray900
+  },
+  progressPercentage: {
+    fontSize: Typography.sizes.body,
+    fontWeight: Typography.weights.bold,
+    color: Colors.primary.blue
+  },
+  progressBar: {
+    height: 8,
+    backgroundColor: Colors.neutrals.gray200,
+    borderRadius: 4,
     overflow: 'hidden'
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.secondary.green,
-    borderRadius: 3
-  },
-  progressText: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray600
+    backgroundColor: Colors.primary.blue,
+    borderRadius: 4
   },
   subtasksList: {
-    marginBottom: Spacing.lg
+    marginBottom: 20
   },
   subtaskItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md,
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 8,
-    marginBottom: Spacing.sm,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.neutrals.gray200
+  },
+  subtaskCompleted: {
+    opacity: 0.7
   },
   checkbox: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
+    width: 22,
+    height: 22,
+    borderRadius: 4,
     borderWidth: 2,
     borderColor: Colors.primary.blue,
-    marginRight: Spacing.md,
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginRight: 12
   },
   checkboxChecked: {
     backgroundColor: Colors.primary.blue
   },
   subtaskTitle: {
+    flex: 1,
     fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray900,
-    flex: 1
+    color: Colors.neutrals.gray800
   },
-  subtaskCompleted: {
+  subtaskTitleCompleted: {
     textDecorationLine: 'line-through',
     color: Colors.neutrals.gray500
   },
   addSubtaskContainer: {
-    alignItems: 'center'
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.neutrals.white,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: Colors.neutrals.gray300,
+    paddingHorizontal: 12,
+    paddingVertical: 4
+  },
+  addSubtaskInput: {
+    flex: 1,
+    height: 40,
+    fontSize: Typography.sizes.body,
+    color: Colors.neutrals.gray800
   },
   addSubtaskButton: {
-    minWidth: 160
-  },
-  commentsSection: {
-    paddingBottom: 80
-  },
-  commentsList: {
-    marginBottom: Spacing.lg
-  },
-  commentContainer: {
-    marginBottom: Spacing.md,
-    maxWidth: '80%'
-  },
-  ownCommentContainer: {
-    alignSelf: 'flex-end'
-  },
-  commentHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4
-  },
-  commentAuthorContainer: {
-    marginLeft: Spacing.sm
-  },
-  commentAuthor: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray900
-  },
-  commentTimestamp: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray600
-  },
-  commentBubble: {
-    padding: Spacing.md,
+    width: 32,
+    height: 32,
     borderRadius: 16,
-    marginTop: 4
-  },
-  otherCommentBubble: {
-    backgroundColor: Colors.neutrals.white,
-    borderTopLeftRadius: 4,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1
-  },
-  ownCommentBubble: {
-    backgroundColor: 'rgba(61, 90, 254, 0.1)',
-    borderTopRightRadius: 4
-  },
-  commentText: {
-    fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray800,
-    lineHeight: 22
-  },
-  commentInputContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: Colors.neutrals.white,
-    borderTopWidth: 1,
-    borderTopColor: Colors.neutrals.gray200,
-    padding: Spacing.md
-  },
-  commentInputWrapper: {
-    flexDirection: 'row',
-    alignItems: 'center'
-  },
-  commentInput: {
-    flex: 1,
-    backgroundColor: Colors.neutrals.gray100,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: Typography.sizes.body,
-    maxHeight: 100
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
     backgroundColor: Colors.primary.blue,
     justifyContent: 'center',
-    alignItems: 'center',
-    marginLeft: Spacing.sm
+    alignItems: 'center'
   },
-  sendButtonDisabled: {
-    backgroundColor: Colors.neutrals.gray400
+  addSubtaskButtonDisabled: {
+    backgroundColor: Colors.neutrals.gray300
+  },
+  attachmentsContainer: {
+    padding: 20
   },
   attachmentsList: {
-    marginBottom: Spacing.lg
+    marginBottom: 20
   },
-  attachmentCard: {
-    marginBottom: Spacing.sm
-  },
-  attachmentContent: {
+  attachmentItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.md
+    backgroundColor: Colors.neutrals.white,
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 12,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2
   },
-  attachmentIconContainer: {
-    width: 40,
-    height: 40,
+  attachmentIcon: {
+    width: 44,
+    height: 44,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: Spacing.md
+    marginRight: 12
   },
-  imageIconContainer: {
-    backgroundColor: Colors.secondary.green
-  },
-  documentIconContainer: {
-    backgroundColor: Colors.primary.blue
-  },
-  attachmentDetails: {
+  attachmentInfo: {
     flex: 1
   },
   attachmentName: {
-    fontSize: Typography.sizes.bodySmall,
+    fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium,
     color: Colors.neutrals.gray900,
-    marginBottom: 2
+    marginBottom: 4
   },
   attachmentMeta: {
     fontSize: Typography.sizes.caption,
@@ -1323,15 +1670,95 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: 'rgba(61, 90, 254, 0.1)',
+    backgroundColor: Colors.primary.blue + '15',
     justifyContent: 'center',
     alignItems: 'center'
   },
-  addAttachmentContainer: {
+  uploadButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderWidth: 1,
+    borderColor: Colors.primary.blue,
+    borderRadius: 8,
+    borderStyle: 'dashed'
+  },
+  uploadButtonText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.primary.blue,
+    fontWeight: Typography.weights.medium,
+    marginLeft: 8
+  },
+  commentsContainer: {
+    padding: 20
+  },
+  commentsList: {
+    marginBottom: 20
+  },
+  commentItem: {
+    flexDirection: 'row',
+    marginBottom: 16
+  },
+  commentContent: {
+    flex: 1,
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 12,
+    padding: 12,
+    marginLeft: 12
+  },
+  commentHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  commentAuthor: {
+    fontSize: Typography.sizes.bodySmall,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.neutrals.gray900
+  },
+  commentTime: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray500
+  },
+  commentText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.neutrals.gray800,
+    lineHeight: 20
+  },
+  commentInputContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.neutrals.white,
+    borderTopWidth: 1,
+    borderTopColor: Colors.neutrals.gray200,
+    paddingHorizontal: 16,
+    paddingTop: 12
+  },
+  commentInput: {
+    flex: 1,
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginHorizontal: 12,
+    maxHeight: 100
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.neutrals.gray100,
+    justifyContent: 'center',
     alignItems: 'center'
   },
-  addAttachmentButton: {
-    minWidth: 180
+  sendButtonDisabled: {
+    opacity: 0.5
   }
 })
 

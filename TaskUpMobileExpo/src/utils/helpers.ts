@@ -1,197 +1,198 @@
 /**
- * Utility functions for formatting and transforming data
+ * Format date string from ISO to readable format
+ * @param {string} isoString - ISO date string
+ * @param {object} options - Format options
+ * @returns {string} Formatted date string
  */
-
-// Format date string from YYYY-MM-DD to MMM D format
-export const formatDateString = (dateString: string): string => {
-  if (!dateString) return ''
+export const formatDateString = (isoString, options = {}) => {
+  if (!isoString) return ''
   
   try {
-    const date = new Date(dateString)
-    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-    return date.toLocaleDateString('en-US', options)
+    const date = new Date(isoString)
+    const defaultOptions = { month: 'short', day: 'numeric' }
+    return date.toLocaleDateString('en-US', { ...defaultOptions, ...options })
   } catch (error) {
-    return dateString
+    console.error('Error formatting date:', error)
+    return isoString
   }
 }
 
-// Format date with time
-export const formatDateTime = (dateString: string): string => {
-  if (!dateString) return ''
+/**
+ * Format date with time
+ * @param {string} isoString - ISO date string
+ * @returns {string} Formatted date and time
+ */
+export const formatDateTime = (isoString) => {
+  if (!isoString) return ''
   
   try {
-    const date = new Date(dateString)
-    const options: Intl.DateTimeFormatOptions = { 
-      month: 'short', 
+    const date = new Date(isoString)
+    return date.toLocaleDateString('en-US', {
+      month: 'short',
       day: 'numeric',
       hour: 'numeric',
       minute: '2-digit'
-    }
-    return date.toLocaleDateString('en-US', options)
+    })
   } catch (error) {
-    return dateString
+    console.error('Error formatting datetime:', error)
+    return isoString
   }
 }
 
-// Format relative time (e.g., "2 hours ago")
-export const timeAgo = (dateString: string): string => {
-  if (!dateString) return ''
+/**
+ * Format time from ISO string
+ * @param {string} isoString - ISO date string
+ * @returns {string} Formatted time
+ */
+export const formatTime = (isoString) => {
+  if (!isoString) return ''
   
   try {
-    const date = new Date(dateString)
+    const date = new Date(isoString)
+    return date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit'
+    })
+  } catch (error) {
+    console.error('Error formatting time:', error)
+    return ''
+  }
+}
+
+/**
+ * Get relative time (e.g., "2 hours ago")
+ * @param {string} isoString - ISO date string
+ * @returns {string} Relative time
+ */
+export const timeAgo = (isoString) => {
+  if (!isoString) return ''
+  
+  try {
+    const date = new Date(isoString)
     const now = new Date()
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000)
+    const diffInSeconds = Math.floor((now - date) / 1000)
     
-    // Less than a minute
     if (diffInSeconds < 60) {
       return 'just now'
     }
     
-    // Less than an hour
-    if (diffInSeconds < 3600) {
-      const minutes = Math.floor(diffInSeconds / 60)
-      return `${minutes} ${minutes === 1 ? 'minute' : 'minutes'} ago`
+    const diffInMinutes = Math.floor(diffInSeconds / 60)
+    if (diffInMinutes < 60) {
+      return `${diffInMinutes} ${diffInMinutes === 1 ? 'minute' : 'minutes'} ago`
     }
     
-    // Less than a day
-    if (diffInSeconds < 86400) {
-      const hours = Math.floor(diffInSeconds / 3600)
-      return `${hours} ${hours === 1 ? 'hour' : 'hours'} ago`
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    if (diffInHours < 24) {
+      return `${diffInHours} ${diffInHours === 1 ? 'hour' : 'hours'} ago`
     }
     
-    // Less than a week
-    if (diffInSeconds < 604800) {
-      const days = Math.floor(diffInSeconds / 86400)
-      return `${days} ${days === 1 ? 'day' : 'days'} ago`
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 7) {
+      return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`
     }
     
-    // Format as date for older dates
-    const options: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' }
-    return date.toLocaleDateString('en-US', options)
+    return formatDateString(isoString)
   } catch (error) {
-    return dateString
+    console.error('Error calculating time ago:', error)
+    return ''
   }
 }
 
-// Calculate days remaining until due date (negative for overdue)
-export const daysUntil = (dateString: string): number => {
-  if (!dateString) return 0
-  
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    
-    // Reset times to compare dates only
-    date.setHours(0, 0, 0, 0)
-    now.setHours(0, 0, 0, 0)
-    
-    const diffInMs = date.getTime() - now.getTime()
-    return Math.round(diffInMs / (1000 * 60 * 60 * 24))
-  } catch (error) {
-    return 0
-  }
-}
-
-// Check if date is in the past
-export const isOverdue = (dateString: string): boolean => {
-  return daysUntil(dateString) < 0
-}
-
-// Calculate completion percentage
-export const calculateCompletionPercentage = (completed: number, total: number): number => {
-  if (total === 0) return 0
-  return Math.round((completed / total) * 100)
-}
-
-// Get user initials from name
-export const getInitials = (name: string): string => {
+/**
+ * Get initials from name
+ * @param {string} name - Full name
+ * @returns {string} Initials
+ */
+export const getInitials = (name) => {
   if (!name) return ''
   
-  const names = name.split(' ')
-  if (names.length === 1) return names[0].charAt(0).toUpperCase()
+  return name
+    .split(' ')
+    .map(part => part.charAt(0))
+    .join('')
+    .toUpperCase()
+    .slice(0, 2)
+}
+
+/**
+ * Format number with comma separator
+ * @param {number} num - Number to format
+ * @returns {string} Formatted number
+ */
+export const formatNumber = (num) => {
+  if (num === null || num === undefined) return '0'
+  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+}
+
+/**
+ * Format number with appropriate suffix (K, M, B)
+ * @param {number} num - Number to format
+ * @param {number} digits - Decimal places
+ * @returns {string} Formatted number with suffix
+ */
+export const formatCompactNumber = (num, digits = 1) => {
+  if (num === null || num === undefined) return '0'
   
-  return `${names[0].charAt(0)}${names[names.length - 1].charAt(0)}`.toUpperCase()
+  const lookup = [
+    { value: 1, symbol: '' },
+    { value: 1e3, symbol: 'K' },
+    { value: 1e6, symbol: 'M' },
+    { value: 1e9, symbol: 'B' },
+    { value: 1e12, symbol: 'T' }
+  ]
+  
+  const rx = /\.0+$|(\.[0-9]*[1-9])0+$/
+  const item = lookup
+    .slice()
+    .reverse()
+    .find(item => num >= item.value)
+  
+  return item
+    ? (num / item.value).toFixed(digits).replace(rx, '$1') + item.symbol
+    : '0'
 }
 
-// Truncate text with ellipsis
-export const truncateText = (text: string, maxLength: number): string => {
-  if (!text || text.length <= maxLength) return text
-  return `${text.slice(0, maxLength)}...`
-}
-
-// Capitalize first letter of a string
-export const capitalize = (text: string): string => {
+/**
+ * Truncate text to specified length
+ * @param {string} text - Text to truncate
+ * @param {number} length - Maximum length
+ * @param {string} suffix - Suffix to add when truncated
+ * @returns {string} Truncated text
+ */
+export const truncateText = (text, length = 30, suffix = '...') => {
   if (!text) return ''
-  return text.charAt(0).toUpperCase() + text.slice(1)
+  if (text.length <= length) return text
+  
+  return text.substring(0, length) + suffix
 }
 
-// Format full name (first + last)
-export const formatName = (firstName: string, lastName: string): string => {
-  if (!firstName && !lastName) return ''
-  if (!firstName) return lastName
-  if (!lastName) return firstName
-  
-  return `${firstName} ${lastName}`
+/**
+ * Capitalize first letter of string
+ * @param {string} string - String to capitalize
+ * @returns {string} Capitalized string
+ */
+export const capitalize = (string) => {
+  if (!string) return ''
+  return string.charAt(0).toUpperCase() + string.slice(1)
 }
 
-// Convert hex color to rgba
-export const hexToRgba = (hex: string, alpha: number): string => {
-  if (!hex) return `rgba(0, 0, 0, ${alpha})`
-  
-  const r = parseInt(hex.slice(1, 3), 16)
-  const g = parseInt(hex.slice(3, 5), 16)
-  const b = parseInt(hex.slice(5, 7), 16)
-  
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+/**
+ * Generate random ID
+ * @param {number} length - Length of ID
+ * @returns {string} Random ID
+ */
+export const generateId = (length = 12) => {
+  return Math.random()
+    .toString(36)
+    .substring(2, 2 + length)
 }
 
-// Adjust color brightness
-export const adjustColorBrightness = (color: string, percent: number): string => {
-  if (!color) return color
-  
-  const num = parseInt(color.replace('#', ''), 16)
-  const amt = Math.round(2.55 * percent)
-  const R = (num >> 16) + amt
-  const G = (num >> 8 & 0x00FF) + amt
-  const B = (num & 0x0000FF) + amt
-  
-  const newR = Math.min(255, Math.max(0, R))
-  const newG = Math.min(255, Math.max(0, G))
-  const newB = Math.min(255, Math.max(0, B))
-  
-  return '#' + (
-    (newR << 16 | newG << 8 | newB)
-      .toString(16)
-      .padStart(6, '0')
-  )
-}
-
-// Generate random pastel color
-export const generatePastelColor = (): string => {
-  const hue = Math.floor(Math.random() * 360)
-  return `hsl(${hue}, 70%, 80%)`
-}
-
-// Generate color based on string (consistent color for same string)
-export const stringToColor = (str: string): string => {
-  if (!str) return '#cccccc'
-  
-  let hash = 0
-  for (let i = 0; i < str.length; i++) {
-    hash = str.charCodeAt(i) + ((hash << 5) - hash)
-  }
-  
-  let color = '#'
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF
-    color += ('00' + value.toString(16)).substr(-2)
-  }
-  
-  return color
-}
-
-// Format file size
-export const formatFileSize = (bytes: number): string => {
+/**
+ * Format file size
+ * @param {number} bytes - File size in bytes
+ * @returns {string} Formatted file size
+ */
+export const formatFileSize = (bytes) => {
   if (bytes === 0) return '0 Bytes'
   
   const k = 1024
@@ -201,99 +202,230 @@ export const formatFileSize = (bytes: number): string => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
 }
 
-// Format number with commas
-export const formatNumber = (num: number): string => {
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',')
+/**
+ * Calculate progress percentage
+ * @param {number} current - Current value
+ * @param {number} total - Total value
+ * @returns {number} Percentage
+ */
+export const calculatePercentage = (current, total) => {
+  if (!total) return 0
+  return Math.round((current / total) * 100)
 }
 
-// Get file extension from file name
-export const getFileExtension = (filename: string): string => {
-  if (!filename) return ''
-  return filename.split('.').pop()?.toLowerCase() || ''
+/**
+ * Check if object is empty
+ * @param {object} obj - Object to check
+ * @returns {boolean} Is empty
+ */
+export const isEmptyObject = (obj) => {
+  return obj && Object.keys(obj).length === 0 && obj.constructor === Object
 }
 
-// Generate random ID
-export const generateId = (): string => {
-  return Math.random().toString(36).substring(2, 15) + 
-         Math.random().toString(36).substring(2, 15)
-}
-
-// Deep clone object
-export const deepClone = <T>(obj: T): T => {
+/**
+ * Deep clone object
+ * @param {object} obj - Object to clone
+ * @returns {object} Cloned object
+ */
+export const deepClone = (obj) => {
   return JSON.parse(JSON.stringify(obj))
 }
 
-// Get days in month
-export const getDaysInMonth = (year: number, month: number): number => {
-  return new Date(year, month + 1, 0).getDate()
-}
-
-// Get week number
-export const getWeekNumber = (date: Date): number => {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()))
-  const dayNum = d.getUTCDay() || 7
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum)
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1))
-  return Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7)
-}
-
-// Format currency
-export const formatCurrency = (amount: number, currency: string = 'USD'): string => {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency
-  }).format(amount)
-}
-
-// Get time from date
-export const getTimeFromDate = (dateString: string): string => {
-  if (!dateString) return ''
+/**
+ * Get contrast color (black or white) based on background
+ * @param {string} hexcolor - Hex color code
+ * @returns {string} Contrast color
+ */
+export const getContrastColor = (hexcolor) => {
+  if (!hexcolor || typeof hexcolor !== 'string') return '#000000'
   
-  try {
-    const date = new Date(dateString)
-    return date.toLocaleTimeString('en-US', { 
-      hour: '2-digit', 
-      minute: '2-digit',
-      hour12: true
-    })
-  } catch (error) {
-    return ''
+  // Remove hash if present
+  hexcolor = hexcolor.replace('#', '')
+  
+  // Convert to RGB
+  const r = parseInt(hexcolor.substr(0, 2), 16)
+  const g = parseInt(hexcolor.substr(2, 2), 16)
+  const b = parseInt(hexcolor.substr(4, 2), 16)
+  
+  // Calculate contrast
+  const yiq = (r * 299 + g * 587 + b * 114) / 1000
+  
+  return yiq >= 128 ? '#000000' : '#FFFFFF'
+}
+
+/**
+ * Generate random color
+ * @returns {string} Random hex color
+ */
+export const randomColor = () => {
+  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0')
+}
+
+/**
+ * Format duration in seconds to minutes and seconds
+ * @param {number} seconds - Duration in seconds
+ * @returns {string} Formatted duration
+ */
+export const formatDuration = (seconds) => {
+  if (!seconds) return '0:00'
+  
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = Math.floor(seconds % 60)
+  
+  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+}
+
+/**
+ * Get days left until date
+ * @param {string} dateString - Target date
+ * @returns {number} Days left
+ */
+export const getDaysLeft = (dateString) => {
+  if (!dateString) return 0
+  
+  const targetDate = new Date(dateString)
+  const currentDate = new Date()
+  
+  // Reset time part for accurate day calculation
+  targetDate.setHours(0, 0, 0, 0)
+  currentDate.setHours(0, 0, 0, 0)
+  
+  // Calculate days difference
+  const timeDiff = targetDate.getTime() - currentDate.getTime()
+  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24))
+  
+  return daysDiff
+}
+
+/**
+ * Check if a date is in the past
+ * @param {string} dateString - Date to check
+ * @returns {boolean} Is in past
+ */
+export const isDateInPast = (dateString) => {
+  if (!dateString) return false
+  
+  const date = new Date(dateString)
+  const today = new Date()
+  
+  // Reset time part for accurate comparison
+  date.setHours(0, 0, 0, 0)
+  today.setHours(0, 0, 0, 0)
+  
+  return date < today
+}
+
+/**
+ * Get file extension from filename
+ * @param {string} filename - File name
+ * @returns {string} File extension
+ */
+export const getFileExtension = (filename) => {
+  if (!filename) return ''
+  return filename.split('.').pop().toLowerCase()
+}
+
+/**
+ * Parse URL parameters
+ * @param {string} url - URL with parameters
+ * @returns {object} Parameters object
+ */
+export const parseURLParams = (url) => {
+  if (!url || !url.includes('?')) return {}
+  
+  const params = {}
+  const queryString = url.split('?')[1]
+  
+  queryString.split('&').forEach(param => {
+    const [key, value] = param.split('=')
+    params[key] = decodeURIComponent(value)
+  })
+  
+  return params
+}
+
+/**
+ * Get device type based on screen width
+ * @param {number} width - Screen width
+ * @returns {string} Device type
+ */
+export const getDeviceType = (width) => {
+  if (width < 576) return 'mobile'
+  if (width < 992) return 'tablet'
+  return 'desktop'
+}
+
+/**
+ * Shorten long string from middle
+ * @param {string} str - String to shorten
+ * @param {number} maxLength - Maximum length
+ * @returns {string} Shortened string
+ */
+export const shortenFromMiddle = (str, maxLength = 20) => {
+  if (!str || str.length <= maxLength) return str
+  
+  const midPoint = Math.floor(str.length / 2)
+  const charsToRemove = str.length - maxLength + 3 // +3 for "..."
+  const firstHalfEnd = midPoint - Math.floor(charsToRemove / 2)
+  const secondHalfStart = midPoint + Math.ceil(charsToRemove / 2)
+  
+  return str.substring(0, firstHalfEnd) + '...' + str.substring(secondHalfStart)
+}
+
+/**
+ * Get readable file type from mime type
+ * @param {string} mimeType - MIME type
+ * @returns {string} Readable file type
+ */
+export const getFileTypeFromMime = (mimeType) => {
+  if (!mimeType) return 'Unknown'
+  
+  if (mimeType.startsWith('image/')) return 'Image'
+  if (mimeType.startsWith('video/')) return 'Video'
+  if (mimeType.startsWith('audio/')) return 'Audio'
+  
+  const specificTypes = {
+    'application/pdf': 'PDF',
+    'application/msword': 'Word',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
+    'application/vnd.ms-excel': 'Excel',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
+    'application/vnd.ms-powerpoint': 'PowerPoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
+    'application/zip': 'ZIP Archive',
+    'application/x-zip-compressed': 'ZIP Archive',
+    'text/plain': 'Text',
+    'text/html': 'HTML',
+    'text/css': 'CSS',
+    'text/javascript': 'JavaScript'
   }
+  
+  return specificTypes[mimeType] || 'Document'
 }
 
-// Get age from birthdate
-export const getAge = (birthdate: string): number => {
-  if (!birthdate) return 0
-  
-  try {
-    const today = new Date()
-    const birthDate = new Date(birthdate)
-    let age = today.getFullYear() - birthDate.getFullYear()
-    const m = today.getMonth() - birthDate.getMonth()
-    
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--
-    }
-    
-    return age
-  } catch (error) {
-    return 0
-  }
-}
-
-// Format phone number
-export const formatPhoneNumber = (phoneNumber: string): string => {
-  if (!phoneNumber) return ''
-  
-  // Remove non-digit characters
-  const digits = phoneNumber.replace(/\D/g, '')
-  
-  // Format based on length
-  if (digits.length === 10) {
-    return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`
-  } else if (digits.length === 11) {
-    return `+${digits.slice(0, 1)} (${digits.slice(1, 4)}) ${digits.slice(4, 7)}-${digits.slice(7)}`
-  }
-  
-  return phoneNumber
+export default {
+  formatDateString,
+  formatDateTime,
+  formatTime,
+  timeAgo,
+  getInitials,
+  formatNumber,
+  formatCompactNumber,
+  truncateText,
+  capitalize,
+  generateId,
+  formatFileSize,
+  calculatePercentage,
+  isEmptyObject,
+  deepClone,
+  getContrastColor,
+  randomColor,
+  formatDuration,
+  getDaysLeft,
+  isDateInPast,
+  getFileExtension,
+  parseURLParams,
+  getDeviceType,
+  shortenFromMiddle,
+  getFileTypeFromMime
 }
