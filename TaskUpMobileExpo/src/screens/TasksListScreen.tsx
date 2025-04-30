@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { 
   StyleSheet, 
   View, 
@@ -9,25 +9,30 @@ import {
   TextInput,
   ActivityIndicator,
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native'
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withSequence,
   FadeIn,
   FadeInDown,
   SlideInRight,
   interpolate,
   Extrapolation,
-  Layout
+  Layout,
+  cancelAnimation,
+  Easing
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
+import { PanGestureHandler } from 'react-native-gesture-handler'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
@@ -40,12 +45,13 @@ import AvatarStack from '../components/Avatar/AvatarStack'
 import SwipeableRow from '../components/SwipeableRow'
 import FAB from '../components/FAB'
 import SkeletonLoader from '../components/SkeletonLoader'
-import { triggerImpact } from '../utils/HapticUtils'
-import { formatDateString } from '../utils/helpers'
+import { triggerImpact, triggerNotification } from '../utils/HapticUtils'
+import { formatDateString, timeAgo } from '../utils/helpers'
 
-const { width } = Dimensions.get('window')
+const { width, height } = Dimensions.get('window')
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)
 
 // Task Priority enum
 enum TaskPriority {
@@ -76,6 +82,13 @@ interface Task {
   assignees: Array<{ id: string, name: string, imageUrl?: string | null }>
 }
 
+// Project interface
+interface Project {
+  id: string
+  name: string
+  color: string
+}
+
 // View mode options
 type ViewMode = 'list' | 'board'
 
@@ -89,16 +102,10 @@ const STATUS_FILTERS = [
 
 // Priority filter options
 const PRIORITY_OPTIONS = [
-  { value: 'all', label: 'All Priorities' },
-  { value: TaskPriority.HIGH, label: 'High Priority' },
-  { value: TaskPriority.MEDIUM, label: 'Medium Priority' },
-  { value: TaskPriority.LOW, label: 'Low Priority' }
-]
-
-// Project filter options (will be fetched from API)
-const PROJECT_OPTIONS = [
-  { value: 'all', label: 'All Projects' }
-  // More projects will be added dynamically
+  { value: 'all', label: 'All' },
+  { value: TaskPriority.HIGH, label: 'High' },
+  { value: TaskPriority.MEDIUM, label: 'Medium' },
+  { value: TaskPriority.LOW, label: 'Low' }
 ]
 
 // Sort options
@@ -106,7 +113,7 @@ const SORT_OPTIONS = [
   { value: 'dueDate', label: 'Due Date' },
   { value: 'priority', label: 'Priority' },
   { value: 'status', label: 'Status' },
-  { value: 'title', label: 'Title' }
+  { value: 'title', label: 'A-Z' }
 ]
 
 const TasksListScreen = ({ navigation }) => {
@@ -114,12 +121,13 @@ const TasksListScreen = ({ navigation }) => {
   
   // Refs
   const searchInputRef = useRef(null)
+  const listRef = useRef(null)
   
   // State
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [tasks, setTasks] = useState<Task[]>([])
-  const [projects, setProjects] = useState([])
+  const [projects, setProjects] = useState<Project[]>([])
   const [filteredTasks, setFilteredTasks] = useState<Task[]>([])
   
   // UI state
@@ -131,16 +139,41 @@ const TasksListScreen = ({ navigation }) => {
   const [projectFilter, setProjectFilter] = useState('all')
   const [sortBy, setSortBy] = useState('dueDate')
   const [showFilters, setShowFilters] = useState(false)
+  const [activeTaskId, setActiveTaskId] = useState<string | null>(null)
   
   // Animation values
   const headerHeight = useSharedValue(150)
   const scrollY = useSharedValue(0)
   const searchHeight = useSharedValue(0)
   const filtersHeight = useSharedValue(0)
+  const fabScale = useSharedValue(1)
+  const filterButtonRotation = useSharedValue(0)
+  const backgroundParallax = useSharedValue({ x: 0, y: 0 })
+  const shimmerPosition = useSharedValue(-width)
   
   // Load tasks data
   useEffect(() => {
+    // Parallax background effect
+    const intervalId = setInterval(() => {
+      backgroundParallax.value = {
+        x: Math.random() * width * 0.2,
+        y: Math.random() * height * 0.2
+      }
+    }, 15000)
+    
+    // Shimmer animation
+    shimmerPosition.value = withRepeat(
+      withTiming(width * 2, { duration: 2000, easing: Easing.inOut(Easing.ease) }),
+      -1,
+      false
+    )
+    
     fetchTasks()
+    
+    return () => {
+      clearInterval(intervalId)
+      cancelAnimation(shimmerPosition)
+    }
   }, [])
   
   // Filter tasks when filters change
@@ -183,6 +216,12 @@ const TasksListScreen = ({ navigation }) => {
   const toggleFilters = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     
+    // Animate filter button rotation
+    filterButtonRotation.value = withTiming(
+      showFilters ? 0 : 180,
+      { duration: 300 }
+    )
+    
     setShowFilters(!showFilters)
     
     if (showFilters) {
@@ -195,6 +234,13 @@ const TasksListScreen = ({ navigation }) => {
   // Toggle view mode
   const toggleViewMode = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    
+    // Add animation to transition between modes
+    fabScale.value = withSequence(
+      withTiming(0.8, { duration: 150 }),
+      withSpring(1, { damping: 12 })
+    )
+    
     setViewMode(prev => (prev === 'list' ? 'board' : 'list'))
   }
   
@@ -376,6 +422,11 @@ const TasksListScreen = ({ navigation }) => {
     // Update loading state
     setLoading(false)
     setRefreshing(false)
+    
+    // Show success feedback
+    if (showRefreshing) {
+      triggerNotification(Haptics.NotificationFeedbackType.Success)
+    }
   }
   
   // Apply filters to tasks
@@ -460,13 +511,32 @@ const TasksListScreen = ({ navigation }) => {
   
   // Navigate to task details
   const handleTaskPress = (task: Task) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('TaskDetails', { taskId: task.id })
+    // Set active task to highlight the card
+    setActiveTaskId(task.id)
+    
+    // Animate task selection
+    setTimeout(() => {
+      triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+      navigation.navigate('TaskDetails', { taskId: task.id })
+      
+      // Reset active task after navigation
+      setTimeout(() => {
+        setActiveTaskId(null)
+      }, 500)
+    }, 100)
   }
   
   // Create new task
   const handleCreateTask = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+    
+    // Animate FAB
+    fabScale.value = withSequence(
+      withTiming(0.8, { duration: 100 }),
+      withSpring(1.1, { damping: 8 }),
+      withTiming(1, { duration: 200 })
+    )
+    
     navigation.navigate('TaskScreen', { isNew: true })
   }
   
@@ -496,14 +566,64 @@ const TasksListScreen = ({ navigation }) => {
         }
       }
       
+      // Show success feedback
+      setTimeout(() => {
+        triggerNotification(
+          updatedTasks[taskIndex].status === TaskStatus.COMPLETED
+            ? Haptics.NotificationFeedbackType.Success
+            : Haptics.NotificationFeedbackType.Warning
+        )
+      }, 100)
+      
       // Update state
       setTasks(updatedTasks)
     }
   }
   
+  // Delete task
+  const handleDeleteTask = (taskId: string) => {
+    // Show confirmation and delete
+    setTasks(prev => prev.filter(task => task.id !== taskId))
+    
+    // Show success feedback
+    triggerNotification(Haptics.NotificationFeedbackType.Success)
+  }
+  
   // Check if date is overdue
   const isOverdue = (dateString: string) => {
     return new Date(dateString) < new Date()
+  }
+  
+  // Scroll to top
+  const scrollToTop = () => {
+    listRef.current?.scrollToOffset({ offset: 0, animated: true })
+  }
+  
+  // Clear all filters
+  const clearFilters = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+    
+    // Reset all filters
+    setStatusFilter('all')
+    setPriorityFilter('all')
+    setProjectFilter('all')
+    setSortBy('dueDate')
+    setSearchText('')
+    
+    // Close filters panel
+    if (showFilters) {
+      toggleFilters()
+    }
+    
+    // Close search if open
+    if (showSearch) {
+      toggleSearch()
+    }
+    
+    // Show success feedback
+    setTimeout(() => {
+      triggerNotification(Haptics.NotificationFeedbackType.Success)
+    }, 300)
   }
   
   // Animated styles
@@ -542,37 +662,106 @@ const TasksListScreen = ({ navigation }) => {
     }
   })
   
+  const fabAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: fabScale.value }]
+    }
+  })
+  
+  const filterButtonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ rotate: `${filterButtonRotation.value}deg` }]
+    }
+  })
+  
+  const backgroundAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: backgroundParallax.value.x },
+        { translateY: backgroundParallax.value.y }
+      ]
+    }
+  })
+  
+  const shimmerAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: shimmerPosition.value }]
+    }
+  })
+  
   // Render skeleton loaders
   const renderSkeletons = () => (
     <View style={styles.skeletonContainer}>
+      <View style={styles.skeletonHeader}>
+        <SkeletonLoader
+          width={150}
+          height={30}
+          borderRadius={8}
+        />
+        <View style={styles.skeletonActions}>
+          <SkeletonLoader
+            width={40}
+            height={40}
+            borderRadius={20}
+          />
+          <SkeletonLoader
+            width={40}
+            height={40}
+            borderRadius={20}
+            style={{ marginLeft: 8 }}
+          />
+          <SkeletonLoader
+            width={40}
+            height={40}
+            borderRadius={20}
+            style={{ marginLeft: 8 }}
+          />
+        </View>
+      </View>
+      
       {[1, 2, 3, 4].map(i => (
-        <SkeletonLoader.Task key={i} style={{ marginBottom: 16 }} />
+        <SkeletonLoader.Task 
+          key={i} 
+          style={{ marginBottom: 16, opacity: 1 - (i * 0.15) }} 
+        />
       ))}
     </View>
   )
   
   // Render task item for list view
-  const renderTaskItem = ({ item, index }: { item: Task, index: number }) => (
-    <Animated.View
-      layout={Layout.springify()}
-      entering={FadeInDown.delay(index * 100).duration(400)}
-    >
-      <SwipeableRow
-        rightActions={[
-          {
-            icon: 'check',
-            label: item.status === TaskStatus.COMPLETED ? 'Undo' : 'Complete',
-            color: Colors.secondary.green,
-            onPress: () => handleToggleTaskComplete(item)
-          }
-        ]}
+  const renderTaskItem = ({ item, index }: { item: Task, index: number }) => {
+    const isActive = activeTaskId === item.id
+    
+    return (
+      <Animated.View
+        layout={Layout.springify().damping(14)}
+        entering={FadeInDown.delay(index * 50).duration(400)}
       >
-        <Card
-          style={styles.taskCard}
-          onPress={() => handleTaskPress(item)}
-          animationType="scale"
+        <SwipeableRow
+          rightActions={[
+            {
+              icon: 'trash',
+              label: 'Delete',
+              color: Colors.secondary.red,
+              onPress: () => handleDeleteTask(item.id)
+            },
+            {
+              icon: 'check',
+              label: item.status === TaskStatus.COMPLETED ? 'Undo' : 'Complete',
+              color: Colors.secondary.green,
+              onPress: () => handleToggleTaskComplete(item)
+            }
+          ]}
         >
-          <View style={styles.taskCardContent}>
+          <Card
+            style={[
+              styles.taskCard,
+              isActive && styles.activeTaskCard
+            ]}
+            onPress={() => handleTaskPress(item)}
+            animationType="spring"
+            elevation={isActive ? 5 : 2}
+          >
             <View style={styles.taskCardHeader}>
               <View style={styles.taskCardProject}>
                 <View 
@@ -654,112 +843,146 @@ const TasksListScreen = ({ navigation }) => {
                 </Text>
               </View>
             </View>
-          </View>
-        </Card>
-      </SwipeableRow>
-    </Animated.View>
-  )
+            
+            {item.completedAt && (
+              <View style={styles.completedInfo}>
+                <Feather name="check-circle" size={12} color={Colors.secondary.green} />
+                <Text style={styles.completedText}>
+                  Completed {timeAgo(item.completedAt)}
+                </Text>
+              </View>
+            )}
+          </Card>
+        </SwipeableRow>
+      </Animated.View>
+    )
+  }
   
   // Render column for board view
   const renderBoardColumn = ({ status, title, color }) => {
     const columnTasks = filteredTasks.filter(task => task.status === status)
     
     return (
-      <View style={styles.boardColumn}>
+      <Animated.View 
+        style={styles.boardColumn}
+        entering={SlideInRight.delay(status === TaskStatus.TODO ? 0 : status === TaskStatus.IN_PROGRESS ? 100 : 200).springify()}
+      >
         <View style={styles.boardColumnHeader}>
           <View style={[styles.boardColumnDot, { backgroundColor: color }]} />
           <Text style={styles.boardColumnTitle}>{title}</Text>
-          <Text style={styles.boardColumnCount}>{columnTasks.length}</Text>
+          <View style={styles.boardColumnCount}>
+            <Text style={styles.boardColumnCountText}>{columnTasks.length}</Text>
+          </View>
         </View>
         
         <FlatList
           data={columnTasks}
           keyExtractor={item => item.id}
           renderItem={({ item, index }) => renderBoardCard({ item, index })}
-          contentContainerStyle={styles.boardColumnContent}
+          contentContainerStyle={[
+            styles.boardColumnContent,
+            columnTasks.length === 0 && styles.boardEmptyContent
+          ]}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={styles.boardEmptyState}>
+              <Feather name="inbox" size={24} color={Colors.neutrals.gray300} />
               <Text style={styles.boardEmptyText}>No tasks</Text>
             </View>
           }
         />
-      </View>
+      </Animated.View>
     )
   }
   
   // Render card for board view
-  const renderBoardCard = ({ item, index }: { item: Task, index: number }) => (
-    <Animated.View
-      entering={FadeInDown.delay(index * 100).duration(400)}
-      style={styles.boardCard}
-    >
-      <Card
-        onPress={() => handleTaskPress(item)}
-        animationType="scale"
+  const renderBoardCard = ({ item, index }: { item: Task, index: number }) => {
+    const isActive = activeTaskId === item.id
+    
+    return (
+      <Animated.View
+        entering={FadeInDown.delay(index * 80).duration(400)}
+        style={styles.boardCard}
+        layout={Layout.springify()}
       >
-        <View style={styles.boardCardContent}>
-          <View style={styles.boardCardHeader}>
-            <View 
-              style={[
-                styles.projectColorDot, 
-                { backgroundColor: item.projectColor }
-              ]} 
-            />
-            <Text style={styles.boardProjectName} numberOfLines={1}>
-              {item.projectName}
-            </Text>
-            
-            <StatusPill 
-              label={
-                item.priority === TaskPriority.HIGH 
-                  ? 'High' 
-                  : item.priority === TaskPriority.MEDIUM 
-                    ? 'Medium' 
-                    : 'Low'
-              }
-              priority={item.priority as any}
-              small
-              animate={
-                item.priority === TaskPriority.HIGH && 
-                isOverdue(item.dueDate)
-              }
-            />
-          </View>
-          
-          <Text style={styles.boardCardTitle} numberOfLines={2}>{item.title}</Text>
-          
-          <View style={styles.boardCardFooter}>
-            <AvatarStack 
-              users={item.assignees}
-              size={20}
-              maxDisplay={2}
-            />
-            
-            <View style={styles.boardDueDate}>
-              <Feather 
-                name="calendar" 
-                size={12} 
-                color={
-                  isOverdue(item.dueDate) && item.status !== TaskStatus.COMPLETED
-                    ? Colors.secondary.red
-                    : Colors.neutrals.gray600
-                } 
-              />
-              <Text 
+        <Card
+          onPress={() => handleTaskPress(item)}
+          animationType="spring"
+          elevation={isActive ? 4 : 1}
+          style={isActive && styles.activeBoardCard}
+        >
+          <View style={styles.boardCardContent}>
+            <View style={styles.boardCardHeader}>
+              <View 
                 style={[
-                  styles.boardDueDateText,
-                  isOverdue(item.dueDate) && styles.overdueText
-                ]}
-              >
-                {formatDateString(item.dueDate)}
+                  styles.projectColorDot, 
+                  { backgroundColor: item.projectColor }
+                ]} 
+              />
+              <Text style={styles.boardProjectName} numberOfLines={1}>
+                {item.projectName}
               </Text>
+              
+              <StatusPill 
+                label={
+                  item.priority === TaskPriority.HIGH 
+                    ? 'High' 
+                    : item.priority === TaskPriority.MEDIUM 
+                      ? 'Medium' 
+                      : 'Low'
+                }
+                priority={item.priority as any}
+                small
+                animate={
+                  item.priority === TaskPriority.HIGH && 
+                  isOverdue(item.dueDate)
+                }
+              />
             </View>
+            
+            <Text style={styles.boardCardTitle} numberOfLines={2}>{item.title}</Text>
+            
+            <View style={styles.boardCardFooter}>
+              <AvatarStack 
+                users={item.assignees}
+                size={20}
+                maxDisplay={2}
+              />
+              
+              <View style={styles.boardDueDate}>
+                <Feather 
+                  name="calendar" 
+                  size={12} 
+                  color={
+                    isOverdue(item.dueDate) && item.status !== TaskStatus.COMPLETED
+                      ? Colors.secondary.red
+                      : Colors.neutrals.gray600
+                  } 
+                />
+                <Text 
+                  style={[
+                    styles.boardDueDateText,
+                    isOverdue(item.dueDate) && styles.overdueText
+                  ]}
+                >
+                  {formatDateString(item.dueDate)}
+                </Text>
+              </View>
+            </View>
+            
+            {item.completedAt && (
+              <View style={styles.boardCompletedInfo}>
+                <Feather name="check-circle" size={10} color={Colors.secondary.green} />
+                <Text style={styles.boardCompletedText}>
+                  {timeAgo(item.completedAt)}
+                </Text>
+              </View>
+            )}
           </View>
-        </View>
-      </Card>
-    </Animated.View>
-  )
+        </Card>
+      </Animated.View>
+    )
+  }
   
   // Render board view
   const renderBoardView = () => (
@@ -768,6 +991,9 @@ const TasksListScreen = ({ navigation }) => {
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.boardContent}
+        snapToInterval={width * 0.85 + 16}
+        decelerationRate="fast"
+        snapToAlignment="center"
       >
         {renderBoardColumn({ 
           status: TaskStatus.TODO, 
@@ -789,10 +1015,94 @@ const TasksListScreen = ({ navigation }) => {
       </ScrollView>
     </View>
   )
+  
+  // Create project filters pills
+  const renderProjectPills = () => {
+    return (
+      <View style={styles.pillsContainer}>
+        <TouchableOpacity onPress={() => setProjectFilter('all')}>
+          <StatusPill
+            label="All Projects"
+            type="default"
+            style={[
+              styles.filterPill,
+              projectFilter === 'all' && styles.activeFilterPill
+            ]}
+          />
+        </TouchableOpacity>
+        
+        {projects.map(project => (
+          <TouchableOpacity
+            key={project.id}
+            onPress={() => setProjectFilter(project.id)}
+            style={styles.projectPillTouch}
+          >
+            <LinearGradient
+              colors={[
+                projectFilter === project.id 
+                  ? `${project.color}20` 
+                  : 'rgba(0,0,0,0.03)',
+                projectFilter === project.id 
+                  ? `${project.color}10` 
+                  : 'rgba(0,0,0,0.01)'
+              ]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 1 }}
+              style={[
+                styles.projectPill,
+                projectFilter === project.id && {
+                  borderColor: project.color,
+                  borderWidth: 1
+                }
+              ]}
+            >
+              <View 
+                style={[
+                  styles.projectColorDot, 
+                  { backgroundColor: project.color }
+                ]} 
+              />
+              <Text 
+                style={[
+                  styles.projectPillText,
+                  projectFilter === project.id && {
+                    color: project.color,
+                    fontWeight: Typography.weights.semibold
+                  }
+                ]}
+              >
+                {project.name}
+              </Text>
+            </LinearGradient>
+          </TouchableOpacity>
+        ))}
+      </View>
+    )
+  }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+      <StatusBar barStyle="dark-content" backgroundColor="transparent" translucent />
+      
+      {/* Animated background */}
+      <View style={StyleSheet.absoluteFill}>
+        <AnimatedLinearGradient
+          colors={['rgba(61, 90, 254, 0.03)', 'rgba(33, 150, 243, 0.01)', 'rgba(0, 200, 83, 0.02)']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFill, backgroundAnimatedStyle]}
+        />
+        
+        {/* Background shimmer effect */}
+        <Animated.View style={[styles.backgroundShimmer, shimmerAnimatedStyle]}>
+          <LinearGradient
+            colors={['transparent', 'rgba(255, 255, 255, 0.05)', 'transparent']}
+            start={{ x: 0, y: 0.5 }}
+            end={{ x: 1, y: 0.5 }}
+            style={styles.shimmerGradient}
+          />
+        </Animated.View>
+      </View>
       
       {/* Header */}
       <Animated.View 
@@ -802,12 +1112,23 @@ const TasksListScreen = ({ navigation }) => {
           { paddingTop: insets.top }
         ]}
       >
+        {Platform.OS === 'ios' && (
+          <BlurView
+            style={[StyleSheet.absoluteFill, { borderBottomLeftRadius: 20, borderBottomRightRadius: 20 }]}
+            blurType="light"
+            blurAmount={10}
+          />
+        )}
+        
         <Animated.View style={[styles.titleContainer, titleOpacityStyle]}>
-          <Text style={styles.title}>My Tasks</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.title}>My Tasks</Text>
+            <Text style={styles.taskCount}>{filteredTasks.length}</Text>
+          </View>
           
           <View style={styles.headerActions}>
             <TouchableOpacity 
-              style={styles.headerButton}
+              style={[styles.headerButton, showSearch && styles.activeHeaderButton]}
               onPress={toggleSearch}
             >
               <Feather 
@@ -818,14 +1139,16 @@ const TasksListScreen = ({ navigation }) => {
             </TouchableOpacity>
             
             <TouchableOpacity 
-              style={styles.headerButton}
+              style={[styles.headerButton, showFilters && styles.activeHeaderButton]}
               onPress={toggleFilters}
             >
-              <Feather 
-                name="sliders" 
-                size={22} 
-                color={showFilters ? Colors.primary.blue : Colors.neutrals.gray700} 
-              />
+              <Animated.View style={filterButtonAnimatedStyle}>
+                <Feather 
+                  name="sliders" 
+                  size={22} 
+                  color={showFilters ? Colors.primary.blue : Colors.neutrals.gray700} 
+                />
+              </Animated.View>
             </TouchableOpacity>
             
             <TouchableOpacity 
@@ -883,7 +1206,7 @@ const TasksListScreen = ({ navigation }) => {
             
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Priority</Text>
-              <View style={styles.pillsContainer}>
+              <View style={styles.priorityPills}>
                 {PRIORITY_OPTIONS.map(option => (
                   <TouchableOpacity
                     key={option.value}
@@ -891,7 +1214,8 @@ const TasksListScreen = ({ navigation }) => {
                   >
                     <StatusPill
                       label={option.label}
-                      priority={option.value as any}
+                      priority={option.value !== 'all' ? option.value as any : undefined}
+                      type={option.value === 'all' ? 'default' : undefined}
                       style={[
                         styles.filterPill,
                         priorityFilter === option.value && styles.activeFilterPill
@@ -904,42 +1228,7 @@ const TasksListScreen = ({ navigation }) => {
             
             <View style={styles.filterSection}>
               <Text style={styles.filterLabel}>Project</Text>
-              <View style={styles.pillsContainer}>
-                <TouchableOpacity onPress={() => setProjectFilter('all')}>
-                  <StatusPill
-                    label="All Projects"
-                    type="default"
-                    style={[
-                      styles.filterPill,
-                      projectFilter === 'all' && styles.activeFilterPill
-                    ]}
-                  />
-                </TouchableOpacity>
-                
-                {projects.map(project => (
-                  <TouchableOpacity
-                    key={project.id}
-                    onPress={() => setProjectFilter(project.id)}
-                  >
-                    <View style={styles.projectPill}>
-                      <View 
-                        style={[
-                          styles.projectColorDot, 
-                          { backgroundColor: project.color }
-                        ]} 
-                      />
-                      <Text 
-                        style={[
-                          styles.projectPillText,
-                          projectFilter === project.id && styles.activeProjectPillText
-                        ]}
-                      >
-                        {project.name}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                ))}
-              </View>
+              {renderProjectPills()}
             </View>
             
             <View style={styles.filterSection}>
@@ -953,6 +1242,7 @@ const TasksListScreen = ({ navigation }) => {
                     <StatusPill
                       label={option.label}
                       type="default"
+                      icon={option.value === sortBy ? "check" : undefined}
                       style={[
                         styles.filterPill,
                         sortBy === option.value && styles.activeFilterPill
@@ -963,7 +1253,19 @@ const TasksListScreen = ({ navigation }) => {
               </View>
             </View>
           </ScrollView>
+          
+          <TouchableOpacity 
+            style={styles.clearFiltersButton}
+            onPress={clearFilters}
+          >
+            <Feather name="x" size={14} color={Colors.neutrals.gray600} />
+            <Text style={styles.clearFiltersText}>Clear Filters</Text>
+          </TouchableOpacity>
         </Animated.View>
+        
+        {showFilters && (
+          <View style={styles.filterOverlay} />
+        )}
       </Animated.View>
       
       {/* Content */}
@@ -971,6 +1273,7 @@ const TasksListScreen = ({ navigation }) => {
         renderSkeletons()
       ) : viewMode === 'list' ? (
         <AnimatedFlatList
+          ref={listRef}
           data={filteredTasks}
           keyExtractor={item => item.id}
           renderItem={renderTaskItem}
@@ -998,11 +1301,20 @@ const TasksListScreen = ({ navigation }) => {
               <Feather name="clipboard" size={60} color={Colors.neutrals.gray300} />
               <Text style={styles.emptyTitle}>No Tasks Found</Text>
               <Text style={styles.emptyText}>
-                {searchText
-                  ? 'No tasks match your search criteria.'
+                {searchText || statusFilter !== 'all' || priorityFilter !== 'all' || projectFilter !== 'all'
+                  ? 'No tasks match your search or filter criteria.'
                   : 'You don\'t have any tasks yet. Create your first task!'
                 }
               </Text>
+              
+              {(searchText || statusFilter !== 'all' || priorityFilter !== 'all' || projectFilter !== 'all') && (
+                <TouchableOpacity 
+                  style={styles.clearFiltersButtonLarge}
+                  onPress={clearFilters}
+                >
+                  <Text style={styles.clearFiltersButtonText}>Clear All Filters</Text>
+                </TouchableOpacity>
+              )}
             </View>
           }
         />
@@ -1021,12 +1333,23 @@ const TasksListScreen = ({ navigation }) => {
         </View>
       )}
       
+      {/* Quick actions bottom sheet */}
+      <TouchableOpacity 
+        style={styles.scrollTopButton}
+        onPress={scrollToTop}
+      >
+        <Feather name="arrow-up" size={20} color={Colors.neutrals.white} />
+      </TouchableOpacity>
+      
       {/* FAB */}
-      <FAB
-        icon="plus"
-        onPress={handleCreateTask}
-        gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-      />
+      <Animated.View style={fabAnimatedStyle}>
+        <FAB
+          icon="plus"
+          onPress={handleCreateTask}
+          gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+          animationType="bounce"
+        />
+      </Animated.View>
     </View>
   )
 }
@@ -1036,33 +1359,76 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: Colors.background.light
   },
+  backgroundShimmer: {
+    position: 'absolute',
+    top: 0,
+    left: -width,
+    width: width * 3,
+    height: '100%'
+  },
+  shimmerGradient: {
+    width: '100%',
+    height: '100%',
+    transform: [{ skewX: '-20deg' }]
+  },
   header: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: Colors.background.light,
+    backgroundColor: Platform.OS === 'ios' ? 'transparent' : Colors.background.light,
     paddingHorizontal: Spacing.lg,
     shadowColor: Colors.neutrals.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
-    elevation: 5
+    elevation: 5,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20
+  },
+  filterOverlay: {
+    position: 'absolute',
+    bottom: -20,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: Colors.background.light,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2
   },
   titleContainer: {
+    height: 60,
+    justifyContent: 'space-between'
+  },
+  titleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    height: 60
+    alignItems: 'center'
   },
   title: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.gray900
   },
+  taskCount: {
+    fontSize: Typography.sizes.bodySmall,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.neutrals.white,
+    backgroundColor: Colors.primary.blue,
+    borderRadius: 16,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginLeft: Spacing.sm,
+    overflow: 'hidden'
+  },
   headerActions: {
-    flexDirection: 'row'
+    flexDirection: 'row',
+    position: 'absolute',
+    right: 0,
+    top: 0
   },
   headerButton: {
     width: 40,
@@ -1072,6 +1438,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: Spacing.sm
+  },
+  activeHeaderButton: {
+    backgroundColor: 'rgba(61, 90, 254, 0.1)'
   },
   searchContainer: {
     overflow: 'hidden'
@@ -1116,6 +1485,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap'
   },
+  priorityPills: {
+    flexDirection: 'row',
+    paddingVertical: 4
+  },
   filterPill: {
     marginRight: 8,
     marginBottom: 8
@@ -1124,17 +1497,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(61, 90, 254, 0.1)',
     borderColor: Colors.primary.blue
   },
+  projectPillTouch: {
+    borderRadius: 16,
+    marginRight: 8,
+    marginBottom: 8,
+    overflow: 'hidden'
+  },
   projectPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.neutrals.gray100,
-    borderRadius: 16,
     paddingVertical: 4,
     paddingHorizontal: 12,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: Colors.neutrals.gray200
+    borderRadius: 16
   },
   projectColorDot: {
     width: 8,
@@ -1147,8 +1521,31 @@ const styles = StyleSheet.create({
     color: Colors.neutrals.gray700,
     fontWeight: Typography.weights.medium
   },
-  activeProjectPillText: {
-    color: Colors.primary.blue
+  clearFiltersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    padding: 8,
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 16,
+    marginTop: 4
+  },
+  clearFiltersText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600,
+    marginLeft: 4
+  },
+  clearFiltersButtonLarge: {
+    backgroundColor: Colors.neutrals.gray100,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 20,
+    marginTop: Spacing.lg
+  },
+  clearFiltersButtonText: {
+    fontSize: Typography.sizes.bodySmall,
+    color: Colors.neutrals.gray700,
+    fontWeight: Typography.weights.medium
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
@@ -1159,12 +1556,25 @@ const styles = StyleSheet.create({
     marginTop: 220,
     paddingHorizontal: Spacing.lg
   },
+  skeletonHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: Spacing.xl
+  },
+  skeletonActions: {
+    flexDirection: 'row'
+  },
   taskCard: {
     borderRadius: 12,
-    marginBottom: Spacing.md
+    marginBottom: Spacing.md,
+    padding: Spacing.md,
+    overflow: 'hidden'
   },
-  taskCardContent: {
-    padding: Spacing.md
+  activeTaskCard: {
+    borderColor: Colors.primary.blue,
+    borderWidth: 1,
+    transform: [{ scale: 1.02 }]
   },
   taskCardHeader: {
     flexDirection: 'row',
@@ -1219,6 +1629,19 @@ const styles = StyleSheet.create({
     color: Colors.secondary.red,
     fontWeight: Typography.weights.medium
   },
+  completedInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: Spacing.xs,
+    paddingTop: Spacing.xs,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)'
+  },
+  completedText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.secondary.green,
+    marginLeft: 4
+  },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -1241,21 +1664,30 @@ const styles = StyleSheet.create({
     flex: 1
   },
   boardContainer: {
-    flex: 1
+    flex: 1,
+    paddingTop: 16
   },
   boardContent: {
     paddingHorizontal: Spacing.lg,
     paddingBottom: 100
   },
   boardColumn: {
-    width: width * 0.7,
+    width: width * 0.85,
     marginRight: Spacing.md,
-    height: '100%'
+    height: '100%',
+    backgroundColor: 'rgba(0, 0, 0, 0.01)',
+    borderRadius: 16,
+    padding: Spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)'
   },
   boardColumnHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.sm
+    marginBottom: Spacing.md,
+    paddingBottom: Spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(0, 0, 0, 0.05)'
   },
   boardColumnDot: {
     width: 10,
@@ -1270,22 +1702,34 @@ const styles = StyleSheet.create({
     flex: 1
   },
   boardColumnCount: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray600,
     backgroundColor: Colors.neutrals.gray200,
     borderRadius: 10,
     paddingHorizontal: 8,
     paddingVertical: 2
   },
+  boardColumnCountText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.neutrals.gray600
+  },
   boardColumnContent: {
-    paddingBottom: Spacing.lg
+    paddingBottom: Spacing.lg,
+    minHeight: 200
+  },
+  boardEmptyContent: {
+    flex: 1,
+    justifyContent: 'center'
   },
   boardCard: {
     marginBottom: Spacing.sm
   },
+  activeBoardCard: {
+    borderColor: Colors.primary.blue,
+    borderWidth: 1,
+    transform: [{ scale: 1.02 }]
+  },
   boardCardContent: {
-    padding: Spacing.md
+    padding: Spacing.sm
   },
   boardCardHeader: {
     flexDirection: 'row',
@@ -1321,16 +1765,45 @@ const styles = StyleSheet.create({
     color: Colors.neutrals.gray600,
     marginLeft: 4
   },
-  boardEmptyState: {
-    backgroundColor: Colors.neutrals.gray100,
-    borderRadius: 8,
-    padding: Spacing.md,
+  boardCompletedInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: Spacing.md
+    marginTop: 4,
+    paddingTop: 4,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0, 0, 0, 0.05)'
+  },
+  boardCompletedText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.secondary.green,
+    marginLeft: 4
+  },
+  boardEmptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: Spacing.lg,
+    opacity: 0.5
   },
   boardEmptyText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray600
+    color: Colors.neutrals.gray600,
+    marginTop: Spacing.sm
+  },
+  scrollTopButton: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: Colors.primary.blue,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5
   }
 })
 

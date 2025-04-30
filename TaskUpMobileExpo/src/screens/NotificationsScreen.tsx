@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { 
   StyleSheet, 
   View, 
@@ -6,9 +6,11 @@ import {
   TouchableOpacity, 
   FlatList, 
   StatusBar, 
-  SafeAreaView,
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  Platform,
+  ScrollView,
+  ActivityIndicator
 } from 'react-native'
 import Animated, { 
   useSharedValue, 
@@ -20,24 +22,28 @@ import Animated, {
   FadeIn,
   FadeOut,
   SlideInRight,
-  SlideInLeft,
+  SlideInUp,
   ZoomIn,
   interpolate,
-  Extrapolation
+  Extrapolation,
+  Easing
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { SwipeableRow } from '../components/SwipeableRow'
+import { BlurView } from 'expo-blur'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
 import { triggerImpact } from '../utils/HapticUtils'
+import { useTheme } from '../hooks/useColorScheme'
+import SwipeableRow from '../components/SwipeableRow'
 
 const { width, height } = Dimensions.get('window')
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
 interface Notification {
   id: string
@@ -60,33 +66,42 @@ interface Notification {
 
 const NotificationsScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets()
+  const { colors, isDark } = useTheme()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [selectedTab, setSelectedTab] = useState('all')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const [loadingMore, setLoadingMore] = useState(false)
   
   // Refs
   const flatListRef = useRef<FlatList>(null)
   
   // Animated values
   const headerHeight = useSharedValue(120)
+  const headerBgOpacity = useSharedValue(0)
   const filterHeight = useSharedValue(0)
   const filterOpacity = useSharedValue(0)
   const scrollY = useSharedValue(0)
   const notificationItemScale = useSharedValue(1)
   const emptyAnimationProgress = useSharedValue(0)
+  const fabOpacity = useSharedValue(1)
   
   // Tabs for filtering
   const tabs = [
-    { id: 'all', label: 'All' },
-    { id: 'unread', label: 'Unread' },
-    { id: 'mentions', label: 'Mentions' },
-    { id: 'tasks', label: 'Tasks' }
+    { id: 'all', label: 'All', icon: 'inbox' },
+    { id: 'unread', label: 'Unread', icon: 'alert-circle' },
+    { id: 'mentions', label: 'Mentions', icon: 'at-sign' },
+    { id: 'tasks', label: 'Tasks', icon: 'check-square' }
   ]
   
   // Load notifications data
   useEffect(() => {
+    loadNotifications()
+  }, [])
+
+  // Load the mock notifications
+  const loadNotifications = () => {
     // Simulate data loading
     const mockNotifications: Notification[] = [
       {
@@ -218,21 +233,35 @@ const NotificationsScreen = ({ navigation }) => {
         withTiming(1, { duration: 800 })
       )
     }
-  }, [])
+  }
   
   // Handle refresh
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true)
     
     // Simulate refreshing data
     setTimeout(() => {
+      // Reload notifications
+      loadNotifications()
       setRefreshing(false)
       triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    }, 1500)
+  }, [])
+  
+  // Load more notifications
+  const handleLoadMore = () => {
+    if (loadingMore) return
+    
+    setLoadingMore(true)
+    
+    // Simulate loading more data
+    setTimeout(() => {
+      setLoadingMore(false)
     }, 1500)
   }
   
   // Filter notifications based on selected tab
-  const getFilteredNotifications = () => {
+  const getFilteredNotifications = useCallback(() => {
     switch (selectedTab) {
       case 'unread':
         return notifications.filter(n => !n.read)
@@ -243,7 +272,7 @@ const NotificationsScreen = ({ navigation }) => {
       default:
         return notifications
     }
-  }
+  }, [selectedTab, notifications])
   
   const handleBackPress = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light)
@@ -254,7 +283,7 @@ const NotificationsScreen = ({ navigation }) => {
     // Animate notification item
     notificationItemScale.value = withSequence(
       withTiming(0.97, { duration: 100 }),
-      withTiming(1, { duration: 150 })
+      withSpring(1, { damping: 14, stiffness: 150 })
     )
     
     triggerImpact(Haptics.ImpactFeedbackStyle.Light)
@@ -286,11 +315,19 @@ const NotificationsScreen = ({ navigation }) => {
   const markAllAsRead = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
     
-    setNotifications(prev => 
-      prev.map(n => ({ ...n, read: true }))
-    )
+    // Animate the action
+    const animateItems = async () => {
+      // Get only unread notifications
+      const unreadNotifications = notifications.filter(n => !n.read)
+      
+      // Mark all as read with a staggered animation
+      for (let i = 0; i < unreadNotifications.length; i++) {
+        await new Promise(resolve => setTimeout(resolve, 100))
+        markAsRead(unreadNotifications[i].id)
+      }
+    }
     
-    setUnreadCount(0)
+    animateItems()
   }
   
   const deleteNotification = (id: string) => {
@@ -333,11 +370,17 @@ const NotificationsScreen = ({ navigation }) => {
     
     if (!isFilterOpen) {
       // Open filter
-      filterHeight.value = withTiming(60, { duration: 300 })
+      filterHeight.value = withTiming(60, { 
+        duration: 300,
+        easing: Easing.out(Easing.exp)
+      })
       filterOpacity.value = withTiming(1, { duration: 300 })
     } else {
       // Close filter
-      filterHeight.value = withTiming(0, { duration: 300 })
+      filterHeight.value = withTiming(0, { 
+        duration: 300,
+        easing: Easing.out(Easing.exp)
+      })
       filterOpacity.value = withTiming(0, { duration: 300 })
     }
   }
@@ -358,12 +401,37 @@ const NotificationsScreen = ({ navigation }) => {
     const offsetY = event.nativeEvent.contentOffset.y
     scrollY.value = offsetY
     
-    // Adjust header height based on scroll
-    if (offsetY > 20) {
-      headerHeight.value = withTiming(80, { duration: 200 })
+    // Adjust header background opacity and height based on scroll
+    if (offsetY > 10) {
+      headerHeight.value = withTiming(80, { 
+        duration: 200,
+        easing: Easing.out(Easing.cubic)
+      })
+      headerBgOpacity.value = withTiming(1, { 
+        duration: 200, 
+        easing: Easing.out(Easing.cubic)
+      })
     } else {
-      headerHeight.value = withTiming(120, { duration: 200 })
+      headerHeight.value = withTiming(120, { 
+        duration: 300,
+        easing: Easing.out(Easing.cubic)
+      })
+      headerBgOpacity.value = withTiming(0, { 
+        duration: 300,
+        easing: Easing.out(Easing.cubic)
+      })
     }
+    
+    // Show/hide FAB based on scroll direction
+    const lastContentOffset = { value: 0 }
+    if (lastContentOffset.value > offsetY) {
+      // Scrolling up, show FAB
+      fabOpacity.value = withTiming(1, { duration: 200 })
+    } else if (lastContentOffset.value < offsetY && offsetY > 50) {
+      // Scrolling down and not at top, hide FAB
+      fabOpacity.value = withTiming(0, { duration: 200 })
+    }
+    lastContentOffset.value = offsetY
   }
   
   // Format time from ISO string
@@ -408,18 +476,13 @@ const NotificationsScreen = ({ navigation }) => {
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       height: headerHeight.value,
-      shadowOpacity: interpolate(
-        scrollY.value,
-        [0, 20],
-        [0, 0.1],
-        Extrapolation.CLAMP
-      ),
-      elevation: interpolate(
-        scrollY.value,
-        [0, 20],
-        [0, 4],
-        Extrapolation.CLAMP
-      )
+      paddingTop: insets.top
+    }
+  })
+  
+  const headerBgAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: headerBgOpacity.value
     }
   })
   
@@ -432,7 +495,17 @@ const NotificationsScreen = ({ navigation }) => {
     )
     
     return {
-      fontSize
+      fontSize,
+      transform: [
+        { 
+          translateY: interpolate(
+            headerHeight.value,
+            [80, 120],
+            [-6, 0],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
     }
   })
   
@@ -463,11 +536,28 @@ const NotificationsScreen = ({ navigation }) => {
     }
   })
   
+  const fabAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fabOpacity.value,
+      transform: [
+        { 
+          translateY: interpolate(
+            fabOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          ) 
+        },
+        { scale: fabOpacity.value }
+      ]
+    }
+  })
+  
   const renderLeftActions = (notification: Notification) => [
     {
       icon: 'check',
       label: 'Read',
-      color: Colors.status.success,
+      color: Colors.success[500],
       onPress: () => markAsRead(notification.id)
     }
   ]
@@ -476,18 +566,16 @@ const NotificationsScreen = ({ navigation }) => {
     {
       icon: 'trash-2',
       label: 'Delete',
-      color: Colors.status.error,
+      color: Colors.error[500],
       onPress: () => deleteNotification(notification.id),
       destructive: true
     }
   ]
   
   const renderNotification = ({ item, index }) => {
-    const filteredNotifications = getFilteredNotifications()
-    
     return (
       <Animated.View 
-        entering={SlideInRight.delay(index * 50).duration(300)}
+        entering={SlideInRight.delay(index * 50).duration(300).springify().damping(12)}
         style={notificationItemAnimatedStyle}
       >
         <SwipeableRow
@@ -497,7 +585,8 @@ const NotificationsScreen = ({ navigation }) => {
           <TouchableOpacity
             style={[
               styles.notificationItem,
-              !item.read && styles.unreadNotification
+              !item.read && styles.unreadNotification,
+              { backgroundColor: isDark ? colors.card.background : Colors.neutrals.white }
             ]}
             onPress={() => handleNotificationPress(item)}
             activeOpacity={0.8}
@@ -517,7 +606,8 @@ const NotificationsScreen = ({ navigation }) => {
               <Text 
                 style={[
                   styles.notificationTitle,
-                  !item.read && styles.unreadText
+                  !item.read && styles.unreadText,
+                  { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }
                 ]}
                 numberOfLines={1}
               >
@@ -525,18 +615,29 @@ const NotificationsScreen = ({ navigation }) => {
               </Text>
               
               <Text 
-                style={styles.notificationMessage}
+                style={[
+                  styles.notificationMessage,
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 }
+                ]}
                 numberOfLines={2}
               >
                 {item.message}
               </Text>
               
-              <Text style={styles.notificationTime}>
+              <Text style={[
+                styles.notificationTime,
+                { color: isDark ? colors.text.secondary : Colors.neutrals.gray500 }
+              ]}>
                 {formatNotificationTime(item.timestamp)}
               </Text>
             </View>
             
-            {!item.read && <View style={styles.unreadDot} />}
+            {!item.read && (
+              <View style={[
+                styles.unreadDot,
+                { backgroundColor: colors.primary[500] }
+              ]} />
+            )}
           </TouchableOpacity>
         </SwipeableRow>
       </Animated.View>
@@ -547,103 +648,249 @@ const NotificationsScreen = ({ navigation }) => {
   const getIconBackgroundColor = (type: string) => {
     switch (type) {
       case 'mention':
-        return Colors.primary.blue
+        return colors.primary.blue
       case 'task':
-        return Colors.secondary.green
+        return colors.success[500]
       case 'comment':
-        return Colors.primary.purple
+        return colors.secondary[500]
       case 'project':
-        return Colors.primary.yellow
+        return colors.warning[500]
       case 'team':
-        return Colors.secondary.blue
+        return colors.primary[700]
       default:
-        return Colors.neutrals.gray600
+        return colors.neutrals.gray600
     }
   }
   
+  // Get filtered notifications based on selected tab
   const filteredNotifications = getFilteredNotifications()
   
-  return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+  // Render header
+  const renderHeader = () => (
+    <Animated.View style={[styles.header, headerAnimatedStyle]}>
+      {/* Blurred background that appears when scrolling */}
+      <AnimatedBlurView
+        intensity={Platform.OS === 'ios' ? 40 : 0}
+        tint={isDark ? 'dark' : 'light'}
+        style={[
+          StyleSheet.absoluteFillObject,
+          headerBgAnimatedStyle,
+          { backgroundColor: isDark ? 'rgba(18, 18, 18, 0.7)' : 'rgba(255, 255, 255, 0.7)' }
+        ]}
+      />
       
-      {/* Header */}
-      <Animated.View style={[styles.header, headerAnimatedStyle]}>
-        <View style={styles.headerTop}>
-          <TouchableOpacity 
-            style={styles.backButton}
-            onPress={handleBackPress}
-          >
-            <Feather name="arrow-left" size={24} color={Colors.neutrals.gray800} />
-          </TouchableOpacity>
-          
-          <Animated.Text style={[styles.headerTitle, titleAnimatedStyle]}>
-            Notifications
-          </Animated.Text>
-          
-          <View style={styles.headerActions}>
-            {unreadCount > 0 && (
-              <TouchableOpacity 
-                style={styles.headerButton}
-                onPress={markAllAsRead}
-              >
-                <Text style={styles.readAllText}>Mark all read</Text>
-              </TouchableOpacity>
-            )}
-            
+      <View style={styles.headerTop}>
+        <TouchableOpacity 
+          style={[
+            styles.backButton,
+            { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.05)' }
+          ]}
+          onPress={handleBackPress}
+        >
+          <Feather 
+            name="arrow-left" 
+            size={20} 
+            color={isDark ? colors.text.primary : Colors.neutrals.gray800} 
+          />
+        </TouchableOpacity>
+        
+        <Animated.Text 
+          style={[
+            styles.headerTitle, 
+            titleAnimatedStyle,
+            { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }
+          ]}
+        >
+          Notifications
+        </Animated.Text>
+        
+        <View style={styles.headerActions}>
+          {unreadCount > 0 && (
             <TouchableOpacity 
               style={[
-                styles.filterButton,
-                isFilterOpen && styles.filterButtonActive
+                styles.headerButton,
+                { 
+                  backgroundColor: isDark 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)' 
+                }
               ]}
-              onPress={toggleFilter}
+              onPress={markAllAsRead}
+            >
+              <Text style={[
+                styles.readAllText,
+                { color: colors.primary[500] }
+              ]}>
+                Mark all read
+              </Text>
+            </TouchableOpacity>
+          )}
+          
+          <TouchableOpacity 
+            style={[
+              styles.filterButton,
+              isFilterOpen && styles.filterButtonActive,
+              { 
+                backgroundColor: isFilterOpen
+                  ? isDark 
+                    ? colors.primary[500] + '30'
+                    : colors.primary[500] + '15'
+                  : isDark 
+                    ? 'rgba(255, 255, 255, 0.1)' 
+                    : 'rgba(0, 0, 0, 0.05)'
+              }
+            ]}
+            onPress={toggleFilter}
+          >
+            <Feather 
+              name="filter" 
+              size={18} 
+              color={isFilterOpen ? colors.primary[500] : isDark ? colors.text.secondary : Colors.neutrals.gray700} 
+            />
+          </TouchableOpacity>
+        </View>
+      </View>
+      
+      {/* Filter tabs */}
+      <Animated.View 
+        style={[styles.filterContainer, filterAnimatedStyle]}
+      >
+        <ScrollView 
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsContainer}
+        >
+          {tabs.map(tab => (
+            <TouchableOpacity
+              key={tab.id}
+              style={[
+                styles.tab,
+                selectedTab === tab.id && styles.activeTab,
+                { 
+                  backgroundColor: selectedTab === tab.id
+                    ? isDark 
+                      ? colors.primary[500] + '30'
+                      : colors.primary[500] + '15'
+                    : isDark 
+                      ? 'rgba(255, 255, 255, 0.1)' 
+                      : 'rgba(0, 0, 0, 0.05)'
+                }
+              ]}
+              onPress={() => selectTab(tab.id)}
             >
               <Feather 
-                name="filter" 
-                size={20} 
-                color={isFilterOpen ? Colors.primary.blue : Colors.neutrals.gray700} 
+                name={tab.icon} 
+                size={14} 
+                color={
+                  selectedTab === tab.id 
+                    ? colors.primary[500]
+                    : isDark ? colors.text.secondary : Colors.neutrals.gray700
+                } 
+                style={styles.tabIcon}
               />
-            </TouchableOpacity>
-          </View>
-        </View>
-        
-        {/* Filter tabs */}
-        <Animated.View 
-          style={[styles.filterContainer, filterAnimatedStyle]}
-        >
-          <ScrollView 
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.tabsContainer}
-          >
-            {tabs.map(tab => (
-              <TouchableOpacity
-                key={tab.id}
+              <Text 
                 style={[
-                  styles.tab,
-                  selectedTab === tab.id && styles.activeTab
+                  styles.tabText,
+                  selectedTab === tab.id && styles.activeTabText,
+                  { 
+                    color: selectedTab === tab.id 
+                      ? colors.primary[500]
+                      : isDark ? colors.text.secondary : Colors.neutrals.gray700
+                  }
                 ]}
-                onPress={() => selectTab(tab.id)}
               >
-                <Text 
-                  style={[
-                    styles.tabText,
-                    selectedTab === tab.id && styles.activeTabText
-                  ]}
-                >
-                  {tab.label}
-                </Text>
-                
-                {tab.id === 'unread' && unreadCount > 0 && (
-                  <View style={styles.badgeContainer}>
-                    <Text style={styles.badgeText}>{unreadCount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </Animated.View>
+                {tab.label}
+              </Text>
+              
+              {tab.id === 'unread' && unreadCount > 0 && (
+                <View style={[
+                  styles.badgeContainer,
+                  { backgroundColor: colors.primary[500] }
+                ]}>
+                  <Text style={styles.badgeText}>{unreadCount}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
       </Animated.View>
+    </Animated.View>
+  )
+  
+  // Render footer with loading indicator
+  const renderFooter = () => {
+    if (!loadingMore) return null
+    
+    return (
+      <View style={styles.loadingFooter}>
+        <ActivityIndicator size="small" color={colors.primary[500]} />
+        <Text style={[
+          styles.loadingText,
+          { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }
+        ]}>
+          Loading more...
+        </Text>
+      </View>
+    )
+  }
+  
+  // Render empty state
+  const renderEmptyState = () => (
+    <Animated.View 
+      style={[styles.emptyContainer, emptyStateAnimatedStyle]}
+    >
+      <Animated.View 
+        style={[
+          styles.emptyIconContainer,
+          { backgroundColor: isDark ? colors.card.background : Colors.neutrals.gray100 }
+        ]}
+        entering={ZoomIn.duration(500)}
+      >
+        <LinearGradient
+          colors={isDark 
+            ? [colors.background.dark, 'rgba(100, 100, 100, 0.1)'] 
+            : ['rgba(240, 240, 240, 1)', 'rgba(250, 250, 250, 0.5)']}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        <Feather 
+          name="bell-off" 
+          size={48} 
+          color={isDark ? colors.text.secondary : Colors.neutrals.gray400} 
+        />
+      </Animated.View>
+      <Text style={[
+        styles.emptyTitle,
+        { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }
+      ]}>
+        No notifications
+      </Text>
+      <Text style={[
+        styles.emptyMessage,
+        { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }
+      ]}>
+        {selectedTab === 'all' 
+          ? "You're all caught up! No notifications to display."
+          : `No ${selectedTab} notifications at the moment.`
+        }
+      </Text>
+    </Animated.View>
+  )
+  
+  return (
+    <View style={[
+      styles.container,
+      { backgroundColor: isDark ? colors.background.light : Colors.background.light }
+    ]}>
+      <StatusBar
+        barStyle={isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={isDark ? colors.background.light : Colors.background.light}
+        translucent={true}
+      />
+      
+      {/* Fixed header */}
+      {renderHeader()}
       
       {/* Notifications List */}
       <FlatList
@@ -651,7 +898,10 @@ const NotificationsScreen = ({ navigation }) => {
         data={filteredNotifications}
         renderItem={renderNotification}
         keyExtractor={item => item.id}
-        contentContainerStyle={styles.notificationsList}
+        contentContainerStyle={[
+          styles.notificationsList,
+          { paddingTop: headerHeight.value }
+        ]}
         onScroll={handleScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
@@ -659,31 +909,33 @@ const NotificationsScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary.blue}
-            colors={[Colors.primary.blue]}
+            tintColor={colors.primary[500]}
+            colors={[colors.primary[500]]}
+            progressBackgroundColor={isDark ? colors.card.background : Colors.neutrals.white}
           />
         }
-        ListEmptyComponent={
-          <Animated.View 
-            style={[styles.emptyContainer, emptyStateAnimatedStyle]}
-          >
-            <Animated.View 
-              style={styles.emptyIconContainer}
-              entering={ZoomIn.duration(500)}
-            >
-              <Feather name="bell-off" size={48} color={Colors.neutrals.gray400} />
-            </Animated.View>
-            <Text style={styles.emptyTitle}>No notifications</Text>
-            <Text style={styles.emptyMessage}>
-              {selectedTab === 'all' 
-                ? "You're all caught up! No notifications to display."
-                : `No ${selectedTab} notifications at the moment.`
-              }
-            </Text>
-          </Animated.View>
-        }
+        ListEmptyComponent={renderEmptyState}
+        ListFooterComponent={renderFooter}
+        onEndReached={handleLoadMore}
+        onEndReachedThreshold={0.5}
       />
-    </SafeAreaView>
+      
+      {/* Floating Action Button for marking all as read */}
+      {unreadCount > 0 && (
+        <Animated.View style={[styles.fabContainer, fabAnimatedStyle]}>
+          <TouchableOpacity
+            style={[
+              styles.fab,
+              { backgroundColor: colors.primary[500] }
+            ]}
+            onPress={markAllAsRead}
+            activeOpacity={0.8}
+          >
+            <Feather name="check-circle" size={22} color="#fff" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
   )
 }
 
@@ -694,35 +946,45 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingHorizontal: 16,
-    backgroundColor: Colors.background.light,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutrals.gray200,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 12,
-    zIndex: 10
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    overflow: 'hidden'
   },
   headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16
+    paddingVertical: 16,
+    justifyContent: 'space-between'
   },
   backButton: {
-    padding: 8
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)'
   },
   headerTitle: {
     flex: 1,
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.gray900,
-    marginLeft: 8
+    marginLeft: 12
   },
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center'
   },
   headerButton: {
-    marginLeft: 16
+    height: 40,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 20,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)'
   },
   readAllText: {
     fontSize: Typography.sizes.bodySmall,
@@ -730,9 +992,13 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium
   },
   filterButton: {
-    padding: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginLeft: 8,
-    borderRadius: 8
+    backgroundColor: 'rgba(0, 0, 0, 0.05)'
   },
   filterButtonActive: {
     backgroundColor: Colors.primary.blue + '20'
@@ -752,6 +1018,9 @@ const styles = StyleSheet.create({
     marginRight: 8,
     flexDirection: 'row',
     alignItems: 'center'
+  },
+  tabIcon: {
+    marginRight: 6
   },
   activeTab: {
     backgroundColor: Colors.primary.blue + '20'
@@ -778,31 +1047,36 @@ const styles = StyleSheet.create({
   },
   notificationsList: {
     paddingHorizontal: 16,
-    paddingTop: 8,
     paddingBottom: 24,
-    minHeight: height - 180
+    minHeight: '100%'
   },
   notificationItem: {
     flexDirection: 'row',
     padding: 16,
     backgroundColor: Colors.neutrals.white,
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 12,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.neutrals.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 2
+      }
+    })
   },
   unreadNotification: {
-    backgroundColor: Colors.primary.blue + '05',
+    backgroundColor: Colors.primary.blue + '08',
     borderLeftWidth: 3,
     borderLeftColor: Colors.primary.blue
   },
   notificationIcon: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: Colors.primary.blue,
     justifyContent: 'center',
     alignItems: 'center',
@@ -826,7 +1100,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodySmall,
     color: Colors.neutrals.gray700,
     marginBottom: 8,
-    lineHeight: 18
+    lineHeight: 20
   },
   notificationTime: {
     fontSize: Typography.sizes.caption,
@@ -842,7 +1116,7 @@ const styles = StyleSheet.create({
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
     paddingHorizontal: 32
   },
   emptyIconContainer: {
@@ -852,7 +1126,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.neutrals.gray100,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 24
+    marginBottom: 24,
+    overflow: 'hidden'
   },
   emptyTitle: {
     fontSize: Typography.sizes.bodyLarge,
@@ -864,7 +1139,42 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.body,
     color: Colors.neutrals.gray600,
     textAlign: 'center',
-    lineHeight: 22
+    lineHeight: 24
+  },
+  loadingFooter: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 16
+  },
+  loadingText: {
+    fontSize: Typography.sizes.bodySmall,
+    color: Colors.neutrals.gray600,
+    marginLeft: 8
+  },
+  fabContainer: {
+    position: 'absolute',
+    bottom: 24,
+    right: 24,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.primary.blue,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+      },
+      android: {
+        elevation: 8
+      }
+    })
+  },
+  fab: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: Colors.primary.blue,
+    justifyContent: 'center',
+    alignItems: 'center'
   }
 })
 

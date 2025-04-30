@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -8,7 +9,8 @@ import {
   Platform,
   ScrollView,
   StatusBar,
-  Keyboard
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -16,9 +18,14 @@ import Animated, {
   withTiming,
   withSpring,
   withSequence,
+  withDelay,
+  interpolate,
+  Extrapolation,
   FadeIn,
   FadeInUp,
-  FadeInDown
+  FadeInDown,
+  runOnJS,
+  Easing
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -32,6 +39,8 @@ import Input from '../../components/Input/Input';
 import Button from '../../components/Button/Button';
 import { isValidEmail } from '../../utils/validators';
 import { triggerImpact } from '../../utils/HapticUtils';
+
+const { width, height } = Dimensions.get('window');
 
 type SignUpStep1Props = {
   navigation: any;
@@ -50,6 +59,11 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
   const progressWidth = useSharedValue(33);
   const emailInputScale = useSharedValue(1);
   const buttonScale = useSharedValue(1);
+  const formOpacity = useSharedValue(0);
+  const formPosition = useSharedValue(50);
+  const headerOpacity = useSharedValue(0);
+  const backgroundPosition = useSharedValue(0);
+  const socialButtonsOpacity = useSharedValue(0);
   
   // Keyboard listeners to adjust animation when keyboard appears/disappears
   useEffect(() => {
@@ -77,8 +91,32 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
     };
   }, []);
   
+  // Initialize animations
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
+    
+    // Animate background
+    backgroundPosition.value = withTiming(1, { 
+      duration: 2000, 
+      easing: Easing.out(Easing.exp) 
+    });
+    
+    // Animate header elements
+    headerOpacity.value = withTiming(1, { duration: 600 });
+    
+    // Animate form with spring for natural motion
+    formOpacity.value = withTiming(1, { duration: 600 });
+    formPosition.value = withSpring(0, {
+      damping: 14,
+      stiffness: 100
+    });
+    
+    // Animate social buttons last
+    socialButtonsOpacity.value = withDelay(
+      800,
+      withTiming(1, { duration: 600 })
+    );
+    
     return () => {
       StatusBar.setBarStyle('dark-content');
     }
@@ -104,7 +142,7 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
     // Animate button press
     buttonScale.value = withSequence(
       withTiming(0.95, { duration: 100 }),
-      withTiming(1, { duration: 100 })
+      withSpring(1, { damping: 12, stiffness: 200 })
     );
     
     // Show loading state
@@ -115,8 +153,14 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
     setTimeout(() => {
       setLoading(false);
       
-      // Navigate to next step with email
-      navigation.navigate('SignUpStep2', { email });
+      // Animate exit before navigation
+      formOpacity.value = withTiming(0, { duration: 300 });
+      headerOpacity.value = withTiming(0, { duration: 300 });
+      
+      setTimeout(() => {
+        // Navigate to next step with email
+        navigation.navigate('SignUpStep2', { email });
+      }, 300);
     }, 1500);
   };
   
@@ -124,23 +168,56 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
   const shakeInput = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
-    // Add a subtle shake animation
+    // More natural shake animation
     emailInputScale.value = withSequence(
-      withTiming(1.02, { duration: 50 }),
-      withTiming(0.98, { duration: 50 }),
-      withTiming(1.02, { duration: 50 }),
-      withTiming(0.98, { duration: 50 }),
-      withSpring(1)
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withSpring(1, { damping: 10, stiffness: 300 })
     );
   };
   
   // Go back to login screen
   const handleBack = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.goBack();
+    
+    // Animate exit
+    formOpacity.value = withTiming(0, { duration: 300 });
+    headerOpacity.value = withTiming(0, { duration: 300 });
+    
+    setTimeout(() => {
+      navigation.goBack();
+    }, 300);
   };
   
+  // Handle social signup
+  const handleSocialSignup = (provider) => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    // Implementation would go here
+    console.log(`Sign up with ${provider}`);
+  }
+  
   // Animated styles
+  const backgroundStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      backgroundPosition.value,
+      [0, 1],
+      [-width * 0.3, 0],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      transform: [{ translateX }]
+    };
+  });
+  
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return { opacity: headerOpacity.value };
+  });
+  
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
@@ -158,16 +235,46 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
       transform: [{ scale: buttonScale.value }]
     };
   });
+  
+  const formAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: formOpacity.value,
+      transform: [{ translateY: formPosition.value }]
+    };
+  });
+  
+  const socialButtonsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: socialButtonsOpacity.value,
+      transform: [
+        { 
+          translateY: interpolate(
+            socialButtonsOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          ) 
+        }
+      ]
+    };
+  });
 
   return (
     <View style={styles.container}>
-      {/* Background gradient */}
-      <LinearGradient
-        colors={[Colors.primary.darkBlue, Colors.primary.blue]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* Background gradient with animation */}
+      <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
+        <LinearGradient
+          colors={[Colors.primary[800], Colors.primary[600], Colors.primary.blue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+      
+      {/* Background decoration */}
+      <View style={styles.decorationCircle1} />
+      <View style={styles.decorationCircle2} />
+      <View style={styles.decorationCircle3} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -182,11 +289,12 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header with back button */}
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, headerAnimatedStyle]}>
             <TouchableOpacity 
               onPress={handleBack}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.8}
             >
               <Feather name="arrow-left" size={24} color="#fff" />
             </TouchableOpacity>
@@ -197,11 +305,11 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
             >
               Step 1 of 3
             </Animated.Text>
-          </View>
+          </Animated.View>
           
           {/* Progress indicator */}
           <Animated.View 
-            style={styles.progressContainer}
+            style={[styles.progressContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(400).duration(600)}
           >
             <View style={styles.progressBar}>
@@ -213,7 +321,7 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
           
           {/* Title */}
           <Animated.View 
-            style={styles.titleContainer}
+            style={[styles.titleContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(500).duration(600)}
           >
             <Text style={styles.title}>Create Account</Text>
@@ -222,23 +330,25 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
           
           {/* Form */}
           <Animated.View 
-            style={[styles.formContainer, emailInputAnimatedStyle]}
+            style={[styles.formContainer, formAnimatedStyle]}
             entering={FadeInUp.delay(600).duration(800)}
           >
-            <Input
-              label="Email Address"
-              value={email}
-              onChangeText={(text) => {
-                setEmail(text);
-                if (emailError) setEmailError('');
-              }}
-              placeholder="your.email@example.com"
-              keyboardType="email-address"
-              autoCapitalize="none"
-              leftIcon="mail"
-              error={emailError}
-              animateSuccess
-            />
+            <Animated.View style={emailInputAnimatedStyle}>
+              <Input
+                label="Email Address"
+                value={email}
+                onChangeText={(text) => {
+                  setEmail(text);
+                  if (emailError) setEmailError('');
+                }}
+                placeholder="your.email@example.com"
+                keyboardType="email-address"
+                autoCapitalize="none"
+                leftIcon="mail"
+                error={emailError}
+                animateSuccess={email.length > 0 && isValidEmail(email)}
+              />
+            </Animated.View>
             
             <Text style={styles.privacyText}>
               By continuing, you agree to our 
@@ -254,17 +364,18 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
                 fullWidth
                 loading={loading}
                 style={styles.continueButton}
-                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                gradientColors={[Colors.primary.blue, Colors.primary[700]]}
                 animationType="bounce"
                 icon="arrow-right"
                 iconPosition="right"
+                round
               />
             </Animated.View>
           </Animated.View>
           
           {/* Alternative signup options */}
           <Animated.View 
-            style={styles.alternativesContainer}
+            style={[styles.alternativesContainer, socialButtonsAnimatedStyle]}
             entering={FadeInUp.delay(800).duration(600)}
           >
             <View style={styles.dividerContainer}>
@@ -277,21 +388,45 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
               <TouchableOpacity 
                 style={styles.socialButton}
                 activeOpacity={0.8}
+                onPress={() => handleSocialSignup('github')}
               >
+                <LinearGradient
+                  colors={['rgba(0, 0, 0, 0.8)', 'rgba(0, 0, 0, 0.6)']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  borderRadius={25}
+                />
                 <Feather name="github" size={20} color="#fff" />
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.socialButton}
                 activeOpacity={0.8}
+                onPress={() => handleSocialSignup('twitter')}
               >
+                <LinearGradient
+                  colors={['#1DA1F2', '#0C85D0']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  borderRadius={25}
+                />
                 <Feather name="twitter" size={20} color="#fff" />
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.socialButton}
                 activeOpacity={0.8}
+                onPress={() => handleSocialSignup('google')}
               >
+                <LinearGradient
+                  colors={['#DB4437', '#C31C17']}
+                  style={StyleSheet.absoluteFill}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  borderRadius={25}
+                />
                 <Feather name="mail" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -305,7 +440,7 @@ const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light
+    backgroundColor: Colors.primary[700]
   },
   keyboardAvoidingView: {
     flex: 1
@@ -321,37 +456,43 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   stepText: {
     fontSize: Typography.sizes.body,
     color: Colors.neutrals.white,
-    fontWeight: Typography.weights.medium
+    fontWeight: Typography.weights.medium,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20
   },
   progressContainer: {
     marginBottom: Spacing.xl
   },
   progressBar: {
-    height: 4,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden'
   },
   progressIndicator: {
     height: '100%',
     backgroundColor: Colors.neutrals.white,
-    borderRadius: 2
+    borderRadius: 3
   },
   titleContainer: {
     marginBottom: Spacing.xl
   },
   title: {
-    fontSize: Typography.sizes.title,
+    fontSize: 32,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.white,
     marginBottom: Spacing.xs
@@ -366,11 +507,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: Spacing.xl,
     shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-    marginBottom: Spacing.xl
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   privacyText: {
     fontSize: Typography.sizes.bodySmall,
@@ -414,10 +557,44 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginHorizontal: Spacing.sm
+    marginHorizontal: Spacing.sm,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
+  },
+  // Decorative elements
+  decorationCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    top: -50,
+    right: -70
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    bottom: 80,
+    left: -70
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: 150,
+    right: -30
   }
 });
 

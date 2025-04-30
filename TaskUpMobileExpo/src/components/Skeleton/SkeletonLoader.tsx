@@ -22,7 +22,7 @@ import Animated, {
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 
-import Colors from '../theme/Colors'
+import Colors from '../../theme/Colors'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)

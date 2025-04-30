@@ -1,60 +1,90 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { 
   StyleSheet, 
   View, 
-  SafeAreaView, 
   StatusBar, 
   ScrollView, 
   Text,
   TouchableOpacity,
   Dimensions,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native'
 import Animated, { 
   useSharedValue,
   useAnimatedScrollHandler,
   useAnimatedStyle,
   interpolate,
+  interpolateColor,
   Extrapolation,
   FadeIn,
   FadeInDown,
-  FadeInRight,
   withTiming,
   withSequence,
-  withSpring
+  withSpring,
+  withDelay,
+  Layout
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
+import { useNavigation } from '@react-navigation/native'
 
+// Import components
+import Card from '../components/Card'
+import FAB from '../components/FAB'
+import SegmentedControl from '../components/Controls/SegmentedControl'
+import TaskDashboard from '../components/Dashboard/TaskDashboard'
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader'
+import Button from '../components/Button/Button'
+import StatusPill from '../components/StatusPill'
+import Avatar from '../components/Avatar/Avatar'
+
+// Import themes and utilities
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
-import Button from '../components/Button/Button'
-import TaskDashboard from '../components/Dashboard/TaskDashboard'
+import { useTheme } from '../hooks/useColorScheme'
 import { triggerImpact } from '../utils/HapticUtils'
 
-const { width, height } = Dimensions.get('window')
+const { width } = Dimensions.get('window')
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
-const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView)
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)
 
-const DashboardScreen = ({ navigation }) => {
+// Tab options
+const TABS = [
+  { id: 'dashboard', label: 'Dashboard', icon: 'grid' },
+  { id: 'tasks', label: 'My Tasks', icon: 'list' },
+  { id: 'analytics', label: 'Analytics', icon: 'bar-chart-2' }
+]
+
+const DashboardScreen = () => {
+  const { colors, isDark } = useTheme()
+  const navigation = useNavigation()
   const insets = useSafeAreaInsets()
-  const scrollY = useSharedValue(0)
-  const [tabIndex, setTabIndex] = useState(0)
+  
+  const [activeTab, setActiveTab] = useState('dashboard')
   const [refreshing, setRefreshing] = useState(false)
   const [greeting, setGreeting] = useState('')
+  const [isLoading, setIsLoading] = useState(true)
+  const [notifications, setNotifications] = useState(3)
   
-  // Animation values
+  // Animated values
+  const scrollY = useSharedValue(0)
   const headerHeight = useSharedValue(200)
   const avatarScale = useSharedValue(1)
   const notificationBadgeScale = useSharedValue(1)
   const statCardOpacity = useSharedValue(0)
+  const fabOpacity = useSharedValue(1)
   
   useEffect(() => {
-    StatusBar.setBarStyle('light-content')
+    StatusBar.setBarStyle(isDark ? 'light-content' : 'light-content')
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor('transparent')
+      StatusBar.setTranslucent(true)
+    }
     
     // Set greeting based on time of day
     const hours = new Date().getHours()
@@ -71,32 +101,47 @@ const DashboardScreen = ({ navigation }) => {
     setGreeting(greetingText)
     
     // Animate notification badge
-    notificationBadgeScale.value = withSequence(
-      withDelay(1000, withSpring(1.5, { damping: 10 })),
-      withSpring(1, { damping: 15 })
-    )
+    if (notifications > 0) {
+      notificationBadgeScale.value = withSequence(
+        withDelay(800, withSpring(1.5, { damping: 10 })),
+        withSpring(1, { damping: 15 })
+      )
+    }
     
     // Animate stat cards
     statCardOpacity.value = withTiming(1, { duration: 800 })
     
+    // Simulate loading
+    setTimeout(() => {
+      setIsLoading(false)
+    }, 800)
+    
     return () => {
-      StatusBar.setBarStyle('dark-content')
+      StatusBar.setBarStyle(isDark ? 'light-content' : 'dark-content')
     }
   }, [])
   
-  const onRefresh = React.useCallback(() => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true)
+    
+    // Reset animations
+    statCardOpacity.value = 0
     
     // Simulate refresh
     setTimeout(() => {
       triggerImpact(Haptics.ImpactFeedbackStyle.Light)
       setRefreshing(false)
+      statCardOpacity.value = withTiming(1, { duration: 800 })
     }, 1500)
   }, [])
   
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       scrollY.value = event.contentOffset.y
+      
+      // Hide/show FAB based on scroll direction
+      const scrollingDown = event.contentOffset.y > 120
+      fabOpacity.value = withTiming(scrollingDown ? 0 : 1, { duration: 200 })
     }
   })
   
@@ -110,11 +155,16 @@ const DashboardScreen = ({ navigation }) => {
     navigation.navigate('ProfileScreen')
   }
   
-  const handleTabPress = (index) => {
-    if (tabIndex === index) return
+  const navigateToAnalytics = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    navigation.navigate('AnalyticsScreen')
+  }
+  
+  const handleTabChange = (tabId) => {
+    if (activeTab === tabId) return
     
     triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    setTabIndex(index)
+    setActiveTab(tabId)
   }
   
   // Animated styles
@@ -127,7 +177,17 @@ const DashboardScreen = ({ navigation }) => {
     )
     
     return {
-      opacity
+      opacity,
+      transform: [
+        { 
+          translateY: interpolate(
+            scrollY.value,
+            [0, 100],
+            [0, -10],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
     }
   })
   
@@ -153,7 +213,23 @@ const DashboardScreen = ({ navigation }) => {
     )
     
     return {
-      height
+      height,
+      shadowOpacity: interpolate(
+        scrollY.value,
+        [0, 100],
+        [0, 0.2],
+        Extrapolation.CLAMP
+      )
+    }
+  })
+  
+  const gradientAnimatedStyle = useAnimatedStyle(() => {
+    const colors = isDark 
+      ? [colors.primary[900], colors.primary[700]]
+      : [colors.primary[700], colors.primary[500]]
+    
+    return {
+      colors
     }
   })
   
@@ -184,21 +260,76 @@ const DashboardScreen = ({ navigation }) => {
       ]
     }
   })
+  
+  const fabAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fabOpacity.value,
+      transform: [
+        { scale: fabOpacity.value },
+        { 
+          translateY: interpolate(
+            fabOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
+    }
+  })
+  
+  // Stats card data
+  const statsCards = [
+    {
+      id: 'tasks',
+      icon: 'check-square',
+      value: 24,
+      label: 'Tasks Done',
+      gradientColors: isDark 
+        ? [colors.primary[600], colors.primary[800]] 
+        : [colors.primary[500], colors.primary[700]]
+    },
+    {
+      id: 'projects',
+      icon: 'briefcase',
+      value: 7,
+      label: 'Projects',
+      gradientColors: isDark 
+        ? ['#00796B', '#004D40'] 
+        : [colors.secondary[500], '#009688']
+    },
+    {
+      id: 'teams',
+      icon: 'users',
+      value: 4,
+      label: 'Teams',
+      gradientColors: isDark 
+        ? ['#7B1FA2', '#4A148C'] 
+        : ['#9C27B0', '#673AB7']
+    }
+  ]
 
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container, 
+      { backgroundColor: isDark ? colors.background.dark : colors.background.light }
+    ]}>
       <Animated.View 
         style={[
           styles.header,
-          { paddingTop: insets.top },
+          { 
+            paddingTop: insets.top,
+            shadowColor: isDark ? colors.background.dark : colors.neutrals.black
+          },
           headerAnimatedStyle
         ]}
       >
-        <LinearGradient
-          colors={[Colors.primary.darkBlue, Colors.primary.blue]}
+        <AnimatedLinearGradient
+          colors={[colors.primary[700], colors.primary[500]]}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
           style={StyleSheet.absoluteFill}
+          animatedProps={gradientAnimatedStyle}
         />
         
         <View style={styles.headerContent}>
@@ -211,21 +342,31 @@ const DashboardScreen = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.iconButton}
               onPress={navigateToNotifications}
+              activeOpacity={0.8}
             >
               <Feather name="bell" size={22} color={Colors.neutrals.white} />
-              <Animated.View 
-                style={[styles.notificationBadge, notificationBadgeAnimatedStyle]} 
-              />
+              {notifications > 0 && (
+                <Animated.View 
+                  style={[styles.notificationBadge, notificationBadgeAnimatedStyle]} 
+                >
+                  {notifications > 1 && (
+                    <Text style={styles.notificationCount}>{notifications}</Text>
+                  )}
+                </Animated.View>
+              )}
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.profileButton}
               onPress={navigateToProfile}
+              activeOpacity={0.8}
             >
-              <Animated.View 
-                style={[styles.profileAvatar, avatarAnimatedStyle]}
-              >
-                <Text style={styles.profileInitials}>AJ</Text>
+              <Animated.View style={avatarAnimatedStyle}>
+                <Avatar 
+                  name="Alex Johnson"
+                  size={40}
+                  status="online"
+                />
               </Animated.View>
             </TouchableOpacity>
           </View>
@@ -233,64 +374,18 @@ const DashboardScreen = ({ navigation }) => {
       </Animated.View>
       
       <Animated.View style={[styles.tabBar, tabBarAnimatedStyle]}>
-        <AnimatedBlurView intensity={80} tint="light" style={StyleSheet.absoluteFill} />
+        <AnimatedBlurView 
+          intensity={isDark ? 60 : 80} 
+          tint={isDark ? "dark" : "light"} 
+          style={StyleSheet.absoluteFill} 
+        />
         <View style={styles.tabBarContent}>
-          <TouchableOpacity 
-            style={[styles.tabBarButton, tabIndex === 0 && styles.activeTabBarButton]}
-            onPress={() => handleTabPress(0)}
-          >
-            <Feather 
-              name="grid" 
-              size={20} 
-              color={tabIndex === 0 ? Colors.primary.blue : Colors.neutrals.gray600} 
-            />
-            <Text 
-              style={[
-                styles.tabBarText, 
-                tabIndex === 0 && styles.activeTabBarText
-              ]}
-            >
-              Dashboard
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tabBarButton, tabIndex === 1 && styles.activeTabBarButton]}
-            onPress={() => handleTabPress(1)}
-          >
-            <Feather 
-              name="list" 
-              size={20} 
-              color={tabIndex === 1 ? Colors.primary.blue : Colors.neutrals.gray600} 
-            />
-            <Text 
-              style={[
-                styles.tabBarText, 
-                tabIndex === 1 && styles.activeTabBarText
-              ]}
-            >
-              My Tasks
-            </Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={[styles.tabBarButton, tabIndex === 2 && styles.activeTabBarButton]}
-            onPress={() => handleTabPress(2)}
-          >
-            <Feather 
-              name="bar-chart-2" 
-              size={20} 
-              color={tabIndex === 2 ? Colors.primary.blue : Colors.neutrals.gray600} 
-            />
-            <Text 
-              style={[
-                styles.tabBarText, 
-                tabIndex === 2 && styles.activeTabBarText
-              ]}
-            >
-              Analytics
-            </Text>
-          </TouchableOpacity>
+          <SegmentedControl
+            segments={TABS.map(tab => ({ id: tab.id, label: tab.label }))}
+            selectedId={activeTab}
+            onChange={handleTabChange}
+            style={styles.segmentedControl}
+          />
         </View>
       </Animated.View>
       
@@ -303,98 +398,100 @@ const DashboardScreen = ({ navigation }) => {
           <RefreshControl 
             refreshing={refreshing} 
             onRefresh={onRefresh}
-            tintColor={Colors.primary.blue}
-            colors={[Colors.primary.blue]}
+            tintColor={colors.primary[500]}
+            colors={[colors.primary[500]]}
           />
         }
       >
-        <View style={styles.contentContainer}>
-          <Animated.View 
-            style={[styles.statsCards, statCardsAnimatedStyle]}
-          >
-            <Animated.View 
-              style={styles.statsCardContainer}
-              entering={FadeInDown.delay(200).duration(600)}
-            >
-              <TouchableOpacity 
-                style={[styles.statsCard, styles.tasksCard]}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={[Colors.primary.blue, Colors.primary.darkBlue]}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[StyleSheet.absoluteFill, styles.statsCardGradient]}
-                />
-                <View style={styles.statsIconContainer}>
-                  <Feather name="check-square" size={24} color={Colors.neutrals.white} />
+        <View style={[
+          styles.contentContainer,
+          { paddingBottom: insets.bottom + 40 }
+        ]}>
+          {isLoading ? (
+            // Show skeleton loaders
+            <Animated.View style={[styles.statsCards, statCardsAnimatedStyle]}>
+              {[1, 2, 3].map(index => (
+                <View key={index} style={styles.statsCardContainer}>
+                  <SkeletonLoader.Card style={styles.statsCardSkeleton} />
                 </View>
-                <Text style={styles.statsValue}>24</Text>
-                <Text style={styles.statsLabel}>Tasks Done</Text>
-              </TouchableOpacity>
+              ))}
             </Animated.View>
-            
-            <Animated.View 
-              style={styles.statsCardContainer}
-              entering={FadeInDown.delay(300).duration(600)}
-            >
-              <TouchableOpacity 
-                style={[styles.statsCard, styles.projectsCard]}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={[Colors.secondary.green, '#009688']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[StyleSheet.absoluteFill, styles.statsCardGradient]}
-                />
-                <View style={styles.statsIconContainer}>
-                  <Feather name="folder" size={24} color={Colors.neutrals.white} />
-                </View>
-                <Text style={styles.statsValue}>7</Text>
-                <Text style={styles.statsLabel}>Projects</Text>
-              </TouchableOpacity>
+          ) : (
+            <Animated.View style={[styles.statsCards, statCardsAnimatedStyle]}>
+              {statsCards.map((stat, index) => (
+                <Animated.View 
+                  key={stat.id}
+                  style={styles.statsCardContainer}
+                  entering={FadeInDown.delay(200 + index * 100).duration(600)}
+                >
+                  <Card 
+                    style={styles.statsCard}
+                    onPress={() => {
+                      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+                      if (stat.id === 'tasks') handleTabChange('tasks')
+                      if (stat.id === 'projects') navigation.navigate('ProjectScreen')
+                      if (stat.id === 'teams') handleTabChange('dashboard')
+                    }}
+                    elevation={isDark ? 4 : 6}
+                    gradientColors={stat.gradientColors}
+                    animationType="spring"
+                  >
+                    <View style={styles.statsIconContainer}>
+                      <Feather name={stat.icon} size={24} color={Colors.neutrals.white} />
+                    </View>
+                    <Text style={styles.statsValue}>{stat.value}</Text>
+                    <Text style={styles.statsLabel}>{stat.label}</Text>
+                    
+                    <View style={styles.statsCardIndicator} />
+                  </Card>
+                </Animated.View>
+              ))}
             </Animated.View>
-            
-            <Animated.View 
-              style={styles.statsCardContainer}
-              entering={FadeInDown.delay(400).duration(600)}
-            >
-              <TouchableOpacity 
-                style={[styles.statsCard, styles.teamsCard]}
-                activeOpacity={0.9}
-              >
-                <LinearGradient
-                  colors={['#9C27B0', '#673AB7']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[StyleSheet.absoluteFill, styles.statsCardGradient]}
-                />
-                <View style={styles.statsIconContainer}>
-                  <Feather name="users" size={24} color={Colors.neutrals.white} />
-                </View>
-                <Text style={styles.statsValue}>4</Text>
-                <Text style={styles.statsLabel}>Teams</Text>
-              </TouchableOpacity>
-            </Animated.View>
-          </Animated.View>
+          )}
           
-          {tabIndex === 0 && (
-            <Animated.View entering={FadeIn.duration(500)}>
+          {activeTab === 'dashboard' && (
+            <Animated.View 
+              entering={FadeIn.duration(500)}
+              layout={Layout.springify().damping(14)}
+            >
               <TaskDashboard navigation={navigation} />
             </Animated.View>
           )}
           
-          {tabIndex === 1 && (
-            <Animated.View entering={FadeIn.duration(500)} style={styles.emptyView}>
-              <Feather name="list" size={60} color={Colors.neutrals.gray300} />
-              <Text style={styles.emptyTitle}>My Tasks</Text>
-              <Text style={styles.emptyText}>
-                This section is under construction. Check back soon!
+          {activeTab === 'tasks' && (
+            <Animated.View 
+              entering={FadeIn.duration(500)}
+              style={styles.emptyView}
+              layout={Layout.springify().damping(14)}
+            >
+              <Feather 
+                name="list" 
+                size={60} 
+                color={isDark ? colors.neutrals[700] : Colors.neutrals[300]} 
+              />
+              <Text style={[
+                styles.emptyTitle,
+                { color: isDark ? colors.text.primary : Colors.neutrals[800] }
+              ]}>
+                My Tasks
               </Text>
+              <Text style={[
+                styles.emptyText,
+                { color: isDark ? colors.text.secondary : Colors.neutrals[600] }
+              ]}>
+                This section will show your assigned tasks and upcoming deadlines
+              </Text>
+              
+              <StatusPill
+                label="Coming Soon"
+                type="info"
+                icon="clock"
+                style={styles.comingSoonPill}
+              />
+              
               <Button 
                 title="View Task Dashboard"
-                onPress={() => handleTabPress(0)}
+                onPress={() => handleTabChange('dashboard')}
                 variant="primary"
                 icon="grid"
                 style={styles.emptyButton}
@@ -403,54 +500,69 @@ const DashboardScreen = ({ navigation }) => {
             </Animated.View>
           )}
           
-          {tabIndex === 2 && (
-            <Animated.View entering={FadeIn.duration(500)} style={styles.emptyView}>
-              <Feather name="bar-chart-2" size={60} color={Colors.neutrals.gray300} />
-              <Text style={styles.emptyTitle}>Analytics</Text>
-              <Text style={styles.emptyText}>
-                This section is under construction. Check back soon!
+          {activeTab === 'analytics' && (
+            <Animated.View 
+              entering={FadeIn.duration(500)}
+              style={styles.emptyView}
+              layout={Layout.springify().damping(14)}
+            >
+              <Feather 
+                name="bar-chart-2" 
+                size={60} 
+                color={isDark ? colors.neutrals[700] : Colors.neutrals[300]} 
+              />
+              <Text style={[
+                styles.emptyTitle,
+                { color: isDark ? colors.text.primary : Colors.neutrals[800] }
+              ]}>
+                Analytics
               </Text>
+              <Text style={[
+                styles.emptyText,
+                { color: isDark ? colors.text.secondary : Colors.neutrals[600] }
+              ]}>
+                Track your team's productivity and project progress
+              </Text>
+              
+              <StatusPill
+                label="New Feature"
+                type="success"
+                icon="zap"
+                style={styles.comingSoonPill}
+              />
+              
               <Button 
-                title="View Task Dashboard"
-                onPress={() => handleTabPress(0)}
+                title="View Analytics"
+                onPress={navigateToAnalytics}
                 variant="primary"
-                icon="grid"
+                icon="bar-chart-2"
                 style={styles.emptyButton}
                 animationType="bounce"
               />
             </Animated.View>
           )}
-          
-          {/* Bottom padding for scroll content */}
-          <View style={{ height: 80 }} />
         </View>
       </Animated.ScrollView>
       
       {/* Floating Action Button */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => {
-          triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-        }}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={[Colors.primary.blue, Colors.primary.darkBlue]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          borderRadius={28}
+      <Animated.View style={fabAnimatedStyle}>
+        <FAB
+          icon="plus"
+          onPress={() => {
+            triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+          }}
+          gradientColors={[colors.primary[500], colors.primary[700]]}
+          style={styles.fab}
+          animationType="bounce"
         />
-        <Feather name="plus" size={24} color={Colors.neutrals.white} />
-      </TouchableOpacity>
+      </Animated.View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background.light
+    flex: 1
   },
   header: {
     height: 200,
@@ -460,7 +572,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12
   },
   headerContent: {
     flex: 1,
@@ -476,9 +590,10 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.8)',
   },
   nameText: {
-    fontSize: Typography.sizes.header,
+    fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.white
+    color: Colors.neutrals.white,
+    marginTop: Spacing.xs
   },
   headerActions: {
     flexDirection: 'row',
@@ -487,38 +602,35 @@ const styles = StyleSheet.create({
   iconButton: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: Spacing.md
   },
   notificationBadge: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: Colors.secondary.red,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: Colors.error[500],
     position: 'absolute',
-    top: 10,
-    right: 10
+    top: -4,
+    right: -4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: Colors.neutrals.white
+  },
+  notificationCount: {
+    fontSize: 8,
+    fontWeight: Typography.weights.bold,
+    color: Colors.neutrals.white
   },
   profileButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     overflow: 'hidden'
-  },
-  profileAvatar: {
-    width: '100%',
-    height: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center'
-  },
-  profileInitials: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.white
   },
   tabBar: {
     position: 'absolute',
@@ -536,40 +648,20 @@ const styles = StyleSheet.create({
     elevation: 8
   },
   tabBarContent: {
-    flexDirection: 'row',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md
-  },
-  tabBarButton: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-    borderRadius: 20,
-    marginHorizontal: 4
+    paddingHorizontal: Spacing.xs
   },
-  activeTabBarButton: {
-    backgroundColor: 'rgba(61, 90, 254, 0.1)'
-  },
-  tabBarText: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutrals.gray600,
-    marginLeft: 6
-  },
-  activeTabBarText: {
-    color: Colors.primary.blue
+  segmentedControl: {
+    width: '100%'
   },
   scrollView: {
     flex: 1,
     marginTop: 120
   },
   contentContainer: {
-    paddingTop: 80,
-    paddingBottom: 40
+    paddingTop: 80
   },
   statsCards: {
     flexDirection: 'row',
@@ -581,29 +673,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4
   },
   statsCard: {
-    borderRadius: 16,
     height: 120,
     padding: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8
-  },
-  statsCardGradient: {
     borderRadius: 16
   },
-  tasksCard: {
-    backgroundColor: Colors.primary.blue
-  },
-  projectsCard: {
-    backgroundColor: Colors.secondary.green
-  },
-  teamsCard: {
-    backgroundColor: '#9C27B0'
+  statsCardSkeleton: {
+    height: 120,
+    borderRadius: 16
   },
   statsIconContainer: {
     marginBottom: Spacing.sm
@@ -618,6 +697,15 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: 'rgba(255, 255, 255, 0.8)'
   },
+  statsCardIndicator: {
+    position: 'absolute',
+    right: 10,
+    top: 10,
+    width: 6,
+    height: 20,
+    borderRadius: 3,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)'
+  },
   emptyView: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -627,33 +715,24 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray800,
     marginTop: Spacing.lg,
     marginBottom: Spacing.sm
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray600,
     textAlign: 'center',
     marginBottom: Spacing.xl
   },
+  comingSoonPill: {
+    marginBottom: Spacing.lg
+  },
   emptyButton: {
-    marginTop: Spacing.lg
+    marginTop: Spacing.md
   },
   fab: {
     position: 'absolute',
     bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.primary.blue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8
+    right: 20
   }
 })
 

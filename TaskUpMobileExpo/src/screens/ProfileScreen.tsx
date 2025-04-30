@@ -1,14 +1,14 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect } from 'react'
 import { 
   StyleSheet, 
   View, 
   Text, 
   ScrollView,
-  Image, 
   TouchableOpacity,
   StatusBar,
   Dimensions,
-  Platform
+  Platform,
+  ActivityIndicator
 } from 'react-native'
 import Animated, {
   useSharedValue,
@@ -17,12 +17,10 @@ import Animated, {
   withTiming,
   withSpring,
   withSequence,
-  withDelay,
   FadeIn,
   FadeOut,
   SlideInRight,
   ZoomIn,
-  runOnJS,
   interpolate,
   Extrapolation
 } from 'react-native-reanimated'
@@ -36,9 +34,13 @@ import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
 import Avatar from '../components/Avatar/Avatar'
+import StatusBadge from '../components/Badge/StatusBadge'
+import Card from '../components/Card'
 import { triggerImpact } from '../utils/HapticUtils'
+import { formatDateString, timeAgo } from '../utils/helpers'
+import { useTheme } from '../hooks/useColorScheme'
 
-const { width, height } = Dimensions.get('window')
+const { width } = Dimensions.get('window')
 const HEADER_MAX_HEIGHT = 300
 const HEADER_MIN_HEIGHT = Platform.OS === 'android' ? 60 : 90
 const PROFILE_IMAGE_MAX_SIZE = 120
@@ -89,6 +91,7 @@ const ProfileScreen = ({ navigation, route }) => {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [activeTab, setActiveTab] = useState('stats')
   const insets = useSafeAreaInsets()
+  const { colors, isDark } = useTheme()
   
   // Animated Values
   const scrollY = useSharedValue(0)
@@ -143,12 +146,12 @@ const ProfileScreen = ({ navigation, route }) => {
   }, [userId])
   
   const handleBackPress = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     navigation.goBack()
   }
   
   const handleEditProfile = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
     editButtonScale.value = withSequence(
       withTiming(0.9, { duration: 100 }),
       withTiming(1, { duration: 100 })
@@ -157,17 +160,17 @@ const ProfileScreen = ({ navigation, route }) => {
   }
   
   const handleChangeTab = (tab: string) => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     setActiveTab(tab)
   }
   
   const handleSettingsPress = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
     navigation.navigate('Settings')
   }
   
   const handleLogout = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Heavy)
     // Implement logout logic
   }
   
@@ -216,7 +219,17 @@ const ProfileScreen = ({ navigation, route }) => {
   
   const headerContentStyle = useAnimatedStyle(() => {
     return {
-      opacity: headerOpacity.value
+      opacity: headerOpacity.value,
+      transform: [
+        { 
+          translateY: interpolate(
+            headerOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          ) 
+        }
+      ]
     }
   })
   
@@ -286,38 +299,30 @@ const ProfileScreen = ({ navigation, route }) => {
     ? Math.round((profile.stats.projects.completed / profile.stats.projects.total) * 100)
     : 0
   
-  // Format join date
-  const formatJoinDate = (isoString?: string) => {
-    if (!isoString) return ''
-    
-    const date = new Date(isoString)
-    return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  }
-  
   // Get availability color
-  const getAvailabilityColor = (status?: string) => {
+  const getAvailabilityStatus = (status?: string): 'online' | 'busy' | 'away' | 'offline' => {
     switch (status) {
       case 'available':
-        return Colors.status.success
+        return 'online'
       case 'busy':
-        return Colors.status.error
+        return 'busy'
       case 'away':
-        return Colors.status.warning
+        return 'away'
       default:
-        return Colors.neutrals.gray400
+        return 'offline'
     }
   }
   
   if (!profile) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator color={Colors.primary.blue} size="large" />
+      <View style={[styles.loadingContainer, { backgroundColor: isDark ? colors.background.dark : colors.background.light }]}>
+        <ActivityIndicator color={colors.primary[500]} size="large" />
       </View>
     )
   }
   
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: isDark ? colors.background.dark : colors.background.light }]}>
       <StatusBar 
         translucent 
         backgroundColor="transparent" 
@@ -335,39 +340,51 @@ const ProfileScreen = ({ navigation, route }) => {
         <View style={{ height: HEADER_MAX_HEIGHT }} />
         
         {/* Profile Info */}
-        <View style={styles.profileContainer}>
+        <View style={[
+          styles.profileContainer, 
+          { backgroundColor: isDark ? colors.background.dark : colors.background.light }
+        ]}>
           {/* Name and Role */}
           <Animated.View style={[styles.profileInfo, profileInfoStyle]}>
-            <Text style={styles.profileName}>{profile.name}</Text>
-            <Text style={styles.profileRole}>{profile.role}</Text>
+            <Text style={[styles.profileName, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+              {profile.name}
+            </Text>
+            <Text style={[styles.profileRole, { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 }]}>
+              {profile.role}
+            </Text>
             
             {/* Availability Status */}
             <View style={styles.availabilityContainer}>
-              <View 
-                style={[
-                  styles.availabilityDot,
-                  { backgroundColor: getAvailabilityColor(profile.availability) }
-                ]} 
-              />
-              <Text style={styles.availabilityText}>
+              <StatusBadge status={getAvailabilityStatus(profile.availability)} size={8} />
+              <Text style={[styles.availabilityText, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
                 {profile.availability.charAt(0).toUpperCase() + profile.availability.slice(1)}
               </Text>
             </View>
           </Animated.View>
           
           {/* Tab Navigation */}
-          <View style={styles.tabsContainer}>
+          <View style={[
+            styles.tabsContainer, 
+            { borderBottomColor: isDark ? colors.border : Colors.neutrals.gray200 }
+          ]}>
             <TouchableOpacity
               style={[
                 styles.tab,
-                activeTab === 'stats' && styles.activeTab
+                activeTab === 'stats' && [
+                  styles.activeTab, 
+                  { borderBottomColor: colors.primary[500] }
+                ]
               ]}
               onPress={() => handleChangeTab('stats')}
             >
               <Text 
                 style={[
                   styles.tabText,
-                  activeTab === 'stats' && styles.activeTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 },
+                  activeTab === 'stats' && [
+                    styles.activeTabText,
+                    { color: colors.primary[500] }
+                  ]
                 ]}
               >
                 Statistics
@@ -377,14 +394,21 @@ const ProfileScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={[
                 styles.tab,
-                activeTab === 'about' && styles.activeTab
+                activeTab === 'about' && [
+                  styles.activeTab,
+                  { borderBottomColor: colors.primary[500] }
+                ]
               ]}
               onPress={() => handleChangeTab('about')}
             >
               <Text 
                 style={[
                   styles.tabText,
-                  activeTab === 'about' && styles.activeTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 },
+                  activeTab === 'about' && [
+                    styles.activeTabText,
+                    { color: colors.primary[500] }
+                  ]
                 ]}
               >
                 About
@@ -394,14 +418,21 @@ const ProfileScreen = ({ navigation, route }) => {
             <TouchableOpacity
               style={[
                 styles.tab,
-                activeTab === 'activity' && styles.activeTab
+                activeTab === 'activity' && [
+                  styles.activeTab,
+                  { borderBottomColor: colors.primary[500] }
+                ]
               ]}
               onPress={() => handleChangeTab('activity')}
             >
               <Text 
                 style={[
                   styles.tabText,
-                  activeTab === 'activity' && styles.activeTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 },
+                  activeTab === 'activity' && [
+                    styles.activeTabText,
+                    { color: colors.primary[500] }
+                  ]
                 ]}
               >
                 Activity
@@ -420,7 +451,7 @@ const ProfileScreen = ({ navigation, route }) => {
                     entering={SlideInRight.delay(100).duration(300)}
                   >
                     <LinearGradient
-                      colors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                      colors={[colors.primary[500], colors.primary[700]]}
                       style={styles.statsCardGradient}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
@@ -493,217 +524,281 @@ const ProfileScreen = ({ navigation, route }) => {
                 </View>
                 
                 {/* Additional Stats */}
-                <Animated.View 
+                <Card 
                   style={styles.additionalStatsContainer}
-                  entering={SlideInRight.delay(300).duration(300)}
+                  animationType="spring"
                 >
-                  <View style={styles.additionalStatItem}>
-                    <View style={styles.additionalStatIcon}>
-                      <Feather name="users" size={16} color={Colors.primary.blue} />
+                  <Animated.View entering={SlideInRight.delay(300).duration(300)}>
+                    <View style={styles.additionalStatItem}>
+                      <View style={[styles.additionalStatIcon, { backgroundColor: `${colors.primary[500]}20` }]}>
+                        <Feather name="users" size={16} color={colors.primary[500]} />
+                      </View>
+                      <View style={styles.additionalStatContent}>
+                        <Text style={[styles.additionalStatLabel, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+                          Teams
+                        </Text>
+                        <Text style={[styles.additionalStatValue, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                          {profile.stats.teams}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.additionalStatContent}>
-                      <Text style={styles.additionalStatLabel}>Teams</Text>
-                      <Text style={styles.additionalStatValue}>{profile.stats.teams}</Text>
+                    
+                    <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
+                    
+                    <View style={styles.additionalStatItem}>
+                      <View style={[styles.additionalStatIcon, { backgroundColor: `${Colors.secondary.green}20` }]}>
+                        <Feather name="trending-up" size={16} color={Colors.secondary.green} />
+                      </View>
+                      <View style={styles.additionalStatContent}>
+                        <Text style={[styles.additionalStatLabel, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+                          In Progress
+                        </Text>
+                        <Text style={[styles.additionalStatValue, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                          {profile.stats.tasks.inProgress}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                  
-                  <View style={styles.additionalStatItem}>
-                    <View style={styles.additionalStatIcon}>
-                      <Feather name="trending-up" size={16} color={Colors.secondary.green} />
+                    
+                    <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
+                    
+                    <View style={styles.additionalStatItem}>
+                      <View style={[styles.additionalStatIcon, { backgroundColor: 'rgba(156, 39, 176, 0.1)' }]}>
+                        <Feather name="calendar" size={16} color="#9C27B0" />
+                      </View>
+                      <View style={styles.additionalStatContent}>
+                        <Text style={[styles.additionalStatLabel, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+                          Joined
+                        </Text>
+                        <Text style={[styles.additionalStatValue, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                          {formatDateString(profile.stats.joined, { month: 'long', year: 'numeric' })}
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.additionalStatContent}>
-                      <Text style={styles.additionalStatLabel}>In Progress</Text>
-                      <Text style={styles.additionalStatValue}>{profile.stats.tasks.inProgress}</Text>
-                    </View>
-                  </View>
-                  
-                  <View style={styles.additionalStatItem}>
-                    <View style={styles.additionalStatIcon}>
-                      <Feather name="calendar" size={16} color={Colors.primary.purple} />
-                    </View>
-                    <View style={styles.additionalStatContent}>
-                      <Text style={styles.additionalStatLabel}>Joined</Text>
-                      <Text style={styles.additionalStatValue}>
-                        {formatJoinDate(profile.stats.joined)}
-                      </Text>
-                    </View>
-                  </View>
-                </Animated.View>
+                  </Animated.View>
+                </Card>
               </Animated.View>
             )}
             
             {activeTab === 'about' && (
               <Animated.View 
-                style={styles.aboutContainer}
                 entering={FadeIn.duration(300)}
               >
-                {/* Bio Section */}
-                <View style={styles.bioSection}>
-                  <Text style={styles.sectionTitle}>Bio</Text>
-                  <Text style={styles.bioText}>{profile.bio}</Text>
-                </View>
-                
-                {/* Contact Section */}
-                <View style={styles.contactSection}>
-                  <Text style={styles.sectionTitle}>Contact Information</Text>
-                  
-                  <View style={styles.contactItem}>
-                    <Feather name="mail" size={16} color={Colors.neutrals.gray700} />
-                    <Text style={styles.contactText}>{profile.email}</Text>
+                <Card style={styles.aboutContainer}>
+                  {/* Bio Section */}
+                  <View style={styles.bioSection}>
+                    <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                      Bio
+                    </Text>
+                    <Text style={[styles.bioText, { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 }]}>
+                      {profile.bio}
+                    </Text>
                   </View>
                   
-                  {profile.phone && (
-                    <View style={styles.contactItem}>
-                      <Feather name="phone" size={16} color={Colors.neutrals.gray700} />
-                      <Text style={styles.contactText}>{profile.phone}</Text>
-                    </View>
-                  )}
+                  <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
                   
-                  {profile.location && (
-                    <View style={styles.contactItem}>
-                      <Feather name="map-pin" size={16} color={Colors.neutrals.gray700} />
-                      <Text style={styles.contactText}>{profile.location}</Text>
-                    </View>
-                  )}
-                  
-                  {profile.website && (
-                    <View style={styles.contactItem}>
-                      <Feather name="globe" size={16} color={Colors.neutrals.gray700} />
-                      <Text style={styles.contactText}>{profile.website}</Text>
-                    </View>
-                  )}
-                </View>
-                
-                {/* Skills Section */}
-                {profile.skills && profile.skills.length > 0 && (
-                  <View style={styles.skillsSection}>
-                    <Text style={styles.sectionTitle}>Skills</Text>
+                  {/* Contact Section */}
+                  <View style={styles.contactSection}>
+                    <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                      Contact Information
+                    </Text>
                     
-                    <View style={styles.skillsContainer}>
-                      {profile.skills.map((skill, index) => (
-                        <View key={index} style={styles.skillBadge}>
-                          <Text style={styles.skillText}>{skill}</Text>
-                        </View>
-                      ))}
+                    <View style={styles.contactItem}>
+                      <Feather 
+                        name="mail" 
+                        size={16} 
+                        color={isDark ? colors.text.secondary : Colors.neutrals.gray700} 
+                      />
+                      <Text style={[styles.contactText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                        {profile.email}
+                      </Text>
                     </View>
-                  </View>
-                )}
-                
-                {/* Social Links */}
-                {profile.socials && profile.socials.length > 0 && (
-                  <View style={styles.socialsSection}>
-                    <Text style={styles.sectionTitle}>Social Profiles</Text>
                     
-                    <View style={styles.socialsContainer}>
-                      {profile.socials.map((social, index) => (
-                        <TouchableOpacity 
-                          key={index}
-                          style={styles.socialButton}
-                        >
-                          <Feather
-                            name={getSocialIcon(social.type)}
-                            size={20}
-                            color={Colors.neutrals.white}
-                          />
-                        </TouchableOpacity>
-                      ))}
+                    {profile.phone && (
+                      <View style={styles.contactItem}>
+                        <Feather 
+                          name="phone" 
+                          size={16} 
+                          color={isDark ? colors.text.secondary : Colors.neutrals.gray700} 
+                        />
+                        <Text style={[styles.contactText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                          {profile.phone}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {profile.location && (
+                      <View style={styles.contactItem}>
+                        <Feather 
+                          name="map-pin" 
+                          size={16} 
+                          color={isDark ? colors.text.secondary : Colors.neutrals.gray700} 
+                        />
+                        <Text style={[styles.contactText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                          {profile.location}
+                        </Text>
+                      </View>
+                    )}
+                    
+                    {profile.website && (
+                      <View style={styles.contactItem}>
+                        <Feather 
+                          name="globe" 
+                          size={16} 
+                          color={isDark ? colors.text.secondary : Colors.neutrals.gray700} 
+                        />
+                        <Text style={[styles.contactText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                          {profile.website}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                  
+                  <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
+                  
+                  {/* Skills Section */}
+                  {profile.skills && profile.skills.length > 0 && (
+                    <View style={styles.skillsSection}>
+                      <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                        Skills
+                      </Text>
+                      
+                      <View style={styles.skillsContainer}>
+                        {profile.skills.map((skill, index) => (
+                          <Animated.View 
+                            key={index} 
+                            style={styles.skillBadge}
+                            entering={FadeIn.delay(100 + index * 50).duration(300)}
+                          >
+                            <Text style={[styles.skillText, { color: colors.primary[500] }]}>
+                              {skill}
+                            </Text>
+                          </Animated.View>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  
+                  <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
+                  
+                  {/* Social Links */}
+                  {profile.socials && profile.socials.length > 0 && (
+                    <View style={styles.socialsSection}>
+                      <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                        Social Profiles
+                      </Text>
+                      
+                      <View style={styles.socialsContainer}>
+                        {profile.socials.map((social, index) => (
+                          <TouchableOpacity 
+                            key={index}
+                            style={[styles.socialButton, { backgroundColor: colors.primary[500] }]}
+                          >
+                            <Feather
+                              name={getSocialIcon(social.type)}
+                              size={20}
+                              color={Colors.neutrals.white}
+                            />
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    </View>
+                  )}
+                  
+                  <View style={[styles.divider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray200 }]} />
+                  
+                  {/* Department */}
+                  <View style={styles.departmentSection}>
+                    <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                      Department
+                    </Text>
+                    <View style={[styles.departmentBadge, { backgroundColor: 'rgba(156, 39, 176, 0.1)' }]}>
+                      <Text style={[styles.departmentText, { color: '#9C27B0' }]}>
+                        {profile.department}
+                      </Text>
                     </View>
                   </View>
-                )}
-                
-                {/* Department */}
-                <View style={styles.departmentSection}>
-                  <Text style={styles.sectionTitle}>Department</Text>
-                  <View style={styles.departmentBadge}>
-                    <Text style={styles.departmentText}>{profile.department}</Text>
-                  </View>
-                </View>
+                </Card>
               </Animated.View>
             )}
             
             {activeTab === 'activity' && (
-              <Animated.View 
-                style={styles.activityContainer}
-                entering={FadeIn.duration(300)}
-              >
-                <Text style={styles.sectionTitle}>Recent Activity</Text>
-                
-                <View style={styles.activityTimeline}>
-                  <Animated.View 
-                    style={styles.activityItem}
-                    entering={SlideInRight.delay(100).duration(300)}
-                  >
-                    <View style={styles.activityIconContainer}>
-                      <Feather name="check-square" size={16} color={Colors.neutrals.white} />
-                    </View>
-                    <View style={styles.activityLineContainer}>
-                      <View style={styles.activityLine} />
-                    </View>
-                    <View style={styles.activityContent}>
-                      <Text style={styles.activityText}>
-                        <Text style={styles.activityHighlight}>Completed task:</Text> Mobile App Wireframes
-                      </Text>
-                      <Text style={styles.activityTime}>2 hours ago</Text>
-                    </View>
-                  </Animated.View>
+              <Card style={styles.activityContainer}>
+                <Animated.View entering={FadeIn.duration(300)}>
+                  <Text style={[styles.sectionTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                    Recent Activity
+                  </Text>
                   
-                  <Animated.View 
-                    style={styles.activityItem}
-                    entering={SlideInRight.delay(200).duration(300)}
-                  >
-                    <View style={[styles.activityIconContainer, { backgroundColor: Colors.primary.purple }]}>
-                      <Feather name="message-square" size={16} color={Colors.neutrals.white} />
-                    </View>
-                    <View style={styles.activityLineContainer}>
-                      <View style={styles.activityLine} />
-                    </View>
-                    <View style={styles.activityContent}>
-                      <Text style={styles.activityText}>
-                        <Text style={styles.activityHighlight}>Commented on:</Text> User Flow Diagrams
+                  <View style={styles.activityTimeline}>
+                    <ActivityItem 
+                      icon="check-square"
+                      iconColor={Colors.secondary.green}
+                      time="2 hours ago"
+                      delay={100}
+                      isDark={isDark}
+                      colors={colors}
+                    >
+                      <Text style={[styles.activityText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                        <Text style={[styles.activityHighlight, { color: isDark ? colors.primary[300] : colors.primary[500] }]}>
+                          Completed task:
+                        </Text> Mobile App Wireframes
                       </Text>
-                      <Text style={styles.activityTime}>Yesterday, 4:32 PM</Text>
-                    </View>
-                  </Animated.View>
+                    </ActivityItem>
+                    
+                    <ActivityItem 
+                      icon="message-square"
+                      iconColor="#9C27B0"
+                      time="Yesterday, 4:32 PM"
+                      delay={200}
+                      isDark={isDark}
+                      colors={colors}
+                    >
+                      <Text style={[styles.activityText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                        <Text style={[styles.activityHighlight, { color: isDark ? colors.primary[300] : colors.primary[500] }]}>
+                          Commented on:
+                        </Text> User Flow Diagrams
+                      </Text>
+                    </ActivityItem>
+                    
+                    <ActivityItem 
+                      icon="plus"
+                      iconColor={Colors.secondary.green}
+                      time="2 days ago"
+                      delay={300}
+                      isDark={isDark}
+                      colors={colors}
+                    >
+                      <Text style={[styles.activityText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                        <Text style={[styles.activityHighlight, { color: isDark ? colors.primary[300] : colors.primary[500] }]}>
+                          Created task:
+                        </Text> Finalize Color Palette
+                      </Text>
+                    </ActivityItem>
+                    
+                    <ActivityItem 
+                      icon="briefcase"
+                      iconColor="#FF9800"
+                      time="1 week ago"
+                      delay={400}
+                      isDark={isDark}
+                      colors={colors}
+                      isLast
+                    >
+                      <Text style={[styles.activityText, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+                        <Text style={[styles.activityHighlight, { color: isDark ? colors.primary[300] : colors.primary[500] }]}>
+                          Joined project:
+                        </Text> Website Redesign
+                      </Text>
+                    </ActivityItem>
+                  </View>
                   
-                  <Animated.View 
-                    style={styles.activityItem}
-                    entering={SlideInRight.delay(300).duration(300)}
-                  >
-                    <View style={[styles.activityIconContainer, { backgroundColor: Colors.secondary.green }]}>
-                      <Feather name="plus" size={16} color={Colors.neutrals.white} />
-                    </View>
-                    <View style={styles.activityLineContainer}>
-                      <View style={styles.activityLine} />
-                    </View>
-                    <View style={styles.activityContent}>
-                      <Text style={styles.activityText}>
-                        <Text style={styles.activityHighlight}>Created task:</Text> Finalize Color Palette
-                      </Text>
-                      <Text style={styles.activityTime}>2 days ago</Text>
-                    </View>
-                  </Animated.View>
-                  
-                  <Animated.View 
-                    style={styles.activityItem}
-                    entering={SlideInRight.delay(400).duration(300)}
-                  >
-                    <View style={[styles.activityIconContainer, { backgroundColor: Colors.primary.yellow }]}>
-                      <Feather name="briefcase" size={16} color={Colors.neutrals.white} />
-                    </View>
-                    <View style={styles.activityContent}>
-                      <Text style={styles.activityText}>
-                        <Text style={styles.activityHighlight}>Joined project:</Text> Website Redesign
-                      </Text>
-                      <Text style={styles.activityTime}>1 week ago</Text>
-                    </View>
-                  </Animated.View>
-                </View>
-                
-                <TouchableOpacity style={styles.viewAllButton}>
-                  <Text style={styles.viewAllText}>View All Activity</Text>
-                  <Feather name="chevron-right" size={16} color={Colors.primary.blue} />
-                </TouchableOpacity>
-              </Animated.View>
+                  <TouchableOpacity style={styles.viewAllButton}>
+                    <Text style={[styles.viewAllText, { color: colors.primary[500] }]}>
+                      View All Activity
+                    </Text>
+                    <Feather name="chevron-right" size={16} color={colors.primary[500]} />
+                  </TouchableOpacity>
+                </Animated.View>
+              </Card>
             )}
           </View>
           
@@ -711,15 +806,27 @@ const ProfileScreen = ({ navigation, route }) => {
           {isCurrentUser && (
             <View style={styles.actionButtonsContainer}>
               <TouchableOpacity 
-                style={styles.settingsButton}
+                style={[
+                  styles.settingsButton, 
+                  { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : Colors.neutrals.gray100 }
+                ]}
                 onPress={handleSettingsPress}
               >
-                <Feather name="settings" size={20} color={Colors.neutrals.gray800} />
-                <Text style={styles.settingsButtonText}>Settings</Text>
+                <Feather 
+                  name="settings" 
+                  size={20} 
+                  color={isDark ? colors.text.primary : Colors.neutrals.gray800} 
+                />
+                <Text style={[
+                  styles.settingsButtonText, 
+                  { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }
+                ]}>
+                  Settings
+                </Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
-                style={styles.logoutButton}
+                style={[styles.logoutButton, { backgroundColor: `${Colors.status.error}10` }]}
                 onPress={handleLogout}
               >
                 <Feather name="log-out" size={20} color={Colors.status.error} />
@@ -729,15 +836,15 @@ const ProfileScreen = ({ navigation, route }) => {
           )}
           
           {/* Bottom Padding */}
-          <View style={{ height: 40 }} />
+          <View style={{ height: insets.bottom + 20 }} />
         </View>
       </Animated.ScrollView>
       
       {/* Header (Fixed position) */}
       <Animated.View style={[styles.header, headerAnimatedStyle]}>
         <AnimatedLinearGradient
-          colors={['#3D5AFE', '#304FFE']}
-          style={[StyleSheet.absoluteFill]}
+          colors={[colors.primary[500], colors.primary[700]]}
+          style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
         />
@@ -787,6 +894,7 @@ const ProfileScreen = ({ navigation, route }) => {
               name={profile.name}
               imageUrl={profile.avatar}
               size={PROFILE_IMAGE_MAX_SIZE}
+              status={getAvailabilityStatus(profile.availability)}
             />
           </Animated.View>
         </Animated.View>
@@ -815,6 +923,61 @@ const getSocialIcon = (type: string): string => {
   }
 }
 
+// Activity Item Component for Timeline
+interface ActivityItemProps {
+  icon: string;
+  iconColor: string;
+  time: string;
+  children: React.ReactNode;
+  delay?: number;
+  isDark?: boolean;
+  colors: any;
+  isLast?: boolean;
+}
+
+const ActivityItem = ({ 
+  icon, 
+  iconColor, 
+  time, 
+  children, 
+  delay = 0,
+  isDark = false,
+  colors,
+  isLast = false 
+}: ActivityItemProps) => {
+  return (
+    <Animated.View 
+      style={styles.activityItem}
+      entering={SlideInRight.delay(delay).duration(300)}
+    >
+      <View style={styles.activityIconContainer}>
+        <View style={[styles.activityIcon, { backgroundColor: iconColor }]}>
+          <Feather name={icon} size={16} color={Colors.neutrals.white} />
+        </View>
+        {!isLast && (
+          <View style={[
+            styles.activityLine, 
+            { backgroundColor: isDark ? colors.border : Colors.neutrals.gray300 }
+          ]} />
+        )}
+      </View>
+      
+      <View style={[
+        styles.activityContent,
+        { backgroundColor: isDark ? 'rgba(255, 255, 255, 0.05)' : Colors.neutrals.white }
+      ]}>
+        {children}
+        <Text style={[
+          styles.activityTime, 
+          { color: isDark ? colors.text.secondary : Colors.neutrals.gray500 }
+        ]}>
+          {time}
+        </Text>
+      </View>
+    </Animated.View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -834,7 +997,8 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    zIndex: 10
   },
   headerContent: {
     flex: 1,
@@ -874,9 +1038,6 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   },
   profileImageContainer: {
-    borderWidth: 4,
-    borderColor: Colors.neutrals.white,
-    borderRadius: PROFILE_IMAGE_MAX_SIZE / 2,
     overflow: 'hidden'
   },
   profileContainer: {
@@ -904,17 +1065,16 @@ const styles = StyleSheet.create({
   },
   availabilityContainer: {
     flexDirection: 'row',
-    alignItems: 'center'
-  },
-  availabilityDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 6
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 16
   },
   availabilityText: {
     fontSize: Typography.sizes.bodySmall,
-    color: Colors.neutrals.gray600
+    color: Colors.neutrals.gray600,
+    marginLeft: 6
   },
   tabsContainer: {
     flexDirection: 'row',
@@ -951,7 +1111,18 @@ const styles = StyleSheet.create({
     height: 140,
     borderRadius: 16,
     overflow: 'hidden',
-    marginHorizontal: 6
+    marginHorizontal: 6,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.neutrals.black,
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8
+      },
+      android: {
+        elevation: 4
+      }
+    })
   },
   statsCardGradient: {
     flex: 1,
@@ -993,28 +1164,17 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.9)'
   },
   additionalStatsContainer: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 24,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2
+    marginBottom: 24
   },
   additionalStatItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutrals.gray200
+    paddingVertical: 12
   },
   additionalStatIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(61, 90, 254, 0.1)',
+    width: 36,
+    height: 36,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12
@@ -1032,15 +1192,12 @@ const styles = StyleSheet.create({
     color: Colors.neutrals.gray900
   },
   aboutContainer: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2
+    marginBottom: 24
+  },
+  divider: {
+    height: 1,
+    backgroundColor: Colors.neutrals.gray200,
+    marginVertical: 16
   },
   sectionTitle: {
     fontSize: Typography.sizes.body,
@@ -1049,7 +1206,7 @@ const styles = StyleSheet.create({
     marginBottom: 12
   },
   bioSection: {
-    marginBottom: 24
+    marginBottom: 16
   },
   bioText: {
     fontSize: Typography.sizes.body,
@@ -1057,7 +1214,7 @@ const styles = StyleSheet.create({
     lineHeight: 22
   },
   contactSection: {
-    marginBottom: 24
+    marginBottom: 16
   },
   contactItem: {
     flexDirection: 'row',
@@ -1070,7 +1227,7 @@ const styles = StyleSheet.create({
     marginLeft: 12
   },
   skillsSection: {
-    marginBottom: 24
+    marginBottom: 16
   },
   skillsContainer: {
     flexDirection: 'row',
@@ -1090,7 +1247,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium
   },
   socialsSection: {
-    marginBottom: 24
+    marginBottom: 16
   },
   socialsContainer: {
     flexDirection: 'row'
@@ -1120,60 +1277,60 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold
   },
   activityContainer: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 24,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2
+    marginBottom: 24
   },
   activityTimeline: {
-    marginLeft: 8,
-    marginBottom: 16
+    marginVertical: 12
   },
   activityItem: {
     flexDirection: 'row',
-    marginBottom: 24,
-    position: 'relative'
+    marginBottom: 16
   },
   activityIconContainer: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: Colors.primary.blue,
-    justifyContent: 'center',
     alignItems: 'center',
-    zIndex: 2
+    width: 30,
+    marginRight: 12
   },
-  activityLineContainer: {
-    position: 'absolute',
-    top: 32,
-    left: 16,
-    bottom: -24,
-    alignItems: 'center',
-    zIndex: 1
+  activityIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   activityLine: {
     width: 2,
     flex: 1,
+    marginTop: 6,
+    marginLeft: 14,
     backgroundColor: Colors.neutrals.gray300
   },
   activityContent: {
     flex: 1,
-    marginLeft: 12,
-    paddingTop: 4
+    backgroundColor: Colors.neutrals.white,
+    borderRadius: 12,
+    padding: 14,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.neutrals.black,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.05,
+        shadowRadius: 4
+      },
+      android: {
+        elevation: 2
+      }
+    })
   },
   activityText: {
     fontSize: Typography.sizes.body,
     color: Colors.neutrals.gray800,
-    marginBottom: 4
+    marginBottom: 6,
+    lineHeight: 22
   },
   activityHighlight: {
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray900
+    color: Colors.primary.blue
   },
   activityTime: {
     fontSize: Typography.sizes.caption,
@@ -1183,11 +1340,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8
+    paddingVertical: 10,
+    marginTop: 8
   },
   viewAllText: {
     fontSize: Typography.sizes.body,
     color: Colors.primary.blue,
+    fontWeight: Typography.weights.medium,
     marginRight: 4
   },
   actionButtonsContainer: {

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -8,8 +8,10 @@ import {
   TextInput,
   StatusBar,
   Dimensions,
-  SafeAreaView
-} from 'react-native'
+  ActivityIndicator,
+  Platform,
+  RefreshControl
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,57 +22,82 @@ import Animated, {
   SlideInUp,
   ZoomIn,
   interpolate,
-  Extrapolation
-} from 'react-native-reanimated'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import { BlurView } from 'expo-blur'
+  Extrapolation,
+  Layout
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { BlurView } from 'expo-blur';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ScrollView } from 'react-native-gesture-handler';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import Spacing from '../theme/Spacing'
-import AvatarStack from '../components/Avatar/AvatarStack'
-import FAB from '../components/FAB'
-import { triggerImpact } from '../utils/HapticUtils'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import Spacing from '../theme/Spacing';
+import AvatarStack from '../components/Avatar/AvatarStack';
+import FAB from '../components/FAB';
+import { triggerImpact } from '../utils/HapticUtils';
+import { useTheme } from '../hooks/useColorScheme';
+import Button from '../components/Button/Button';
+import Card from '../components/Card';
+import StatusPill from '../components/StatusPill';
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader';
 
-const { width, height } = Dimensions.get('window')
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
+const { width, height } = Dimensions.get('window');
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 interface Team {
-  id: string
-  name: string
-  description: string
+  id: string;
+  name: string;
+  description: string;
   members: {
-    id: string
-    name: string
-    avatar?: string
-  }[]
-  tasksCount: number
-  projectsCount: number
-  activeProjects: boolean
-  isNew?: boolean
+    id: string;
+    name: string;
+    avatar?: string;
+  }[];
+  tasksCount: number;
+  projectsCount: number;
+  activeProjects: boolean;
+  isNew?: boolean;
+  lastActivity?: string;
 }
 
 const TeamsListScreen = ({ navigation }) => {
-  const [teams, setTeams] = useState<Team[]>([])
-  const [filteredTeams, setFilteredTeams] = useState<Team[]>([])
-  const [searchQuery, setSearchQuery] = useState('')
-  const [isLoading, setIsLoading] = useState(true)
-  const [showFilters, setShowFilters] = useState(false)
-  const [activeFilter, setActiveFilter] = useState('all')
+  const { colors, isDark } = useTheme();
+  const insets = useSafeAreaInsets();
+  const [teams, setTeams] = useState<Team[]>([]);
+  const [filteredTeams, setFilteredTeams] = useState<Team[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
   
   // Animated values
-  const searchBarWidth = useSharedValue(width - 80)
-  const filterHeight = useSharedValue(0)
-  const filterOpacity = useSharedValue(0)
-  const scrollY = useSharedValue(0)
-  const headerOpacity = useSharedValue(1)
+  const searchBarWidth = useSharedValue(width - 80);
+  const filterHeight = useSharedValue(0);
+  const filterOpacity = useSharedValue(0);
+  const scrollY = useSharedValue(0);
+  const headerOpacity = useSharedValue(1);
+  const fabOpacity = useSharedValue(1);
   
   // Load teams data
   useEffect(() => {
-    // Simulate data loading delay
-    setTimeout(() => {
+    loadTeams();
+  }, []);
+  
+  const loadTeams = async (showRefresh = false) => {
+    if (showRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    
+    try {
+      // Simulate API call
+      await new Promise(resolve => setTimeout(resolve, 1200));
+      
       // Mock data
       const mockTeams: Team[] = [
         {
@@ -86,7 +113,8 @@ const TeamsListScreen = ({ navigation }) => {
           ],
           tasksCount: 42,
           projectsCount: 3,
-          activeProjects: true
+          activeProjects: true,
+          lastActivity: '2025-04-28T09:30:00Z'
         },
         {
           id: 'team-002',
@@ -100,7 +128,9 @@ const TeamsListScreen = ({ navigation }) => {
           ],
           tasksCount: 56,
           projectsCount: 4,
-          activeProjects: true
+          activeProjects: true,
+          isNew: true,
+          lastActivity: '2025-04-29T14:15:00Z'
         },
         {
           id: 'team-003',
@@ -113,7 +143,8 @@ const TeamsListScreen = ({ navigation }) => {
           ],
           tasksCount: 27,
           projectsCount: 2,
-          activeProjects: true
+          activeProjects: true,
+          lastActivity: '2025-04-27T11:45:00Z'
         },
         {
           id: 'team-004',
@@ -125,7 +156,8 @@ const TeamsListScreen = ({ navigation }) => {
           ],
           tasksCount: 13,
           projectsCount: 1,
-          activeProjects: false
+          activeProjects: false,
+          lastActivity: '2025-04-25T16:30:00Z'
         },
         {
           id: 'team-005',
@@ -138,191 +170,370 @@ const TeamsListScreen = ({ navigation }) => {
           ],
           tasksCount: 31,
           projectsCount: 2,
-          activeProjects: true
+          activeProjects: true,
+          lastActivity: '2025-04-26T10:20:00Z'
         }
-      ]
+      ];
       
-      setTeams(mockTeams)
-      setFilteredTeams(mockTeams)
-      setIsLoading(false)
-    }, 1000)
-  }, [])
+      // Sort teams by last activity
+      mockTeams.sort((a, b) => {
+        return new Date(b.lastActivity || '').getTime() - new Date(a.lastActivity || '').getTime();
+      });
+      
+      setTeams(mockTeams);
+      
+      // Apply current filters
+      filterTeams(mockTeams, searchQuery, activeFilter);
+    } catch (error) {
+      console.error('Error loading teams:', error);
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
   
   // Filter teams based on search query and active filter
-  useEffect(() => {
-    let result = [...teams]
+  const filterTeams = useCallback((teamsList = teams, query = searchQuery, filter = activeFilter) => {
+    let result = [...teamsList];
     
     // Apply search filter
-    if (searchQuery) {
+    if (query) {
       result = result.filter(team => 
-        team.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        team.description.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+        team.name.toLowerCase().includes(query.toLowerCase()) ||
+        team.description.toLowerCase().includes(query.toLowerCase())
+      );
     }
     
     // Apply tab filter
-    switch (activeFilter) {
+    switch (filter) {
       case 'active':
-        result = result.filter(team => team.activeProjects)
-        break
+        result = result.filter(team => team.activeProjects);
+        break;
       case 'my':
         // In a real app, this would filter teams the current user is part of
-        result = result.filter((_, index) => index % 2 === 0) // Simulating "my teams"
-        break
+        result = result.filter((_, index) => index % 2 === 0); // Simulating "my teams"
+        break;
     }
     
-    setFilteredTeams(result)
-  }, [searchQuery, teams, activeFilter])
+    setFilteredTeams(result);
+  }, [teams, searchQuery, activeFilter]);
+  
+  // Update filtered teams when search or filter changes
+  useEffect(() => {
+    filterTeams();
+  }, [searchQuery, activeFilter, filterTeams]);
   
   const handleSearchChange = (text: string) => {
-    setSearchQuery(text)
-  }
+    setSearchQuery(text);
+  };
+  
+  const handleRefresh = async () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    await loadTeams(true);
+  };
   
   const handleFilterPress = () => {
-    triggerImpact()
-    setShowFilters(!showFilters)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    setShowFilters(!showFilters);
     
     if (!showFilters) {
       // Show filters
-      filterHeight.value = withTiming(50, { duration: 300 })
-      filterOpacity.value = withTiming(1, { duration: 300 })
+      filterHeight.value = withTiming(50, { duration: 300 });
+      filterOpacity.value = withTiming(1, { duration: 300 });
     } else {
       // Hide filters
-      filterHeight.value = withTiming(0, { duration: 300 })
-      filterOpacity.value = withTiming(0, { duration: 300 })
+      filterHeight.value = withTiming(0, { duration: 300 });
+      filterOpacity.value = withTiming(0, { duration: 300 });
     }
-  }
+  };
   
   const handleFilterSelect = (filter: string) => {
-    triggerImpact()
-    setActiveFilter(filter)
-  }
+    if (filter === activeFilter) return;
+    
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    setActiveFilter(filter);
+  };
   
   const handleTeamPress = (teamId: string) => {
-    triggerImpact()
-    navigation.navigate('TeamDetails', { teamId })
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.navigate('TeamDetails', { teamId });
+  };
   
   const handleCreateTeam = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('CreateTeam')
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('CreateTeam');
+  };
   
   const handleScroll = (event) => {
-    const offsetY = event.nativeEvent.contentOffset.y
-    scrollY.value = offsetY
+    const offsetY = event.nativeEvent.contentOffset.y;
+    scrollY.value = offsetY;
     
     // Fade out header on scroll
     if (offsetY > 20) {
-      headerOpacity.value = withTiming(0.8, { duration: 200 })
-      searchBarWidth.value = withTiming(width - 32, { duration: 200 })
+      headerOpacity.value = withTiming(0.8, { duration: 200 });
+      searchBarWidth.value = withTiming(width - 32, { duration: 200 });
+      
+      // Hide FAB when scrolling down significantly
+      if (offsetY > 200) {
+        fabOpacity.value = withTiming(0, { duration: 200 });
+      } else {
+        fabOpacity.value = withTiming(1, { duration: 200 });
+      }
     } else {
-      headerOpacity.value = withTiming(1, { duration: 200 })
-      searchBarWidth.value = withTiming(width - 80, { duration: 200 })
+      headerOpacity.value = withTiming(1, { duration: 200 });
+      searchBarWidth.value = withTiming(width - 80, { duration: 200 });
+      fabOpacity.value = withTiming(1, { duration: 200 });
     }
-  }
+  };
   
   // Render team item
   const renderTeamItem = ({ item, index }) => (
     <Animated.View
       entering={SlideInUp.delay(index * 100).duration(400)}
+      layout={Layout.springify()}
       style={item.isNew && styles.newTeamHighlight}
     >
-      <TouchableOpacity
+      <Card
         style={styles.teamCard}
         onPress={() => handleTeamPress(item.id)}
-        activeOpacity={0.7}
+        animationType="scale"
+        index={index}
       >
         <View style={styles.teamCardHeader}>
-          <View>
-            <Text style={styles.teamName}>{item.name}</Text>
-            <Text style={styles.teamDescription}>{item.description}</Text>
+          <View style={styles.teamHeaderContent}>
+            <Text style={[styles.teamName, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+              {item.name}
+            </Text>
+            <Text style={[styles.teamDescription, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+              {item.description}
+            </Text>
           </View>
           
           {item.isNew && (
-            <View style={styles.newBadge}>
-              <Text style={styles.newBadgeText}>NEW</Text>
-            </View>
+            <StatusPill
+              label="NEW"
+              type="info"
+              small
+              animate
+            />
           )}
         </View>
         
-        <View style={styles.teamCardContent}>
+        <View style={[styles.teamCardContent, { borderTopColor: isDark ? colors.border : Colors.neutrals.gray200 }]}>
           <View style={styles.membersSection}>
             <AvatarStack
               users={item.members}
               size={32}
               maxDisplay={4}
             />
-            <Text style={styles.membersCount}>{item.members.length} members</Text>
+            <Text style={[styles.membersCount, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+              {item.members.length} members
+            </Text>
           </View>
           
-          <View style={styles.statsContainer}>
+          <View style={[styles.statsContainer, { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : Colors.neutrals.gray100 }]}>
             <View style={styles.statItem}>
-              <Text style={styles.statValue}>{item.tasksCount}</Text>
-              <Text style={styles.statLabel}>Tasks</Text>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <Text style={styles.statValue}>{item.projectsCount}</Text>
-              <Text style={styles.statLabel}>Projects</Text>
-            </View>
-            
-            <View style={styles.statDivider} />
-            
-            <View style={styles.statItem}>
-              <View 
-                style={[
-                  styles.statusIndicator,
-                  { backgroundColor: item.activeProjects ? Colors.status.success : Colors.neutrals.gray400 }
-                ]} 
-              />
-              <Text style={styles.statLabel}>
-                {item.activeProjects ? 'Active' : 'Inactive'}
+              <Text style={[styles.statValue, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                {item.tasksCount}
               </Text>
+              <Text style={[styles.statLabel, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+                Tasks
+              </Text>
+            </View>
+            
+            <View style={[styles.statDivider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray300 }]} />
+            
+            <View style={styles.statItem}>
+              <Text style={[styles.statValue, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+                {item.projectsCount}
+              </Text>
+              <Text style={[styles.statLabel, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+                Projects
+              </Text>
+            </View>
+            
+            <View style={[styles.statDivider, { backgroundColor: isDark ? colors.border : Colors.neutrals.gray300 }]} />
+            
+            <View style={styles.statItem}>
+              <StatusPill
+                label={item.activeProjects ? 'Active' : 'Inactive'}
+                type={item.activeProjects ? 'success' : 'default'}
+                small
+              />
             </View>
           </View>
         </View>
-      </TouchableOpacity>
+      </Card>
     </Animated.View>
-  )
+  );
+  
+  // Render skeleton loading state
+  const renderSkeletonLoader = () => (
+    <View style={styles.loadingContainer}>
+      {[1, 2, 3].map((_, index) => (
+        <SkeletonLoader.Card 
+          key={`skeleton-${index}`} 
+          height={180} 
+          style={styles.skeletonCard}
+        />
+      ))}
+    </View>
+  );
+  
+  // Render empty state
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Animated.View 
+        style={[
+          styles.emptyIconContainer, 
+          { backgroundColor: isDark ? 'rgba(255,255,255,0.05)' : Colors.neutrals.gray100 }
+        ]}
+        entering={ZoomIn.duration(400)}
+      >
+        <Feather 
+          name="users" 
+          size={48} 
+          color={isDark ? colors.text.secondary : Colors.neutrals.gray400} 
+        />
+      </Animated.View>
+      <Text style={[styles.emptyTitle, { color: isDark ? colors.text.primary : Colors.neutrals.gray800 }]}>
+        No teams found
+      </Text>
+      <Text style={[styles.emptyMessage, { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }]}>
+        {searchQuery 
+          ? "No teams match your search criteria"
+          : "You don't have any teams yet. Create a new team to get started."
+        }
+      </Text>
+      
+      {!searchQuery && (
+        <Button
+          title="Create Team"
+          onPress={handleCreateTeam}
+          variant="primary"
+          size="medium"
+          icon="plus"
+          style={styles.createEmptyButton}
+        />
+      )}
+    </View>
+  );
   
   // Animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: headerOpacity.value
-    }
-  })
+      opacity: headerOpacity.value,
+      borderBottomColor: isDark 
+        ? interpolate(
+            headerOpacity.value,
+            [0.8, 1],
+            [colors.border, 'transparent'],
+            Extrapolation.CLAMP
+          )
+        : interpolate(
+            headerOpacity.value,
+            [0.8, 1],
+            [Colors.neutrals.gray200, 'transparent'],
+            Extrapolation.CLAMP
+          ),
+      borderBottomWidth: interpolate(
+        headerOpacity.value,
+        [0.8, 1],
+        [1, 0],
+        Extrapolation.CLAMP
+      )
+    };
+  });
   
   const searchBarAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: searchBarWidth.value
-    }
-  })
+    };
+  });
   
   const filterContainerStyle = useAnimatedStyle(() => {
     return {
       height: filterHeight.value,
-      opacity: filterOpacity.value
-    }
-  })
+      opacity: filterOpacity.value,
+      transform: [
+        {
+          translateY: interpolate(
+            filterOpacity.value,
+            [0, 1],
+            [-10, 0],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
+    };
+  });
+  
+  const fabAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fabOpacity.value,
+      transform: [
+        {
+          scale: fabOpacity.value
+        },
+        {
+          translateY: interpolate(
+            fabOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
+    };
+  });
   
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+    <View 
+      style={[
+        styles.container, 
+        { 
+          backgroundColor: isDark ? colors.background.dark : Colors.background.light,
+          paddingTop: insets.top
+        }
+      ]}
+    >
+      <StatusBar 
+        barStyle={isDark ? "light-content" : "dark-content"} 
+        backgroundColor={isDark ? colors.background.dark : Colors.background.light} 
+      />
       
       {/* Header */}
-      <Animated.View style={[styles.header, headerAnimatedStyle]}>
-        <Text style={styles.title}>Teams</Text>
+      <Animated.View 
+        style={[
+          styles.header, 
+          { backgroundColor: isDark ? colors.background.dark : Colors.background.light },
+          headerAnimatedStyle
+        ]}
+      >
+        <Text style={[styles.title, { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }]}>
+          Teams
+        </Text>
         
         <View style={styles.searchContainer}>
-          <Animated.View style={[styles.searchBar, searchBarAnimatedStyle]}>
-            <Feather name="search" size={18} color={Colors.neutrals.gray500} />
+          <Animated.View 
+            style={[
+              styles.searchBar, 
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : Colors.neutrals.gray100 },
+              searchBarAnimatedStyle
+            ]}
+          >
+            <Feather 
+              name="search" 
+              size={18} 
+              color={isDark ? colors.text.secondary : Colors.neutrals.gray500} 
+            />
             <TextInput
-              style={styles.searchInput}
+              style={[
+                styles.searchInput,
+                { color: isDark ? colors.text.primary : Colors.neutrals.gray900 }
+              ]}
               placeholder="Search teams..."
-              placeholderTextColor={Colors.neutrals.gray500}
+              placeholderTextColor={isDark ? 'rgba(255,255,255,0.4)' : Colors.neutrals.gray500}
               value={searchQuery}
               onChangeText={handleSearchChange}
             />
@@ -330,8 +541,14 @@ const TeamsListScreen = ({ navigation }) => {
               <TouchableOpacity
                 onPress={() => setSearchQuery('')}
                 style={styles.clearButton}
+                accessibilityRole="button"
+                accessibilityLabel="Clear search"
               >
-                <Feather name="x" size={18} color={Colors.neutrals.gray500} />
+                <Feather 
+                  name="x" 
+                  size={18} 
+                  color={isDark ? colors.text.secondary : Colors.neutrals.gray500} 
+                />
               </TouchableOpacity>
             )}
           </Animated.View>
@@ -339,14 +556,27 @@ const TeamsListScreen = ({ navigation }) => {
           <TouchableOpacity 
             style={[
               styles.filterButton,
-              showFilters && styles.filterButtonActive
+              { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : Colors.neutrals.gray100 },
+              showFilters && [
+                styles.filterButtonActive,
+                { backgroundColor: isDark 
+                  ? `${colors.primary[700]}50` 
+                  : Colors.primary.blue + '20' 
+                }
+              ]
             ]}
             onPress={handleFilterPress}
+            accessibilityRole="button"
+            accessibilityLabel="Filter teams"
+            accessibilityState={{ expanded: showFilters }}
           >
             <Feather 
               name="filter" 
               size={20} 
-              color={showFilters ? Colors.primary.blue : Colors.neutrals.gray700} 
+              color={showFilters 
+                ? Colors.primary.blue 
+                : isDark ? colors.text.secondary : Colors.neutrals.gray700
+              } 
             />
           </TouchableOpacity>
         </View>
@@ -363,14 +593,27 @@ const TeamsListScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.filterTab,
-                activeFilter === 'all' && styles.activeFilterTab
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : Colors.neutrals.gray100 },
+                activeFilter === 'all' && [
+                  styles.activeFilterTab,
+                  { backgroundColor: isDark 
+                    ? `${colors.primary[700]}50` 
+                    : Colors.primary.blue + '20'
+                  }
+                ]
               ]}
               onPress={() => handleFilterSelect('all')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeFilter === 'all' }}
             >
               <Text 
                 style={[
                   styles.filterTabText,
-                  activeFilter === 'all' && styles.activeFilterTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 },
+                  activeFilter === 'all' && [
+                    styles.activeFilterTabText,
+                    { color: Colors.primary.blue }
+                  ]
                 ]}
               >
                 All Teams
@@ -380,14 +623,27 @@ const TeamsListScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.filterTab,
-                activeFilter === 'my' && styles.activeFilterTab
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : Colors.neutrals.gray100 },
+                activeFilter === 'my' && [
+                  styles.activeFilterTab,
+                  { backgroundColor: isDark 
+                    ? `${colors.primary[700]}50` 
+                    : Colors.primary.blue + '20'
+                  }
+                ]
               ]}
               onPress={() => handleFilterSelect('my')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeFilter === 'my' }}
             >
               <Text 
                 style={[
                   styles.filterTabText,
-                  activeFilter === 'my' && styles.activeFilterTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 },
+                  activeFilter === 'my' && [
+                    styles.activeFilterTabText,
+                    { color: Colors.primary.blue }
+                  ]
                 ]}
               >
                 My Teams
@@ -397,14 +653,27 @@ const TeamsListScreen = ({ navigation }) => {
             <TouchableOpacity
               style={[
                 styles.filterTab,
-                activeFilter === 'active' && styles.activeFilterTab
+                { backgroundColor: isDark ? 'rgba(255,255,255,0.08)' : Colors.neutrals.gray100 },
+                activeFilter === 'active' && [
+                  styles.activeFilterTab,
+                  { backgroundColor: isDark 
+                    ? `${colors.primary[700]}50` 
+                    : Colors.primary.blue + '20'
+                  }
+                ]
               ]}
               onPress={() => handleFilterSelect('active')}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: activeFilter === 'active' }}
             >
               <Text 
                 style={[
                   styles.filterTabText,
-                  activeFilter === 'active' && styles.activeFilterTabText
+                  { color: isDark ? colors.text.secondary : Colors.neutrals.gray700 },
+                  activeFilter === 'active' && [
+                    styles.activeFilterTabText,
+                    { color: Colors.primary.blue }
+                  ]
                 ]}
               >
                 Active
@@ -416,82 +685,48 @@ const TeamsListScreen = ({ navigation }) => {
       
       {/* Teams List */}
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <View style={styles.skeletonCard}>
-            <View style={styles.skeletonHeader}>
-              <View style={styles.skeletonTitle} />
-              <View style={styles.skeletonDescription} />
-            </View>
-            <View style={styles.skeletonAvatars} />
-            <View style={styles.skeletonStats} />
-          </View>
-          
-          <View style={styles.skeletonCard}>
-            <View style={styles.skeletonHeader}>
-              <View style={styles.skeletonTitle} />
-              <View style={styles.skeletonDescription} />
-            </View>
-            <View style={styles.skeletonAvatars} />
-            <View style={styles.skeletonStats} />
-          </View>
-          
-          <View style={styles.skeletonCard}>
-            <View style={styles.skeletonHeader}>
-              <View style={styles.skeletonTitle} />
-              <View style={styles.skeletonDescription} />
-            </View>
-            <View style={styles.skeletonAvatars} />
-            <View style={styles.skeletonStats} />
-          </View>
-        </View>
+        renderSkeletonLoader()
       ) : (
         <>
           <FlatList
             data={filteredTeams}
             renderItem={renderTeamItem}
             keyExtractor={item => item.id}
-            contentContainerStyle={styles.teamsList}
+            contentContainerStyle={[
+              styles.teamsList,
+              { paddingBottom: insets.bottom + 100 }
+            ]}
             showsVerticalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Animated.View 
-                  style={styles.emptyIconContainer}
-                  entering={ZoomIn.duration(400)}
-                >
-                  <Feather name="users" size={48} color={Colors.neutrals.gray400} />
-                </Animated.View>
-                <Text style={styles.emptyTitle}>No teams found</Text>
-                <Text style={styles.emptyMessage}>
-                  {searchQuery 
-                    ? "No teams match your search criteria"
-                    : "You don't have any teams yet. Create a new team to get started."
-                  }
-                </Text>
-                
-                {!searchQuery && (
-                  <TouchableOpacity 
-                    style={styles.createEmptyButton}
-                    onPress={handleCreateTeam}
-                  >
-                    <Text style={styles.createEmptyButtonText}>Create Team</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+            ListEmptyComponent={renderEmptyState}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={handleRefresh}
+                tintColor={Colors.primary.blue}
+                colors={[Colors.primary.blue]}
+                progressBackgroundColor={isDark ? 'rgba(255,255,255,0.1)' : undefined}
+              />
             }
           />
           
-          <FAB
-            icon="plus"
-            onPress={handleCreateTeam}
-            position="bottomRight"
-          />
+          <Animated.View style={fabAnimatedStyle}>
+            <FAB
+              icon="plus"
+              onPress={handleCreateTeam}
+              position="bottomRight"
+              label="New Team"
+              extended={false}
+              style={[styles.fab, { bottom: insets.bottom + 16 }]}
+              gradientColors={[Colors.primary[500], Colors.primary[700]]}
+            />
+          </Animated.View>
         </>
       )}
-    </SafeAreaView>
-  )
-}
+    </View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -503,11 +738,10 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     backgroundColor: Colors.background.light,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutrals.gray200
+    zIndex: 10
   },
   title: {
-    fontSize: Typography.sizes.header,
+    fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.gray900,
     marginBottom: 16
@@ -577,63 +811,24 @@ const styles = StyleSheet.create({
     padding: 20
   },
   skeletonCard: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
-  },
-  skeletonHeader: {
     marginBottom: 16
-  },
-  skeletonTitle: {
-    width: '60%',
-    height: 24,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 4,
-    marginBottom: 8
-  },
-  skeletonDescription: {
-    width: '80%',
-    height: 16,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 4
-  },
-  skeletonAvatars: {
-    width: '40%',
-    height: 40,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 20,
-    marginBottom: 16
-  },
-  skeletonStats: {
-    height: 40,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 8
   },
   teamsList: {
     padding: 20,
     paddingBottom: 100
   },
   teamCard: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    marginBottom: 16
   },
   teamCardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
     marginBottom: 16
+  },
+  teamHeaderContent: {
+    flex: 1,
+    marginRight: 8
   },
   teamName: {
     fontSize: Typography.sizes.bodyLarge,
@@ -643,18 +838,8 @@ const styles = StyleSheet.create({
   },
   teamDescription: {
     fontSize: Typography.sizes.bodySmall,
-    color: Colors.neutrals.gray600
-  },
-  newBadge: {
-    backgroundColor: Colors.primary.blue,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4
-  },
-  newBadgeText: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.white
+    color: Colors.neutrals.gray600,
+    lineHeight: 20
   },
   teamCardContent: {
     borderTopWidth: 1,
@@ -676,7 +861,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     backgroundColor: Colors.neutrals.gray100,
     borderRadius: 12,
-    padding: 12
+    padding: 16
   },
   statItem: {
     flex: 1,
@@ -691,29 +876,23 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
     color: Colors.neutrals.gray900,
-    marginBottom: 2
+    marginBottom: 4
   },
   statLabel: {
     fontSize: Typography.sizes.caption,
     color: Colors.neutrals.gray600
   },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginBottom: 4
-  },
   newTeamHighlight: {
     shadowColor: Colors.primary.blue,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.3,
     shadowRadius: 16,
     elevation: 8
   },
   emptyContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingTop: 60,
+    paddingTop: 80,
     paddingHorizontal: 32
   },
   emptyIconContainer: {
@@ -739,16 +918,13 @@ const styles = StyleSheet.create({
     marginBottom: 24
   },
   createEmptyButton: {
-    backgroundColor: Colors.primary.blue,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12
+    minWidth: 160
   },
-  createEmptyButtonText: {
-    fontSize: Typography.sizes.body,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.white
+  fab: {
+    position: 'absolute',
+    right: 20,
+    zIndex: 100
   }
-})
+});
 
-export default TeamsListScreen
+export default TeamsListScreen;

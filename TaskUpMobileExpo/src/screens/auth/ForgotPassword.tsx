@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -21,6 +22,7 @@ import Animated, {
   FadeInUp,
   FadeInDown,
   FadeOut,
+  ZoomOut,
   Easing
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -53,9 +55,13 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
   // Animation values
   const inputScale = useSharedValue(1);
   const formPosition = useSharedValue(50);
+  const formOpacity = useSharedValue(0);
+  const headerOpacity = useSharedValue(0);
+  const buttonOpacity = useSharedValue(0);
   const successOpacity = useSharedValue(0);
   const successScale = useSharedValue(0.8);
   const buttonScale = useSharedValue(1);
+  const backgroundGradientPosition = useSharedValue(0);
   
   // Keyboard listeners
   useEffect(() => {
@@ -86,15 +92,29 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
     
-    // Start form entrance animation
-    formPosition.value = withTiming(0, {
-      duration: 800,
-      easing: Easing.out(Easing.cubic)
+    // Start animations sequence
+    headerOpacity.value = withTiming(1, { duration: 600 });
+    
+    // Background gradient animation
+    backgroundGradientPosition.value = withTiming(1, { 
+      duration: 2000,
+      easing: Easing.out(Easing.exp)
     });
+    
+    // Start form entrance animation with spring for more natural feel
+    formOpacity.value = withTiming(1, { duration: 700 });
+    formPosition.value = withSpring(0, {
+      damping: 14,
+      stiffness: 100,
+      mass: 1
+    });
+    
+    // Button opacity animation
+    buttonOpacity.value = withDelay(600, withTiming(1, { duration: 500 }));
     
     return () => {
       StatusBar.setBarStyle('dark-content');
-    }
+    };
   }, []);
   
   // Handle form submission
@@ -132,12 +152,17 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
     setTimeout(() => {
       setLoading(false);
       
-      // Show success state
-      setSuccess(true);
+      // Show success state with smooth transition
+      formOpacity.value = withTiming(0, { duration: 300 }, () => {
+        runOnJS(setSuccess)(true);
+      });
       
       // Animate success message
       successOpacity.value = withTiming(1, { duration: 500 });
-      successScale.value = withSpring(1, { damping: 12 });
+      successScale.value = withSpring(1, { 
+        damping: 12,
+        stiffness: 100
+      });
       
       // Trigger success haptic
       triggerImpact(Haptics.NotificationFeedbackType.Success);
@@ -147,26 +172,42 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
   // Handle back button press
   const handleBack = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.goBack();
+    
+    // Animate exit
+    formOpacity.value = withTiming(0, { duration: 200 });
+    headerOpacity.value = withTiming(0, { duration: 200 });
+    
+    setTimeout(() => {
+      navigation.goBack();
+    }, 200);
   };
   
   // Handle login button press
   const handleLogin = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.goBack();
+    
+    // Animate exit
+    successOpacity.value = withTiming(0, { duration: 200 });
+    headerOpacity.value = withTiming(0, { duration: 200 });
+    
+    setTimeout(() => {
+      navigation.goBack();
+    }, 200);
   };
   
   // Animation for input validation error
   const shakeInput = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
-    // Add a subtle shake animation
+    // More natural shake animation
     inputScale.value = withSequence(
-      withTiming(1.02, { duration: 50 }),
-      withTiming(0.98, { duration: 50 }),
-      withTiming(1.02, { duration: 50 }),
-      withTiming(0.98, { duration: 50 }),
-      withSpring(1)
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withTiming(1.01, { duration: 30 }),
+      withTiming(0.99, { duration: 30 }),
+      withSpring(1, { damping: 10, stiffness: 300 })
     );
   };
   
@@ -177,8 +218,13 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
     };
   });
   
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return { opacity: headerOpacity.value };
+  });
+  
   const formAnimatedStyle = useAnimatedStyle(() => {
     return {
+      opacity: formOpacity.value,
       transform: [{ translateY: formPosition.value }]
     };
   });
@@ -192,19 +238,35 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
   
   const buttonAnimatedStyle = useAnimatedStyle(() => {
     return {
+      opacity: buttonOpacity.value,
       transform: [{ scale: buttonScale.value }]
+    };
+  });
+  
+  const backgroundGradientStyle = useAnimatedStyle(() => {
+    return {
+      transform: [
+        { translateX: interpolate(backgroundGradientPosition.value, [0, 1], [-50, 0]) }
+      ]
     };
   });
 
   return (
     <View style={styles.container}>
-      {/* Background gradient */}
-      <LinearGradient
-        colors={[Colors.primary.darkBlue, Colors.primary.blue]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* Background gradient with animation */}
+      <Animated.View style={[StyleSheet.absoluteFill, backgroundGradientStyle]}>
+        <LinearGradient
+          colors={[Colors.primary[700], Colors.primary[500], Colors.primary.blue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+      
+      {/* Background decoration */}
+      <View style={styles.decorationCircle1} />
+      <View style={styles.decorationCircle2} />
+      <View style={styles.decorationCircle3} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -219,19 +281,20 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header with back button */}
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, headerAnimatedStyle]}>
             <TouchableOpacity 
               onPress={handleBack}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.8}
             >
               <Feather name="arrow-left" size={24} color="#fff" />
             </TouchableOpacity>
-          </View>
+          </Animated.View>
           
           {/* Title */}
           <Animated.View 
-            style={styles.titleContainer}
+            style={[styles.titleContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(300).duration(600)}
           >
             <Text style={styles.title}>Reset Password</Text>
@@ -250,7 +313,14 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
                 style={[styles.successContainer, successAnimatedStyle]}
               >
                 <View style={styles.successIconContainer}>
-                  <Feather name="check-circle" size={60} color={Colors.secondary.green} />
+                  <LinearGradient
+                    colors={['rgba(0, 200, 83, 0.2)', 'rgba(0, 200, 83, 0.05)']}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    borderRadius={60}
+                  />
+                  <Feather name="check-circle" size={60} color={Colors.success[500]} />
                 </View>
                 
                 <Text style={styles.successTitle}>Check Your Email</Text>
@@ -290,6 +360,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
                     autoCapitalize="none"
                     leftIcon="mail"
                     error={emailError}
+                    animateSuccess
                   />
                 </Animated.View>
                 
@@ -300,10 +371,11 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
                     fullWidth
                     loading={loading}
                     style={styles.submitButton}
-                    gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                    gradientColors={[Colors.primary.blue, Colors.primary[700]]}
                     animationType="bounce"
                     icon="send"
                     iconPosition="right"
+                    round
                   />
                 </Animated.View>
               </>
@@ -312,12 +384,14 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
           
           {/* Footer */}
           <Animated.View 
-            style={styles.footerContainer}
+            style={[styles.footerContainer, headerAnimatedStyle]}
             entering={FadeInUp.delay(600).duration(800)}
           >
             <TouchableOpacity 
               onPress={handleLogin}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              style={styles.footerButton}
+              activeOpacity={0.8}
             >
               <Text style={styles.footerText}>
                 <Feather name="arrow-left" size={16} color="#fff" /> Back to login
@@ -333,7 +407,7 @@ const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light
+    backgroundColor: Colors.primary[700]
   },
   keyboardAvoidingView: {
     flex: 1
@@ -348,12 +422,14 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.xl
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   titleContainer: {
     marginBottom: Spacing.xl
@@ -380,7 +456,9 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 10,
     marginBottom: Spacing.xl,
-    transform: [{ translateY: 50 }]
+    transform: [{ translateY: 50 }],
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   submitButton: {
     height: 56,
@@ -389,6 +467,11 @@ const styles = StyleSheet.create({
   footerContainer: {
     alignItems: 'center',
     marginBottom: Spacing.xl
+  },
+  footerButton: {
+    padding: 10,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)'
   },
   footerText: {
     fontSize: Typography.sizes.body,
@@ -403,7 +486,6 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(0, 200, 83, 0.1)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: Spacing.lg
@@ -435,6 +517,34 @@ const styles = StyleSheet.create({
   },
   loginButton: {
     minWidth: 200
+  },
+  // Decorative elements
+  decorationCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    top: -50,
+    right: -50
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    bottom: 100,
+    left: -70
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: 150,
+    right: -30
   }
 });
 

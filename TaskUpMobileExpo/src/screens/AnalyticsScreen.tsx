@@ -7,7 +7,7 @@ import {
   ScrollView, 
   Dimensions,
   StatusBar,
-  SafeAreaView,
+  Platform,
   RefreshControl
 } from 'react-native'
 import Animated, {
@@ -19,9 +19,10 @@ import Animated, {
   withDelay,
   FadeIn,
   SlideInRight,
-  ZoomIn,
   interpolate,
-  Extrapolation
+  Extrapolation,
+  FadeInDown,
+  Layout
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
@@ -38,14 +39,27 @@ import Svg, {
   Stop
 } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { useNavigation } from '@react-navigation/native'
 
+// Import components from our codebase
+import Card from '../components/Card'
+import Button from '../components/Button/Button'
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader'
+import FAB from '../components/FAB'
+import SegmentedControl from '../components/Controls/SegmentedControl'
+import StatusPill from '../components/StatusPill'
+
+// Import themes and utilities
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
+import { useTheme } from '../hooks/useColorScheme'
 import { triggerImpact } from '../utils/HapticUtils'
+import { formatNumber, calculatePercentage } from '../utils/helpers'
 
-const { width, height } = Dimensions.get('window')
+const { width } = Dimensions.get('window')
 const AnimatedSvg = Animated.createAnimatedComponent(Svg)
+const AnimatedCard = Animated.createAnimatedComponent(Card)
 
 // Date range options
 const DATE_RANGES = [
@@ -84,7 +98,9 @@ interface TeamPerformance {
   timeSpent: number
 }
 
-const AnalyticsScreen = ({ navigation }) => {
+const AnalyticsScreen = () => {
+  const { colors, isDark } = useTheme()
+  const navigation = useNavigation()
   const [dateRange, setDateRange] = useState('month')
   const [overviewMetrics, setOverviewMetrics] = useState<OverviewMetric[]>([])
   const [timeseriesData, setTimeseriesData] = useState<TimeseriesData[]>([])
@@ -101,6 +117,7 @@ const AnalyticsScreen = ({ navigation }) => {
   const chartProgress = useSharedValue(0)
   const barChartProgress = useSharedValue(0)
   const cardScale = useSharedValue(1)
+  const fabOpacity = useSharedValue(1)
   
   // Load analytics data
   useEffect(() => {
@@ -112,10 +129,10 @@ const AnalyticsScreen = ({ navigation }) => {
       
       // Animate charts with delay
       setTimeout(() => {
-        chartProgress.value = withTiming(1, { duration: 1500 })
-        barChartProgress.value = withTiming(1, { duration: 1500 })
+        chartProgress.value = withTiming(1, { duration: 1200 })
+        barChartProgress.value = withTiming(1, { duration: 1200 })
       }, 300)
-    }, 1000)
+    }, 800)
   }, [dateRange])
   
   // Handle refresh
@@ -133,11 +150,11 @@ const AnalyticsScreen = ({ navigation }) => {
       
       // Animate charts after refresh
       setTimeout(() => {
-        chartProgress.value = withTiming(1, { duration: 1500 })
-        barChartProgress.value = withTiming(1, { duration: 1500 })
+        chartProgress.value = withTiming(1, { duration: 1200 })
+        barChartProgress.value = withTiming(1, { duration: 1200 })
         triggerImpact(Haptics.ImpactFeedbackStyle.Light)
       }, 300)
-    }, 1500)
+    }, 1200)
   }, [dateRange])
   
   // Generate mock data based on date range
@@ -149,28 +166,28 @@ const AnalyticsScreen = ({ navigation }) => {
         value: range === 'week' ? 24 : range === 'month' ? 87 : range === 'quarter' ? 246 : 982,
         change: range === 'week' ? 12 : range === 'month' ? 8 : range === 'quarter' ? 15 : 22,
         icon: 'check-square',
-        color: Colors.primary.blue
+        color: colors.primary[500]
       },
       {
         label: 'Active Projects',
         value: range === 'week' ? 5 : range === 'month' ? 8 : range === 'quarter' ? 12 : 18,
         change: range === 'week' ? -1 : range === 'month' ? 2 : range === 'quarter' ? 4 : 7,
         icon: 'briefcase',
-        color: Colors.secondary.green
+        color: colors.secondary[500]
       },
       {
         label: 'Team Members',
         value: range === 'week' ? 14 : range === 'month' ? 16 : range === 'quarter' ? 18 : 22,
         change: range === 'week' ? 0 : range === 'month' ? 2 : range === 'quarter' ? 4 : 8,
         icon: 'users',
-        color: Colors.primary.purple
+        color: '#9C27B0'
       },
       {
         label: 'Hours Logged',
         value: range === 'week' ? 168 : range === 'month' ? 642 : range === 'quarter' ? 1840 : 7320,
         change: range === 'week' ? 24 : range === 'month' ? 86 : range === 'quarter' ? 205 : 1240,
         icon: 'clock',
-        color: Colors.primary.yellow
+        color: '#FFC107'
       }
     ]
     
@@ -268,19 +285,12 @@ const AnalyticsScreen = ({ navigation }) => {
     onScroll: (event) => {
       const offsetY = event.contentOffset.y
       scrollY.value = offsetY
+      
+      // Hide/show FAB based on scroll direction
+      const scrollingDown = offsetY > 100
+      fabOpacity.value = withTiming(scrollingDown ? 0 : 1, { duration: 200 })
     }
   })
-  
-  // Format number with commas and abbreviations
-  const formatNumber = (num: number): string => {
-    if (num >= 1000000) {
-      return (num / 1000000).toFixed(1) + 'M'
-    }
-    if (num >= 1000) {
-      return (num / 1000).toFixed(1) + 'K'
-    }
-    return num.toString()
-  }
   
   // Line chart rendering functions
   const getLineChartPoints = (data: TimeseriesData[]): string => {
@@ -340,16 +350,20 @@ const AnalyticsScreen = ({ navigation }) => {
     })
     
     return (
-      <View style={styles.chartContainer}>
+      <Card
+        style={styles.chartContainer}
+        animationType="none"
+        elevation={isDark ? 1 : 2}
+      >
         <View style={styles.chartHeader}>
           <Text style={styles.chartTitle}>Tasks Completion</Text>
           <View style={styles.chartLegend}>
             <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: Colors.primary.blue }]} />
+              <View style={[styles.legendColor, { backgroundColor: colors.primary[500] }]} />
               <Text style={styles.legendText}>Tasks</Text>
             </View>
             <View style={styles.legendItem}>
-              <View style={[styles.legendColor, { backgroundColor: '#E0E0E0' }]} />
+              <View style={[styles.legendColor, { backgroundColor: isDark ? colors.neutrals[700] : colors.neutrals[300] }]} />
               <Text style={styles.legendText}>Projects</Text>
             </View>
           </View>
@@ -363,7 +377,7 @@ const AnalyticsScreen = ({ navigation }) => {
               y1="40"
               x2="32"
               y2={chartHeight + 40}
-              stroke={Colors.neutrals.gray300}
+              stroke={isDark ? colors.neutrals[700] : colors.neutrals[300]}
               strokeWidth="1"
             />
             <Line
@@ -371,7 +385,7 @@ const AnalyticsScreen = ({ navigation }) => {
               y1={chartHeight * 0.25 + 40}
               x2={width - 32}
               y2={chartHeight * 0.25 + 40}
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -380,7 +394,7 @@ const AnalyticsScreen = ({ navigation }) => {
               y1={chartHeight * 0.5 + 40}
               x2={width - 32}
               y2={chartHeight * 0.5 + 40}
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -389,7 +403,7 @@ const AnalyticsScreen = ({ navigation }) => {
               y1={chartHeight * 0.75 + 40}
               x2={width - 32}
               y2={chartHeight * 0.75 + 40}
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -398,7 +412,7 @@ const AnalyticsScreen = ({ navigation }) => {
               y1={chartHeight + 40}
               x2={width - 32}
               y2={chartHeight + 40}
-              stroke={Colors.neutrals.gray300}
+              stroke={isDark ? colors.neutrals[700] : colors.neutrals[300]}
               strokeWidth="1"
             />
             
@@ -407,7 +421,7 @@ const AnalyticsScreen = ({ navigation }) => {
               x="20"
               y={chartHeight + 45}
               textAnchor="end"
-              fill={Colors.neutrals.gray600}
+              fill={isDark ? colors.text.secondary : colors.neutrals[600]}
               fontSize="10"
             >
               0
@@ -416,7 +430,7 @@ const AnalyticsScreen = ({ navigation }) => {
               x="20"
               y={chartHeight * 0.75 + 45}
               textAnchor="end"
-              fill={Colors.neutrals.gray600}
+              fill={isDark ? colors.text.secondary : colors.neutrals[600]}
               fontSize="10"
             >
               {Math.round(maxTasks * 0.25)}
@@ -425,7 +439,7 @@ const AnalyticsScreen = ({ navigation }) => {
               x="20"
               y={chartHeight * 0.5 + 45}
               textAnchor="end"
-              fill={Colors.neutrals.gray600}
+              fill={isDark ? colors.text.secondary : colors.neutrals[600]}
               fontSize="10"
             >
               {Math.round(maxTasks * 0.5)}
@@ -434,7 +448,7 @@ const AnalyticsScreen = ({ navigation }) => {
               x="20"
               y={chartHeight * 0.25 + 45}
               textAnchor="end"
-              fill={Colors.neutrals.gray600}
+              fill={isDark ? colors.text.secondary : colors.neutrals[600]}
               fontSize="10"
             >
               {Math.round(maxTasks * 0.75)}
@@ -443,7 +457,7 @@ const AnalyticsScreen = ({ navigation }) => {
               x="20"
               y="45"
               textAnchor="end"
-              fill={Colors.neutrals.gray600}
+              fill={isDark ? colors.text.secondary : colors.neutrals[600]}
               fontSize="10"
             >
               {maxTasks}
@@ -456,7 +470,7 @@ const AnalyticsScreen = ({ navigation }) => {
                 x={i * segmentWidth + 32}
                 y={chartHeight + 65}
                 textAnchor="middle"
-                fill={Colors.neutrals.gray600}
+                fill={isDark ? colors.text.secondary : colors.neutrals[600]}
                 fontSize="10"
               >
                 {d.date}
@@ -466,8 +480,8 @@ const AnalyticsScreen = ({ navigation }) => {
             {/* Gradient definition for the area under the line */}
             <Defs>
               <SvgLinearGradient id="areaGradient" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0" stopColor={Colors.primary.blue} stopOpacity="0.3" />
-                <Stop offset="1" stopColor={Colors.primary.blue} stopOpacity="0.05" />
+                <Stop offset="0" stopColor={colors.primary[500]} stopOpacity="0.3" />
+                <Stop offset="1" stopColor={colors.primary[500]} stopOpacity="0.05" />
               </SvgLinearGradient>
             </Defs>
             
@@ -483,7 +497,7 @@ const AnalyticsScreen = ({ navigation }) => {
             <Animated.View style={[StyleSheet.absoluteFill, animatedTasksPath]}>
               <Path
                 d={getLineChartPoints(timeseriesData)}
-                stroke={Colors.primary.blue}
+                stroke={colors.primary[500]}
                 strokeWidth="3"
                 fill="none"
                 strokeLinejoin="round"
@@ -514,8 +528,8 @@ const AnalyticsScreen = ({ navigation }) => {
                     cx="6"
                     cy="6"
                     r="6"
-                    fill={Colors.neutrals.white}
-                    stroke={Colors.primary.blue}
+                    fill={isDark ? colors.card.background : colors.neutrals.white}
+                    stroke={colors.primary[500]}
                     strokeWidth="2"
                   />
                 </Animated.View>
@@ -523,14 +537,14 @@ const AnalyticsScreen = ({ navigation }) => {
             })}
           </AnimatedSvg>
         </View>
-      </View>
+      </Card>
     )
   }
   
   // Render bar chart for project progress
   const renderProjectsChart = () => {
     const barChartHeight = 200
-    const barWidth = (width - 64) / projectsData.length - 12
+    const barWidth = (width - 90) / projectsData.length
     
     // Animated bars
     const animatedBars = projectsData.map((project, i) => {
@@ -546,7 +560,11 @@ const AnalyticsScreen = ({ navigation }) => {
     })
     
     return (
-      <View style={styles.chartContainer}>
+      <Card
+        style={styles.chartContainer}
+        animationType="none"
+        elevation={isDark ? 1 : 2}
+      >
         <Text style={styles.chartTitle}>Project Progress</Text>
         
         <View style={styles.barChartContainer}>
@@ -555,19 +573,23 @@ const AnalyticsScreen = ({ navigation }) => {
               <Animated.View 
                 style={[
                   styles.bar,
-                  { width: barWidth },
-                  getBarColor(project.progress),
+                  { width: barWidth - 10 },
+                  getBarColorStyle(project.progress),
                   animatedBars[i]
                 ]}
               />
               <Text style={styles.barLabel} numberOfLines={1}>
                 {project.name}
               </Text>
-              <Text style={styles.barValue}>{Math.round(project.progress * 100)}%</Text>
+              <StatusPill 
+                label={`${Math.round(project.progress * 100)}%`}
+                type={project.progress < 0.3 ? 'error' : project.progress < 0.7 ? 'warning' : 'success'}
+                small
+              />
             </View>
           ))}
         </View>
-      </View>
+      </Card>
     )
   }
   
@@ -625,7 +647,11 @@ const AnalyticsScreen = ({ navigation }) => {
     })
     
     return (
-      <View style={styles.chartContainer}>
+      <Card
+        style={styles.chartContainer}
+        animationType="none"
+        elevation={isDark ? 1 : 2}
+      >
         <Text style={styles.chartTitle}>Team Performance</Text>
         
         <View style={styles.radarChartContainer}>
@@ -636,7 +662,7 @@ const AnalyticsScreen = ({ navigation }) => {
               cy={centerY}
               r={radius}
               fill="none"
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[700] : colors.neutrals[200]}
               strokeWidth="1"
             />
             <Circle
@@ -644,7 +670,7 @@ const AnalyticsScreen = ({ navigation }) => {
               cy={centerY}
               r={radius * 0.75}
               fill="none"
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -653,7 +679,7 @@ const AnalyticsScreen = ({ navigation }) => {
               cy={centerY}
               r={radius * 0.5}
               fill="none"
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -662,7 +688,7 @@ const AnalyticsScreen = ({ navigation }) => {
               cy={centerY}
               r={radius * 0.25}
               fill="none"
-              stroke={Colors.neutrals.gray200}
+              stroke={isDark ? colors.neutrals[800] : colors.neutrals[200]}
               strokeWidth="1"
               strokeDasharray="4,4"
             />
@@ -675,7 +701,7 @@ const AnalyticsScreen = ({ navigation }) => {
                 y1={centerY}
                 x2={centerX + radius * Math.cos(point.angle)}
                 y2={centerY + radius * Math.sin(point.angle)}
-                stroke={Colors.neutrals.gray300}
+                stroke={isDark ? colors.neutrals[700] : colors.neutrals[300]}
                 strokeWidth="1"
               />
             ))}
@@ -708,8 +734,8 @@ const AnalyticsScreen = ({ navigation }) => {
             <Animated.View style={[StyleSheet.absoluteFill, animatedRadarPath]}>
               <Path
                 d={radarPath}
-                fill="rgba(61, 90, 254, 0.15)"
-                stroke={Colors.primary.blue}
+                fill={`${colors.primary[500]}20`}
+                stroke={colors.primary[500]}
                 strokeWidth="2"
               />
             </Animated.View>
@@ -732,7 +758,7 @@ const AnalyticsScreen = ({ navigation }) => {
                     cx="6"
                     cy="6"
                     r="6"
-                    fill={Colors.neutrals.white}
+                    fill={isDark ? colors.card.background : colors.neutrals.white}
                     stroke={point.color}
                     strokeWidth="2"
                   />
@@ -740,7 +766,7 @@ const AnalyticsScreen = ({ navigation }) => {
                     x="6"
                     y="20"
                     textAnchor="middle"
-                    fill={Colors.neutrals.gray700}
+                    fill={isDark ? colors.text.secondary : colors.neutrals[700]}
                     fontSize="9"
                   >
                     {point.tasksCompleted}
@@ -750,29 +776,29 @@ const AnalyticsScreen = ({ navigation }) => {
             ))}
           </Svg>
         </View>
-      </View>
+      </Card>
     )
   }
   
   // Helper function to get color based on progress
-  const getBarColor = (progress: number) => {
+  const getBarColorStyle = (progress: number) => {
     if (progress < 0.3) {
-      return { backgroundColor: Colors.status.error }
+      return { backgroundColor: colors.error[500] }
     } else if (progress < 0.7) {
-      return { backgroundColor: Colors.status.warning }
+      return { backgroundColor: colors.warning[500] }
     } else {
-      return { backgroundColor: Colors.status.success }
+      return { backgroundColor: colors.success[500] }
     }
   }
   
   // Helper function to get color for team
   const getTeamColor = (index: number) => {
     const colors = [
-      Colors.primary.blue,
-      Colors.secondary.green,
-      Colors.primary.purple,
-      Colors.primary.yellow,
-      Colors.primary.red
+      '#4CAF50', // Green
+      '#F44336', // Red
+      '#9C27B0', // Purple
+      '#2196F3', // Blue
+      '#FF9800'  // Orange
     ]
     
     return colors[index % colors.length]
@@ -794,7 +820,24 @@ const AnalyticsScreen = ({ navigation }) => {
         [0, 20],
         [0, 0.2],
         Extrapolation.CLAMP
-      )
+      ),
+      borderBottomWidth: interpolate(
+        scrollY.value,
+        [0, 20],
+        [0, 1],
+        Extrapolation.CLAMP
+      ),
+      backgroundColor: isDark 
+        ? interpolateColor(
+            scrollY.value, 
+            [0, 20], 
+            [colors.background.dark, colors.card.background]
+          ) 
+        : interpolateColor(
+            scrollY.value, 
+            [0, 20], 
+            [colors.background.light, colors.neutrals.white]
+          )
     }
   })
   
@@ -804,46 +847,67 @@ const AnalyticsScreen = ({ navigation }) => {
     }
   })
   
+  const fabAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: fabOpacity.value,
+      transform: [
+        { scale: fabOpacity.value },
+        { translateY: interpolate(
+            fabOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          )}
+      ]
+    }
+  })
+  
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+    <View style={[
+      styles.container, 
+      { backgroundColor: isDark ? colors.background.dark : colors.background.light }
+    ]}>
+      <StatusBar 
+        barStyle={isDark ? "light-content" : "dark-content"} 
+        backgroundColor="transparent" 
+        translucent
+      />
       
       {/* Header */}
-      <Animated.View style={[styles.header, headerAnimatedStyle]}>
-        <Text style={styles.title}>Analytics</Text>
+      <Animated.View 
+        style={[
+          styles.header, 
+          { 
+            paddingTop: insets.top + Spacing.md,
+            borderBottomColor: isDark ? colors.card.border : colors.neutrals[200],
+          },
+          headerAnimatedStyle
+        ]}
+      >
+        <Text style={[
+          styles.title,
+          { color: isDark ? colors.text.primary : colors.neutrals[900] }
+        ]}>
+          Analytics
+        </Text>
         
-        {/* Date range selector */}
-        <ScrollView 
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.dateRangeContainer}
-        >
-          {DATE_RANGES.map(range => (
-            <TouchableOpacity
-              key={range.id}
-              style={[
-                styles.dateRangeButton,
-                dateRange === range.id && styles.activeDateRange
-              ]}
-              onPress={() => handleDateRangeChange(range.id)}
-            >
-              <Text 
-                style={[
-                  styles.dateRangeText,
-                  dateRange === range.id && styles.activeDateRangeText
-                ]}
-              >
-                {range.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <SegmentedControl 
+          segments={DATE_RANGES}
+          selectedId={dateRange}
+          onChange={handleDateRangeChange}
+          style={styles.dateRangeSelector}
+          primaryColor={colors.primary[500]}
+          secondaryColor={isDark ? colors.neutrals[600] : colors.neutrals[500]}
+        />
       </Animated.View>
       
       {/* Scrollable content */}
       <Animated.ScrollView
         style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          { paddingBottom: insets.bottom + 80 }
+        ]}
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
@@ -851,8 +915,8 @@ const AnalyticsScreen = ({ navigation }) => {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
-            tintColor={Colors.primary.blue}
-            colors={[Colors.primary.blue]}
+            tintColor={colors.primary[500]}
+            colors={[colors.primary[500]]}
           />
         }
       >
@@ -864,11 +928,7 @@ const AnalyticsScreen = ({ navigation }) => {
             // Loading state
             <View style={styles.overviewGrid}>
               {[1, 2, 3, 4].map(i => (
-                <View key={i} style={styles.metricCardSkeleton}>
-                  <View style={styles.metricIconSkeleton} />
-                  <View style={styles.metricLabelSkeleton} />
-                  <View style={styles.metricValueSkeleton} />
-                </View>
+                <SkeletonLoader.Card key={i} style={styles.metricCardSkeleton} />
               ))}
             </View>
           ) : (
@@ -878,7 +938,14 @@ const AnalyticsScreen = ({ navigation }) => {
                   key={metric.label}
                   entering={FadeInDown.delay(index * 100).duration(500)}
                 >
-                  <TouchableOpacity style={styles.metricCard} activeOpacity={0.8}>
+                  <Card 
+                    style={styles.metricCard} 
+                    elevation={isDark ? 1 : 2}
+                    onPress={() => {
+                      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+                    }}
+                    animationType="spring"
+                  >
                     <View 
                       style={[
                         styles.metricIconContainer, 
@@ -887,28 +954,32 @@ const AnalyticsScreen = ({ navigation }) => {
                     >
                       <Feather name={metric.icon} size={20} color={metric.color} />
                     </View>
-                    <Text style={styles.metricLabel}>{metric.label}</Text>
-                    <Text style={styles.metricValue}>{formatNumber(metric.value)}</Text>
+                    <Text style={[styles.metricLabel, { color: isDark ? colors.text.secondary : colors.neutrals[600] }]}>
+                      {metric.label}
+                    </Text>
+                    <Text style={[styles.metricValue, { color: isDark ? colors.text.primary : colors.neutrals[900] }]}>
+                      {formatNumber(metric.value)}
+                    </Text>
                     <View style={styles.metricChangeContainer}>
                       <Feather 
                         name={metric.change >= 0 ? 'arrow-up' : 'arrow-down'} 
                         size={12} 
-                        color={metric.change >= 0 ? Colors.status.success : Colors.status.error} 
+                        color={metric.change >= 0 ? colors.success[500] : colors.error[500]} 
                       />
                       <Text
                         style={[
                           styles.metricChangeText,
                           { 
                             color: metric.change >= 0 ? 
-                              Colors.status.success : 
-                              Colors.status.error 
+                              colors.success[500] : 
+                              colors.error[500] 
                           }
                         ]}
                       >
                         {Math.abs(metric.change)}%
                       </Text>
                     </View>
-                  </TouchableOpacity>
+                  </Card>
                 </Animated.View>
               ))}
             </View>
@@ -918,14 +989,8 @@ const AnalyticsScreen = ({ navigation }) => {
         {/* Charts */}
         {isLoading ? (
           <View style={styles.chartsSkeleton}>
-            <View style={styles.chartSkeleton}>
-              <View style={styles.chartTitleSkeleton} />
-              <View style={styles.chartContentSkeleton} />
-            </View>
-            <View style={styles.chartSkeleton}>
-              <View style={styles.chartTitleSkeleton} />
-              <View style={styles.chartContentSkeleton} />
-            </View>
+            <SkeletonLoader.Card style={styles.chartSkeleton} />
+            <SkeletonLoader.Card style={styles.chartSkeleton} />
           </View>
         ) : (
           <View style={styles.chartsContainer}>
@@ -936,100 +1001,76 @@ const AnalyticsScreen = ({ navigation }) => {
         )}
         
         {/* Export options */}
-        <View style={styles.exportContainer}>
-          <Text style={styles.exportTitle}>Export Analytics</Text>
+        <Card
+          style={styles.exportContainer}
+          elevation={isDark ? 1 : 2}
+          animationType="none"
+        >
+          <Text style={[styles.exportTitle, { color: isDark ? colors.text.primary : colors.neutrals[900] }]}>
+            Export Analytics
+          </Text>
           <View style={styles.exportOptions}>
-            <TouchableOpacity 
-              style={styles.exportButton}
-              activeOpacity={0.8}
+            <Button
+              title="PDF Report"
+              icon="file-text"
+              variant="secondary"
+              size="small"
               onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Feather name="file-text" size={20} color={Colors.primary.blue} />
-              <Text style={styles.exportButtonText}>PDF Report</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
               style={styles.exportButton}
-              activeOpacity={0.8}
+            />
+            <Button
+              title="CSV Data"
+              icon="file"
+              variant="secondary"
+              size="small"
               onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
-            >
-              <Feather name="file" size={20} color={Colors.primary.blue} />
-              <Text style={styles.exportButtonText}>CSV Data</Text>
-            </TouchableOpacity>
+              style={styles.exportButton}
+            />
           </View>
-        </View>
-        
-        {/* Bottom padding */}
-        <View style={{ height: 40 }} />
+        </Card>
       </Animated.ScrollView>
       
       {/* Floating action button */}
-      <TouchableOpacity 
-        style={styles.fab}
-        onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Medium)}
-        activeOpacity={0.9}
-      >
-        <LinearGradient
-          colors={[Colors.primary.blue, Colors.primary.darkBlue]}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          borderRadius={28}
+      <Animated.View style={fabAnimatedStyle}>
+        <FAB
+          icon="share"
+          onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Medium)}
+          gradientColors={[colors.primary[500], colors.primary[700]]}
+          style={styles.fab}
         />
-        <Feather name="share" size={24} color={Colors.neutrals.white} />
-      </TouchableOpacity>
-    </SafeAreaView>
+      </Animated.View>
+    </View>
   )
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background.light
+    flex: 1
   },
   header: {
-    padding: 20,
+    padding: Spacing.lg,
     backgroundColor: Colors.background.light,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.neutrals.gray200,
     shadowColor: Colors.neutrals.black,
     shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8
+    shadowRadius: 8,
+    zIndex: 10
   },
   title: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.gray900,
-    marginBottom: 16
+    marginBottom: Spacing.md
   },
-  dateRangeContainer: {
-    paddingRight: 20
-  },
-  dateRangeButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: Colors.neutrals.gray100,
-    marginRight: 8
-  },
-  activeDateRange: {
-    backgroundColor: Colors.primary.blue
-  },
-  dateRangeText: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutrals.gray700
-  },
-  activeDateRangeText: {
-    color: Colors.neutrals.white
+  dateRangeSelector: {
+    marginTop: Spacing.sm
   },
   scrollContainer: {
     flex: 1
   },
   scrollContent: {
-    padding: 20
+    padding: Spacing.lg
   },
   overviewContainer: {
-    marginBottom: 20
+    marginBottom: Spacing.lg
   },
   overviewGrid: {
     flexDirection: 'row',
@@ -1037,36 +1078,34 @@ const styles = StyleSheet.create({
     marginHorizontal: -6
   },
   metricCard: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 16,
+    padding: Spacing.md,
     width: (width - 52) / 2,
     marginHorizontal: 6,
     marginBottom: 12,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    borderRadius: 16
+  },
+  metricCardSkeleton: {
+    height: 150,
+    width: (width - 52) / 2,
+    marginHorizontal: 6,
+    marginBottom: 12
   },
   metricIconContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: Spacing.sm
   },
   metricLabel: {
     fontSize: Typography.sizes.bodySmall,
-    color: Colors.neutrals.gray600,
-    marginBottom: 8
+    marginBottom: Spacing.xs
   },
   metricValue: {
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.gray900,
-    marginBottom: 8
+    marginBottom: Spacing.xs
   },
   metricChangeContainer: {
     flexDirection: 'row',
@@ -1078,86 +1117,30 @@ const styles = StyleSheet.create({
     marginLeft: 4
   },
   chartsSkeleton: {
-    marginBottom: 24
+    marginBottom: Spacing.xl
   },
   chartSkeleton: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
-  },
-  chartTitleSkeleton: {
-    width: '40%',
-    height: 24,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 4,
-    marginBottom: 16
-  },
-  chartContentSkeleton: {
-    width: '100%',
-    height: 200,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 8
-  },
-  metricCardSkeleton: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 16,
-    width: (width - 52) / 2,
-    marginHorizontal: 6,
-    marginBottom: 12
-  },
-  metricIconSkeleton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.neutrals.gray200,
-    marginBottom: 12
-  },
-  metricLabelSkeleton: {
-    width: '70%',
-    height: 14,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 4,
-    marginBottom: 8
-  },
-  metricValueSkeleton: {
-    width: '50%',
-    height: 24,
-    backgroundColor: Colors.neutrals.gray200,
-    borderRadius: 4,
-    marginBottom: 8
+    height: 300,
+    marginBottom: Spacing.md
   },
   chartsContainer: {
-    marginBottom: 24
+    marginBottom: Spacing.xl
   },
   chartContainer: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    padding: Spacing.lg,
+    marginBottom: Spacing.md,
+    borderRadius: 16
   },
   chartHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16
+    marginBottom: Spacing.md
   },
   chartTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray900,
-    marginBottom: 16
+    marginBottom: Spacing.md
   },
   chartLegend: {
     flexDirection: 'row'
@@ -1165,7 +1148,7 @@ const styles = StyleSheet.create({
   legendItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginLeft: 16
+    marginLeft: Spacing.md
   },
   legendColor: {
     width: 12,
@@ -1174,8 +1157,7 @@ const styles = StyleSheet.create({
     marginRight: 4
   },
   legendText: {
-    fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray600
+    fontSize: Typography.sizes.caption
   },
   chartContent: {
     height: 280
@@ -1189,78 +1171,43 @@ const styles = StyleSheet.create({
   },
   barColumn: {
     alignItems: 'center',
-    width: '20%'
+    flex: 1
   },
   bar: {
-    borderRadius: 4,
-    width: 20,
-    maxWidth: 30
+    borderRadius: 8,
+    width: 30,
+    maxWidth: 50
   },
   barLabel: {
     fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray700,
-    marginTop: 8,
+    marginTop: Spacing.xs,
     textAlign: 'center',
-    width: '100%'
-  },
-  barValue: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray900,
-    marginTop: 4
+    width: '100%',
+    marginBottom: Spacing.xs
   },
   radarChartContainer: {
     height: 280,
     alignItems: 'center'
   },
   exportContainer: {
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    padding: Spacing.lg,
+    borderRadius: 16
   },
   exportTitle: {
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray900,
-    marginBottom: 16
+    marginBottom: Spacing.md
   },
   exportOptions: {
     flexDirection: 'row'
   },
   exportButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary.blue + '10',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 8,
-    marginRight: 12
-  },
-  exportButtonText: {
-    fontSize: Typography.sizes.bodySmall,
-    fontWeight: Typography.weights.medium,
-    color: Colors.primary.blue,
-    marginLeft: 8
+    marginRight: Spacing.md
   },
   fab: {
     position: 'absolute',
     bottom: 20,
-    right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: Colors.primary.blue,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8
+    right: 20
   }
 })
 

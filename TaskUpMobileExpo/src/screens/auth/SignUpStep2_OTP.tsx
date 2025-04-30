@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -9,7 +10,8 @@ import {
   ScrollView,
   StatusBar,
   TextInput,
-  Keyboard
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -18,11 +20,13 @@ import Animated, {
   withSpring,
   withSequence,
   withDelay,
+  interpolate,
+  Extrapolation,
   FadeIn,
   FadeInUp,
   FadeInDown,
-  interpolate,
-  Extrapolation
+  runOnJS,
+  Easing
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -40,6 +44,8 @@ const OTP_LENGTH = 6;
 
 // Timer duration in seconds
 const TIMER_DURATION = 60;
+
+const { width, height } = Dimensions.get('window');
 
 type SignUpStep2Props = {
   route: any;
@@ -68,8 +74,13 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
   const progressWidth = useSharedValue(66);
   const otpContainerScale = useSharedValue(1);
   const buttonScale = useSharedValue(1);
+  const formOpacity = useSharedValue(0);
+  const formPosition = useSharedValue(50);
+  const headerOpacity = useSharedValue(0);
   const otpShakeValues = Array(OTP_LENGTH).fill(0).map(() => useSharedValue(0));
   const successPulse = useSharedValue(0);
+  const backgroundPosition = useSharedValue(0);
+  const timerBarWidth = useSharedValue(100);
   
   // Keyboard listeners to adjust scroll when keyboard appears/disappears
   useEffect(() => {
@@ -102,14 +113,45 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
     inputRefs.current = Array(OTP_LENGTH).fill(null);
   }, []);
   
-  // Setup timer
+  // Setup initial animations
+  useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    
+    // Animate background
+    backgroundPosition.value = withTiming(1, { 
+      duration: 2000, 
+      easing: Easing.out(Easing.exp) 
+    });
+    
+    // Animate header elements
+    headerOpacity.value = withTiming(1, { duration: 600 });
+    
+    // Animate form with spring for natural motion
+    formOpacity.value = withTiming(1, { duration: 600 });
+    formPosition.value = withSpring(0, {
+      damping: 14,
+      stiffness: 100
+    });
+    
+    return () => {
+      StatusBar.setBarStyle('dark-content');
+    }
+  }, []);
+  
+  // Setup timer animation
   useEffect(() => {
     let interval: NodeJS.Timeout;
     
     if (timerCount > 0) {
+      // Update timer countdown
       interval = setInterval(() => {
         setTimerCount(prev => prev - 1);
       }, 1000);
+      
+      // Animate timer bar
+      timerBarWidth.value = withTiming((timerCount / TIMER_DURATION) * 100, { 
+        duration: 1000 
+      });
     } else {
       setIsResendActive(true);
     }
@@ -127,13 +169,6 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
     }, 500);
     
     return () => clearTimeout(timer);
-  }, []);
-  
-  useEffect(() => {
-    StatusBar.setBarStyle('light-content');
-    return () => {
-      StatusBar.setBarStyle('dark-content');
-    }
   }, []);
   
   // Format timer
@@ -200,7 +235,7 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
     // Animate button press
     buttonScale.value = withSequence(
       withTiming(0.95, { duration: 100 }),
-      withTiming(1, { duration: 100 })
+      withSpring(1, { damping: 12, stiffness: 200 })
     );
     
     // Clear any previous errors
@@ -223,10 +258,14 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
         withDelay(500, withTiming(0, { duration: 300 }))
       );
       
+      // Animate exit
+      formOpacity.value = withTiming(0, { duration: 300 });
+      headerOpacity.value = withTiming(0, { duration: 300 });
+      
       // Short delay then navigate to next step
       setTimeout(() => {
         navigation.navigate('SignUpStep3', { email });
-      }, 1000);
+      }, 800);
       
     }, 1500);
   };
@@ -245,23 +284,30 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
     setOtp(Array(OTP_LENGTH).fill(''));
     setOtpError('');
     
+    // Animate OTP container
+    otpContainerScale.value = withSequence(
+      withTiming(1.05, { duration: 200 }),
+      withTiming(1, { duration: 200 })
+    );
+    
     // Focus first input
     if (inputRefs.current[0]?.focus) {
       inputRefs.current[0]?.focus();
       setFocusedIndex(0);
     }
-    
-    // Show success animation
-    otpContainerScale.value = withSequence(
-      withTiming(1.05, { duration: 200 }),
-      withTiming(1, { duration: 200 })
-    );
   };
   
   // Go back to previous step
   const handleBack = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.goBack();
+    
+    // Animate exit
+    formOpacity.value = withTiming(0, { duration: 300 });
+    headerOpacity.value = withTiming(0, { duration: 300 });
+    
+    setTimeout(() => {
+      navigation.goBack();
+    }, 300);
   };
   
   // Animation for input validation error
@@ -281,6 +327,23 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
   };
   
   // Animated styles
+  const backgroundStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      backgroundPosition.value,
+      [0, 1],
+      [-width * 0.3, 0],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      transform: [{ translateX }]
+    };
+  });
+  
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return { opacity: headerOpacity.value };
+  });
+  
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
@@ -299,10 +362,23 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
     };
   });
   
+  const formAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: formOpacity.value,
+      transform: [{ translateY: formPosition.value }]
+    };
+  });
+  
   const successOverlayStyle = useAnimatedStyle(() => {
     return {
       opacity: successPulse.value,
       transform: [{ scale: interpolate(successPulse.value, [0, 1], [0.9, 1.05], Extrapolation.CLAMP) }]
+    };
+  });
+  
+  const timerBarStyle = useAnimatedStyle(() => {
+    return {
+      width: `${timerBarWidth.value}%`
     };
   });
   
@@ -320,19 +396,26 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
       {/* Success overlay animation */}
       <Animated.View style={[styles.successOverlay, successOverlayStyle]}>
         <LinearGradient
-          colors={['rgba(0, 200, 83, 0.8)', 'rgba(0, 200, 83, 0.6)']}
+          colors={['rgba(0, 200, 83, 0.9)', 'rgba(0, 200, 83, 0.7)']}
           style={StyleSheet.absoluteFill}
         />
         <Feather name="check-circle" size={60} color="#fff" />
       </Animated.View>
       
-      {/* Background gradient */}
-      <LinearGradient
-        colors={[Colors.primary.darkBlue, Colors.primary.blue]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* Background gradient with animation */}
+      <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
+        <LinearGradient
+          colors={[Colors.primary[800], Colors.primary[600], Colors.primary.blue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+      
+      {/* Background decoration */}
+      <View style={styles.decorationCircle1} />
+      <View style={styles.decorationCircle2} />
+      <View style={styles.decorationCircle3} />
       
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -347,11 +430,12 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header with back button */}
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, headerAnimatedStyle]}>
             <TouchableOpacity 
               onPress={handleBack}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.8}
             >
               <Feather name="arrow-left" size={24} color="#fff" />
             </TouchableOpacity>
@@ -362,11 +446,11 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
             >
               Step 2 of 3
             </Animated.Text>
-          </View>
+          </Animated.View>
           
           {/* Progress indicator */}
           <Animated.View 
-            style={styles.progressContainer}
+            style={[styles.progressContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(400).duration(600)}
           >
             <View style={styles.progressBar}>
@@ -378,7 +462,7 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
           
           {/* Title */}
           <Animated.View 
-            style={styles.titleContainer}
+            style={[styles.titleContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(500).duration(600)}
           >
             <Text style={styles.title}>Verify Your Email</Text>
@@ -390,7 +474,7 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
           
           {/* OTP Inputs */}
           <Animated.View 
-            style={[styles.otpContainer, otpContainerAnimatedStyle]}
+            style={[styles.otpContainer, formAnimatedStyle, otpContainerAnimatedStyle]}
             entering={FadeInUp.delay(600).duration(800)}
           >
             <View style={styles.otpInputsContainer}>
@@ -404,12 +488,16 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
                     style={[
                       styles.otpInputWrapper,
                       focusedIndex === index && styles.otpInputWrapperFocused,
+                      otp[index] && styles.otpInputWrapperFilled,
                       inputAnimatedStyle
                     ]}
                   >
                     <TextInput
                       ref={el => inputRefs.current[index] = el}
-                      style={styles.otpInput}
+                      style={[
+                        styles.otpInput,
+                        otp[index] && styles.otpInputFilled
+                      ]}
                       keyboardType="number-pad"
                       maxLength={1}
                       value={otp[index]}
@@ -429,25 +517,39 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
               <Text style={styles.helperText}>Enter verification code</Text>
             )}
             
-            <View style={styles.timerContainer}>
-              <Text style={styles.timerText}>
-                {isResendActive ? 'Didn\'t receive code?' : `Resend code in ${formatTime(timerCount)}`}
-              </Text>
-              
-              <TouchableOpacity
-                onPress={handleResendOtp}
-                disabled={!isResendActive}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Text 
-                  style={[
-                    styles.resendText,
-                    !isResendActive && styles.resendTextDisabled
-                  ]}
-                >
-                  Resend
+            {/* Timer with visual bar */}
+            <View style={styles.timerSection}>
+              <View style={styles.timerContainer}>
+                <Text style={styles.timerText}>
+                  {isResendActive ? 'Resend code?' : `Resend code in ${formatTime(timerCount)}`}
                 </Text>
-              </TouchableOpacity>
+                
+                <TouchableOpacity
+                  onPress={handleResendOtp}
+                  disabled={!isResendActive}
+                  hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  style={[
+                    styles.resendButton,
+                    !isResendActive && styles.resendButtonDisabled
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Text 
+                    style={[
+                      styles.resendText,
+                      !isResendActive && styles.resendTextDisabled
+                    ]}
+                  >
+                    Resend
+                  </Text>
+                </TouchableOpacity>
+              </View>
+              
+              {!isResendActive && (
+                <View style={styles.timerBarContainer}>
+                  <Animated.View style={[styles.timerBar, timerBarStyle]} />
+                </View>
+              )}
             </View>
             
             <Animated.View style={buttonAnimatedStyle}>
@@ -457,22 +559,28 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
                 fullWidth
                 loading={loading}
                 style={styles.verifyButton}
-                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                gradientColors={[Colors.primary.blue, Colors.primary[700]]}
                 animationType="bounce"
                 icon="arrow-right"
                 iconPosition="right"
+                round
               />
             </Animated.View>
           </Animated.View>
           
           {/* Helper text */}
           <Animated.View 
-            style={styles.helperContainer}
+            style={[styles.helperContainer, headerAnimatedStyle]}
             entering={FadeInUp.delay(800).duration(600)}
           >
-            <Text style={styles.helpText}>
-              Having trouble? <Text style={styles.helpLink}>Contact Support</Text>
-            </Text>
+            <TouchableOpacity 
+              activeOpacity={0.8}
+              style={styles.helpButtonContainer}
+            >
+              <Text style={styles.helpText}>
+                Having trouble? <Text style={styles.helpLink}>Contact Support</Text>
+              </Text>
+            </TouchableOpacity>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -483,7 +591,7 @@ const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light
+    backgroundColor: Colors.primary[700]
   },
   successOverlay: {
     ...StyleSheet.absoluteFillObject,
@@ -505,37 +613,43 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   stepText: {
     fontSize: Typography.sizes.body,
     color: Colors.neutrals.white,
-    fontWeight: Typography.weights.medium
+    fontWeight: Typography.weights.medium,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20
   },
   progressContainer: {
     marginBottom: Spacing.xl
   },
   progressBar: {
-    height: 4,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden'
   },
   progressIndicator: {
     height: '100%',
     backgroundColor: Colors.neutrals.white,
-    borderRadius: 2
+    borderRadius: 3
   },
   titleContainer: {
     marginBottom: Spacing.xl
   },
   title: {
-    fontSize: Typography.sizes.title,
+    fontSize: 32,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.white,
     marginBottom: Spacing.sm
@@ -555,11 +669,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: Spacing.xl,
     shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
-    marginBottom: Spacing.xl
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
+    marginBottom: Spacing.xl,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   otpInputsContainer: {
     flexDirection: 'row',
@@ -567,10 +683,10 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md
   },
   otpInputWrapper: {
-    width: 48,
-    height: 56,
-    borderRadius: 8,
-    borderWidth: 1,
+    width: 50,
+    height: 60,
+    borderRadius: 12,
+    borderWidth: 1.5,
     borderColor: Colors.neutrals.gray300,
     alignItems: 'center',
     justifyContent: 'center',
@@ -585,6 +701,10 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2
   },
+  otpInputWrapperFilled: {
+    backgroundColor: 'rgba(61, 90, 254, 0.05)',
+    borderColor: Colors.primary.blue
+  },
   otpInput: {
     width: '100%',
     height: '100%',
@@ -593,8 +713,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     color: Colors.neutrals.gray900
   },
+  otpInputFilled: {
+    color: Colors.primary.blue
+  },
   errorText: {
-    color: Colors.secondary.red,
+    color: Colors.error[500],
     fontSize: Typography.sizes.bodySmall,
     marginBottom: Spacing.md,
     textAlign: 'center'
@@ -605,30 +728,62 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.md,
     textAlign: 'center'
   },
+  timerSection: {
+    marginBottom: Spacing.xl
+  },
   timerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.xl
+    marginBottom: Spacing.sm
   },
   timerText: {
     fontSize: Typography.sizes.bodySmall,
     color: Colors.neutrals.gray600
   },
+  resendButton: {
+    marginLeft: Spacing.xs,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(61, 90, 254, 0.1)'
+  },
+  resendButtonDisabled: {
+    backgroundColor: 'transparent'
+  },
   resendText: {
     fontSize: Typography.sizes.bodySmall,
     fontWeight: Typography.weights.semibold,
-    color: Colors.primary.blue,
-    marginLeft: Spacing.xs
+    color: Colors.primary.blue
   },
   resendTextDisabled: {
     color: Colors.neutrals.gray400
+  },
+  timerBarContainer: {
+    height: 4,
+    backgroundColor: 'rgba(61, 90, 254, 0.2)',
+    borderRadius: 2,
+    overflow: 'hidden',
+    width: '80%',
+    alignSelf: 'center',
+    marginTop: Spacing.sm
+  },
+  timerBar: {
+    height: '100%',
+    backgroundColor: Colors.primary.blue,
+    borderRadius: 2
   },
   verifyButton: {
     height: 56
   },
   helperContainer: {
     alignItems: 'center'
+  },
+  helpButtonContainer: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 20
   },
   helpText: {
     fontSize: Typography.sizes.bodySmall,
@@ -638,6 +793,34 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.neutrals.white,
     textDecorationLine: 'underline'
+  },
+  // Decorative elements
+  decorationCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    top: -50,
+    right: -70
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    bottom: 80,
+    left: -70
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: 150,
+    right: -30
   }
 });
 

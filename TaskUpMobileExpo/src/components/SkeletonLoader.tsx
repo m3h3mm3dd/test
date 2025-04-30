@@ -9,7 +9,7 @@ import Animated, {
   Easing
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
-import Colors from '../../theme/Colors'
+import Colors from '../theme/Colors'
 
 interface SkeletonLoaderProps {
   width: number | string

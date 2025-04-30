@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -9,7 +10,8 @@ import {
   ScrollView,
   StatusBar,
   Image,
-  Keyboard
+  Keyboard,
+  Dimensions
 } from 'react-native';
 import Animated, {
   useSharedValue,
@@ -20,10 +22,11 @@ import Animated, {
   withDelay,
   runOnJS,
   interpolate,
+  interpolateColor,
+  Extrapolation,
   FadeIn,
   FadeInUp,
   FadeInDown,
-  SlideInDown,
   Easing
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -48,6 +51,8 @@ const PHOTO_OPTIONS = [
   { id: 'library', icon: 'image', label: 'Photo Library' },
   { id: 'remove', icon: 'trash-2', label: 'Remove Photo', destructive: true }
 ];
+
+const { width, height } = Dimensions.get('window');
 
 type SignUpStep3Props = {
   route: any;
@@ -79,12 +84,17 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
   // Animation values
   const progressWidth = useSharedValue(100);
   const formScale = useSharedValue(1);
-  const formPosition = useSharedValue(0);
+  const formOpacity = useSharedValue(0);
+  const formPosition = useSharedValue(50);
+  const headerOpacity = useSharedValue(0);
   const photoOptionsHeight = useSharedValue(0);
   const photoOptionsOpacity = useSharedValue(0);
   const confettiOpacity = useSharedValue(0);
   const confettiScale = useSharedValue(0);
   const buttonScale = useSharedValue(1);
+  const backgroundPosition = useSharedValue(0);
+  const avatarScale = useSharedValue(0.8);
+  const avatarOpacity = useSharedValue(0);
   
   // Keyboard listeners to adjust scroll when keyboard appears/disappears
   useEffect(() => {
@@ -92,7 +102,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
       'keyboardDidShow',
       () => {
         if (scrollViewRef.current) {
-          scrollViewRef.current.scrollTo({ y: 100, animated: true });
+          scrollViewRef.current.scrollTo({ y: 120, animated: true });
         }
       }
     );
@@ -112,15 +122,32 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
     };
   }, []);
   
-  // Setup status bar
+  // Initialize animations
   useEffect(() => {
     StatusBar.setBarStyle('light-content');
     
-    // Start form entrance animation
-    formPosition.value = withTiming(0, {
-      duration: 800,
-      easing: Easing.out(Easing.cubic)
+    // Animate background
+    backgroundPosition.value = withTiming(1, { 
+      duration: 2000, 
+      easing: Easing.out(Easing.exp) 
     });
+    
+    // Animate header elements
+    headerOpacity.value = withTiming(1, { duration: 600 });
+    
+    // Animate form with spring for natural motion
+    formOpacity.value = withTiming(1, { duration: 600 });
+    formPosition.value = withSpring(0, {
+      damping: 14,
+      stiffness: 100
+    });
+    
+    // Animate avatar entrance
+    avatarScale.value = withSequence(
+      withDelay(500, withTiming(1.1, { duration: 400 })),
+      withTiming(1, { duration: 200 })
+    );
+    avatarOpacity.value = withDelay(500, withTiming(1, { duration: 400 }));
     
     return () => {
       StatusBar.setBarStyle('dark-content');
@@ -151,6 +178,12 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
     
     // Hide photo options
     togglePhotoOptions();
+    
+    // Animate avatar selection
+    avatarScale.value = withSequence(
+      withTiming(0.9, { duration: 150 }),
+      withSpring(1, { damping: 12, stiffness: 200 })
+    );
     
     // Handle option selection
     switch (option.id) {
@@ -213,7 +246,9 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
       // Shake form on validation error
       formScale.value = withSequence(
         withTiming(0.98, { duration: 100 }),
-        withTiming(1, { duration: 100 })
+        withTiming(1.01, { duration: 100 }),
+        withTiming(0.99, { duration: 100 }),
+        withSpring(1, { damping: 12 })
       );
       
       triggerImpact(Haptics.NotificationFeedbackType.Error);
@@ -223,7 +258,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
     // Animate button press
     buttonScale.value = withSequence(
       withTiming(0.95, { duration: 100 }),
-      withTiming(1, { duration: 100 })
+      withSpring(1, { damping: 12, stiffness: 200 })
     );
     
     // Show loading state
@@ -263,10 +298,34 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
   // Go back to previous step
   const handleBack = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.goBack();
+    
+    // Animate exit
+    formOpacity.value = withTiming(0, { duration: 300 });
+    headerOpacity.value = withTiming(0, { duration: 300 });
+    
+    setTimeout(() => {
+      navigation.goBack();
+    }, 300);
   };
   
   // Animated styles
+  const backgroundStyle = useAnimatedStyle(() => {
+    const translateX = interpolate(
+      backgroundPosition.value,
+      [0, 1],
+      [-width * 0.3, 0],
+      Extrapolation.CLAMP
+    );
+    
+    return {
+      transform: [{ translateX }]
+    };
+  });
+  
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    return { opacity: headerOpacity.value };
+  });
+  
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
@@ -275,6 +334,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
   
   const formAnimatedStyle = useAnimatedStyle(() => {
     return {
+      opacity: formOpacity.value,
       transform: [
         { scale: formScale.value },
         { translateY: formPosition.value }
@@ -304,26 +364,60 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
       transform: [{ scale: buttonScale.value }]
     };
   });
+  
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: avatarOpacity.value,
+      transform: [{ scale: avatarScale.value }]
+    };
+  });
 
   return (
     <View style={styles.container}>
-      {/* Background gradient */}
-      <LinearGradient
-        colors={[Colors.primary.darkBlue, Colors.primary.blue]}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
+      {/* Background gradient with animation */}
+      <Animated.View style={[StyleSheet.absoluteFill, backgroundStyle]}>
+        <LinearGradient
+          colors={[Colors.primary[800], Colors.primary[600], Colors.primary.blue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+      </Animated.View>
+      
+      {/* Background decoration */}
+      <View style={styles.decorationCircle1} />
+      <View style={styles.decorationCircle2} />
+      <View style={styles.decorationCircle3} />
       
       {/* Success confetti animation */}
       <Animated.View style={[styles.confettiContainer, confettiAnimatedStyle]}>
-        <View style={styles.confettiSuccess}>
-          <View style={styles.successIconCircle}>
-            <Feather name="check" size={60} color="#fff" />
-          </View>
-          <Text style={styles.successText}>Account Created!</Text>
-          <Text style={styles.successSubText}>Redirecting to dashboard...</Text>
+        <LinearGradient
+          colors={[Colors.primary[700], Colors.primary[500]]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+        />
+        
+        {/* Confetti particles */}
+        <View style={styles.confettiParticle1} />
+        <View style={styles.confettiParticle2} />
+        <View style={styles.confettiParticle3} />
+        <View style={styles.confettiParticle4} />
+        <View style={styles.confettiParticle5} />
+        <View style={styles.confettiParticle6} />
+        
+        <View style={styles.successIconCircle}>
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            borderRadius={60}
+          />
+          <Feather name="check" size={60} color="#fff" />
         </View>
+        <Text style={styles.successText}>Account Created!</Text>
+        <Text style={styles.successSubText}>Redirecting to dashboard...</Text>
       </Animated.View>
       
       <KeyboardAvoidingView
@@ -339,11 +433,12 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
           showsVerticalScrollIndicator={false}
         >
           {/* Header with back button */}
-          <View style={styles.header}>
+          <Animated.View style={[styles.header, headerAnimatedStyle]}>
             <TouchableOpacity 
               onPress={handleBack}
               style={styles.backButton}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              activeOpacity={0.8}
             >
               <Feather name="arrow-left" size={24} color="#fff" />
             </TouchableOpacity>
@@ -354,11 +449,11 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
             >
               Step 3 of 3
             </Animated.Text>
-          </View>
+          </Animated.View>
           
           {/* Progress indicator */}
           <Animated.View 
-            style={styles.progressContainer}
+            style={[styles.progressContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(400).duration(600)}
           >
             <View style={styles.progressBar}>
@@ -370,7 +465,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
           
           {/* Title */}
           <Animated.View 
-            style={styles.titleContainer}
+            style={[styles.titleContainer, headerAnimatedStyle]}
             entering={FadeInDown.delay(500).duration(600)}
           >
             <Text style={styles.title}>Complete Your Profile</Text>
@@ -385,7 +480,9 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
             entering={FadeInUp.delay(600).duration(800)}
           >
             {/* Avatar picker */}
-            <View style={styles.avatarContainer}>
+            <Animated.View 
+              style={[styles.avatarContainer, avatarAnimatedStyle]}
+            >
               <TouchableOpacity 
                 style={styles.avatarWrapper}
                 onPress={togglePhotoOptions}
@@ -398,11 +495,25 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
                   />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
-                    <Feather name="user" size={40} color={Colors.neutrals.gray400} />
+                    <LinearGradient
+                      colors={['rgba(61, 90, 254, 0.1)', 'rgba(61, 90, 254, 0.05)']}
+                      style={StyleSheet.absoluteFill}
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      borderRadius={50}
+                    />
+                    <Feather name="user" size={40} color={Colors.primary.blue} />
                   </View>
                 )}
                 
                 <View style={styles.avatarEditButton}>
+                  <LinearGradient
+                    colors={[Colors.primary.blue, Colors.primary[600]]}
+                    style={StyleSheet.absoluteFill}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    borderRadius={16}
+                  />
                   <Feather name="camera" size={14} color="#fff" />
                 </View>
               </TouchableOpacity>
@@ -410,7 +521,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
               <Text style={styles.avatarHelperText}>
                 Upload Profile Photo
               </Text>
-            </View>
+            </Animated.View>
             
             {/* Avatar picker options */}
             {showPhotoOptions && (
@@ -420,6 +531,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
                     key={option.id}
                     style={styles.photoOption}
                     onPress={() => handlePhotoOption(option)}
+                    activeOpacity={0.7}
                   >
                     <View 
                       style={[
@@ -430,7 +542,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
                       <Feather 
                         name={option.icon} 
                         size={18} 
-                        color={option.destructive ? Colors.secondary.red : Colors.primary.blue} 
+                        color={option.destructive ? Colors.error[500] : Colors.primary.blue} 
                       />
                     </View>
                     
@@ -458,6 +570,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
               placeholder="John Doe"
               leftIcon="user"
               error={nameError}
+              animateSuccess={fullName.length > 2}
             />
             
             <Input
@@ -470,6 +583,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
               placeholder="johndoe"
               leftIcon="at-sign"
               error={usernameError}
+              animateSuccess={username.length > 3}
             />
             
             <Input
@@ -478,11 +592,15 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
               onChangeText={(text) => {
                 setPassword(text);
                 if (passwordError) setPasswordError('');
+                if (confirmPassword && confirmPasswordError && text === confirmPassword) {
+                  setConfirmPasswordError('');
+                }
               }}
               placeholder="Create a strong password"
               secureTextEntry
               leftIcon="lock"
               error={passwordError}
+              animateSuccess={password.length >= 8}
             />
             
             <Input
@@ -496,6 +614,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
               secureTextEntry
               leftIcon="lock"
               error={confirmPasswordError}
+              animateSuccess={confirmPassword.length > 0 && confirmPassword === password}
             />
             
             <Text style={styles.privacyText}>
@@ -512,10 +631,11 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
                 fullWidth
                 loading={loading}
                 style={styles.submitButton}
-                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                gradientColors={[Colors.primary.blue, Colors.primary[700]]}
                 animationType="bounce"
                 icon="check"
                 iconPosition="right"
+                round
               />
             </Animated.View>
           </Animated.View>
@@ -545,7 +665,7 @@ const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background.light
+    backgroundColor: Colors.primary[700]
   },
   keyboardAvoidingView: {
     flex: 1
@@ -561,37 +681,43 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.lg
   },
   backButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   stepText: {
     fontSize: Typography.sizes.body,
     color: Colors.neutrals.white,
-    fontWeight: Typography.weights.medium
+    fontWeight: Typography.weights.medium,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20
   },
   progressContainer: {
     marginBottom: Spacing.xl
   },
   progressBar: {
-    height: 4,
+    height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.3)',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden'
   },
   progressIndicator: {
     height: '100%',
     backgroundColor: Colors.neutrals.white,
-    borderRadius: 2
+    borderRadius: 3
   },
   titleContainer: {
     marginBottom: Spacing.xl
   },
   title: {
-    fontSize: Typography.sizes.title,
+    fontSize: 32,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.white,
     marginBottom: Spacing.xs
@@ -606,12 +732,13 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     padding: Spacing.xl,
     shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 10,
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    elevation: 12,
     marginBottom: Spacing.xl,
-    transform: [{ translateY: 50 }]
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.1)'
   },
   avatarContainer: {
     alignItems: 'center',
@@ -633,12 +760,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 50,
-    backgroundColor: Colors.neutrals.gray100,
+    backgroundColor: Colors.neutrals.white,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: Colors.neutrals.gray300,
-    borderStyle: 'dashed'
+    borderColor: Colors.primary.blue,
+    overflow: 'hidden'
   },
   avatarEditButton: {
     position: 'absolute',
@@ -647,11 +774,11 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: Colors.primary.blue,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: Colors.neutrals.white
+    borderColor: Colors.neutrals.white,
+    overflow: 'hidden'
   },
   avatarHelperText: {
     fontSize: Typography.sizes.bodySmall,
@@ -660,8 +787,13 @@ const styles = StyleSheet.create({
   photoOptionsContainer: {
     marginBottom: Spacing.xl,
     borderRadius: 16,
-    backgroundColor: Colors.neutrals.gray50,
-    overflow: 'hidden'
+    backgroundColor: Colors.neutrals.white,
+    overflow: 'hidden',
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4
   },
   photoOption: {
     flexDirection: 'row',
@@ -687,7 +819,7 @@ const styles = StyleSheet.create({
     color: Colors.neutrals.gray900
   },
   photoOptionLabelDestructive: {
-    color: Colors.secondary.red
+    color: Colors.error[500]
   },
   privacyText: {
     fontSize: Typography.sizes.bodySmall,
@@ -715,20 +847,76 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(61, 90, 254, 0.9)',
-    zIndex: 10
+    zIndex: 10,
+    overflow: 'hidden'
   },
-  confettiSuccess: {
-    alignItems: 'center'
+  confettiParticle1: {
+    position: 'absolute',
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: Colors.primary[300],
+    top: '30%',
+    left: '20%',
+    transform: [{ rotate: '45deg' }]
+  },
+  confettiParticle2: {
+    position: 'absolute',
+    width: 30,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: Colors.secondary.green,
+    top: '40%',
+    right: '30%'
+  },
+  confettiParticle3: {
+    position: 'absolute',
+    width: 15,
+    height: 15,
+    borderRadius: 15,
+    backgroundColor: Colors.secondary.yellow,
+    bottom: '35%',
+    left: '35%'
+  },
+  confettiParticle4: {
+    position: 'absolute',
+    width: 25,
+    height: 25,
+    borderRadius: 4,
+    backgroundColor: Colors.primary[400],
+    bottom: '45%',
+    right: '25%',
+    transform: [{ rotate: '30deg' }]
+  },
+  confettiParticle5: {
+    position: 'absolute',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: Colors.secondary.red,
+    top: '25%',
+    right: '40%'
+  },
+  confettiParticle6: {
+    position: 'absolute',
+    width: 22,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.secondary.purple,
+    top: '50%',
+    left: '30%',
+    transform: [{ rotate: '20deg' }]
   },
   successIconCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.lg
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    overflow: 'hidden'
   },
   successText: {
     fontSize: 28,
@@ -739,6 +927,34 @@ const styles = StyleSheet.create({
   successSubText: {
     fontSize: Typography.sizes.body,
     color: 'rgba(255, 255, 255, 0.8)'
+  },
+  // Decorative elements
+  decorationCircle1: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    top: -50,
+    right: -70
+  },
+  decorationCircle2: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    bottom: 80,
+    left: -70
+  },
+  decorationCircle3: {
+    position: 'absolute',
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    top: 150,
+    right: -30
   }
 });
 
