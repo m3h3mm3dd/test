@@ -1,21 +1,36 @@
-import React, { useState, useEffect } from 'react'
-import { StyleSheet, Text, View, SafeAreaView, StatusBar, FlatList, TouchableOpacity } from 'react-native'
-import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  Text,
+  View,
+  SafeAreaView,
+  StatusBar,
+  FlatList,
+  TouchableOpacity
+} from 'react-native';
+import Animated, { FadeInUp, FadeInDown } from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import Spacing from '../theme/Spacing'
-import ListItem from '../components/ListItem/ListItem'
-import PrimaryButton from '../components/Button/PrimaryButton'
-import SkeletonLoader from '../components/Skeleton/SkeletonLoader'
-import { triggerImpact } from '../utils/HapticUtils'
+import { LinearGradient } from 'expo-linear-gradient';
 
-const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView)
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import Spacing from '../theme/Spacing';
 
-const HomeScreen = ({ navigation }) => {
-  const [loading, setLoading] = useState(true)
-  const [tasks, setTasks] = useState([])
+import ListItem from '../components/ListItem/ListItem';
+import Button from '../components/Button/Button'; // ✅ fixed import
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader';
+import { triggerImpact } from '../utils/HapticUtils';
+import { useTheme } from '../theme/ThemeProvider';
+
+const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
+
+const HomeScreen = () => {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [tasks, setTasks] = useState([]);
 
   useEffect(() => {
     // Simulate data loading
@@ -24,25 +39,25 @@ const HomeScreen = ({ navigation }) => {
         { id: '1', title: 'Complete mobile design', status: 'in-progress', dueDate: '2025-05-10' },
         { id: '2', title: 'Review project proposal', status: 'pending', dueDate: '2025-05-12' },
         { id: '3', title: 'Team meeting', status: 'completed', dueDate: '2025-05-08' }
-      ])
-      setLoading(false)
-    }, 1500)
+      ]);
+      setLoading(false);
+    }, 1500);
 
-    return () => clearTimeout(timer)
-  }, [])
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleTaskPress = (taskId) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('TaskScreen', { taskId })
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('TaskDetailsScreen', { taskId });
+  };
 
   const handleAddTask = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('TaskScreen', { isNew: true })
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('TaskScreen', { isNew: true });
+  };
 
   const renderTaskItem = ({ item }) => (
-    <Animated.View entering={FadeInUp.delay(parseInt(item.id) * 100)}>
+    <Animated.View entering={FadeInUp.delay(parseInt(item.id) * 100).duration(300)}>
       <ListItem
         title={item.title}
         subtitle={`Due: ${item.dueDate}`}
@@ -50,26 +65,39 @@ const HomeScreen = ({ navigation }) => {
         rightIcon={<StatusDot status={item.status} />}
       />
     </Animated.View>
-  )
+  );
 
   const renderSkeletons = () => (
     <>
       {[1, 2, 3].map((i) => (
         <View key={i} style={styles.skeletonContainer}>
           <SkeletonLoader width={'70%'} height={24} borderRadius={4} />
-          <SkeletonLoader width={'40%'} height={16} borderRadius={4} style={styles.skeletonSubtitle} />
+          <SkeletonLoader
+            width={'40%'}
+            height={16}
+            borderRadius={4}
+            style={styles.skeletonSubtitle}
+          />
         </View>
       ))}
     </>
-  )
+  );
 
   return (
-    <AnimatedSafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
-      
-      <Animated.View style={styles.header}>
-        <Text style={styles.title}>TaskUp</Text>
-        <Text style={styles.subtitle}>Your daily tasks</Text>
+    <AnimatedSafeAreaView
+      style={[styles.container, { backgroundColor: theme.background.primary }]}
+      entering={FadeInDown.duration(400)}
+    >
+      <StatusBar
+        barStyle={theme.isDark ? 'light-content' : 'dark-content'}
+        backgroundColor={theme.background.primary}
+      />
+
+      <Animated.View style={styles.header} entering={FadeInDown.delay(100).duration(400)}>
+        <Text style={[styles.title, { color: theme.text.primary }]}>TaskUp</Text>
+        <Text style={[styles.subtitle, { color: theme.text.secondary }]}>
+          Your daily tasks
+        </Text>
       </Animated.View>
 
       <View style={styles.content}>
@@ -79,48 +107,48 @@ const HomeScreen = ({ navigation }) => {
           <FlatList
             data={tasks}
             renderItem={renderTaskItem}
-            keyExtractor={item => item.id}
+            keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
           />
         )}
       </View>
 
-      <Animated.View style={styles.footer}>
-        <PrimaryButton
+      <Animated.View style={styles.footer} entering={FadeInUp.delay(300).duration(400)}>
+        <Button
           title="Add New Task"
           onPress={handleAddTask}
           fullWidth
+          icon="plus"
         />
       </Animated.View>
     </AnimatedSafeAreaView>
-  )
-}
+  );
+};
 
 // Helper component for task status
 const StatusDot = ({ status }) => {
+  const { theme } = useTheme();
+
   const getColor = () => {
     switch (status) {
       case 'completed':
-        return Colors.success
+        return theme.status.success;
       case 'in-progress':
-        return Colors.primary.blue
+        return theme.primary.main;
       case 'pending':
-        return Colors.warning
+        return theme.status.warning;
       default:
-        return Colors.neutrals.gray400
+        return theme.neutrals.gray400;
     }
-  }
+  };
 
-  return (
-    <View style={[styles.statusDot, { backgroundColor: getColor() }]} />
-  )
-}
+  return <View style={[styles.statusDot, { backgroundColor: getColor() }]} />;
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background.light
+    flex: 1
   },
   header: {
     padding: Spacing.lg,
@@ -128,12 +156,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.gray900
+    fontWeight: Typography.weights.bold
   },
   subtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray600,
     marginTop: Spacing.xs
   },
   content: {
@@ -162,6 +188,6 @@ const styles = StyleSheet.create({
   skeletonSubtitle: {
     marginTop: Spacing.sm
   }
-})
+});
 
-export default HomeScreen
+export default HomeScreen;

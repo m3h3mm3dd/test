@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { StyleSheet, View, Text, TouchableOpacity, Pressable } from 'react-native'
+import { StyleSheet, View, Text, Pressable } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -31,7 +31,7 @@ interface AvatarStackProps {
 }
 
 const AvatarStack = ({
-  users,
+  users = [],
   maxDisplay = 3,
   size = 36,
   onPress,
@@ -55,19 +55,19 @@ const AvatarStack = ({
   }
   
   const displayedUsers = users.slice(0, expanded ? users.length : maxDisplay)
-  const remainingCount = users.length - maxDisplay
+  const remainingCount = Math.max(0, users.length - maxDisplay)
   const showMoreIndicator = !expanded && users.length > maxDisplay
   
   // Calculate overlap to determine spacing
   const overlapPercentage = 0.35
   const avatarOffset = size * (1 - overlapPercentage)
-  const stackWidth = (users.length - 1) * avatarOffset + size
+  const stackWidth = users.length > 0 ? (users.length - 1) * avatarOffset + size : size
   
   const containerStyle = useAnimatedStyle(() => {
     const width = interpolate(
       animationProgress.value,
       [0, 1],
-      [avatarOffset * Math.min(users.length - 1, maxDisplay - 1) + size, stackWidth],
+      [avatarOffset * Math.min(Math.max(users.length - 1, 0), maxDisplay - 1) + size, stackWidth],
       Extrapolation.CLAMP
     )
     
@@ -76,8 +76,12 @@ const AvatarStack = ({
     }
   })
 
+  if (users.length === 0) {
+    return null
+  }
+
   return (
-    <Pressable onPress={handlePress}>
+    <Pressable onPress={handlePress} accessibilityRole="button" accessibilityLabel={`${users.length} users assigned`}>
       <Animated.View style={[styles.container, containerStyle]}>
         {displayedUsers.map((user, index) => {
           const animatedStyle = useAnimatedStyle(() => {

@@ -18,8 +18,8 @@ import Animated, {
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
+import Colors from '../theme/Colors'
+import Typography from '../theme/Typography'
 
 type StatusType = 'success' | 'warning' | 'error' | 'info' | 'pending' | 'in-progress' | 'completed' | 'default'
 
@@ -195,6 +195,9 @@ const StatusPill = ({
         animatedStyle,
         style
       ]}
+      accessible={true}
+      accessibilityRole="text"
+      accessibilityLabel={`${label} status`}
     >
       {icon && (
         <Feather 

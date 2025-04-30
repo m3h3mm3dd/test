@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -8,8 +8,10 @@ import {
   StatusBar,
   Dimensions,
   RefreshControl,
-  ActivityIndicator
-} from 'react-native'
+  ActivityIndicator,
+  TextInput,
+  ScrollView
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -18,81 +20,183 @@ import Animated, {
   withSequence,
   FadeIn,
   FadeInDown,
-  Layout
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import { SharedElement } from 'react-navigation-shared-element'
-import * as Haptics from 'expo-haptics'
+  SlideInRight,
+  Layout,
+  interpolate,
+  Extrapolation
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { SharedElement } from 'react-navigation-shared-element';
+import * as Haptics from 'expo-haptics';
+import { useNavigation } from '@react-navigation/native';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import Spacing from '../theme/Spacing'
-import Card from '../components/Card'
-import FAB from '../components/FAB'
-import SegmentedControl from '../components/Controls/SegmentedControl'
-import AvatarStack from '../components/Avatar/AvatarStack'
-import SkeletonLoader from '../components/SkeletonLoader'
-import { triggerImpact } from '../utils/HapticUtils'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import Spacing from '../theme/Spacing';
+import Card from '../components/Card';
+import FAB from '../components/FAB';
+import SegmentedControl from '../components/Controls/SegmentedControl';
+import AvatarStack from '../components/Avatar/AvatarStack';
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader';
+import { triggerImpact } from '../utils/HapticUtils';
+import { useTheme } from '../hooks/useTheme';
 
-const { width } = Dimensions.get('window')
-const AnimatedFlatList = Animated.createAnimatedComponent(FlatList)
+const { width } = Dimensions.get('window');
+const AnimatedFlatList = Animated.createAnimatedComponent(FlatList);
 
 // Project data structure
 interface Project {
-  id: string
-  title: string
-  description: string
-  tasksTotal: number
-  tasksCompleted: number
-  progress: number
-  dueDate: string
-  team: Array<{ id: string, name: string, imageUrl?: string | null }>
-  color: string
-  icon: keyof typeof Feather.glyphMap
+  id: string;
+  title: string;
+  description: string;
+  tasksTotal: number;
+  tasksCompleted: number;
+  progress: number;
+  dueDate: string;
+  team: Array<{ id: string, name: string, imageUrl?: string | null }>;
+  color: string;
+  icon: keyof typeof Feather.glyphMap;
 }
 
 // Project view mode
-type ViewMode = 'grid' | 'list'
+type ViewMode = 'grid' | 'list' | 'board';
 
 // Filters options
 const FILTER_OPTIONS = [
   { id: 'all', label: 'All Projects' },
   { id: 'active', label: 'Active' },
   { id: 'completed', label: 'Completed' }
-]
+];
 
-const ProjectsListScreen = ({ navigation }) => {
-  const insets = useSafeAreaInsets()
+// Priority filter options
+const PRIORITY_OPTIONS = [
+  { value: 'all', label: 'All Priorities' },
+  { value: 'high', label: 'High Priority' },
+  { value: 'medium', label: 'Medium Priority' },
+  { value: 'low', label: 'Low Priority' }
+];
+
+// Sort options
+const SORT_OPTIONS = [
+  { value: 'dueDate', label: 'Due Date' },
+  { value: 'priority', label: 'Priority' },
+  { value: 'status', label: 'Status' },
+  { value: 'title', label: 'Title' }
+];
+
+const ProjectsListScreen = () => {
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   
   // State
-  const [loading, setLoading] = useState(true)
-  const [refreshing, setRefreshing] = useState(false)
-  const [projects, setProjects] = useState<Project[]>([])
-  const [viewMode, setViewMode] = useState<ViewMode>('grid')
-  const [activeFilter, setActiveFilter] = useState('all')
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([]);
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [searchText, setSearchText] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
+  const [priorityFilter, setPriorityFilter] = useState('all');
+  const [projectFilter, setProjectFilter] = useState('all');
+  const [sortBy, setSortBy] = useState('dueDate');
+  const [showFilters, setShowFilters] = useState(false);
+  
+  // Refs
+  const searchInputRef = useRef(null);
   
   // Animation values
-  const headerHeight = useSharedValue(150)
-  const scrollY = useSharedValue(0)
-  const fabScale = useSharedValue(1)
+  const headerHeight = useSharedValue(150);
+  const scrollY = useSharedValue(0);
+  const searchHeight = useSharedValue(0);
+  const filtersHeight = useSharedValue(0);
+  const fabScale = useSharedValue(1);
   
   // Load projects data
   useEffect(() => {
-    fetchProjects()
-  }, [])
+    fetchProjects();
+  }, []);
   
-  // Simulated API call to fetch projects
-  const fetchProjects = async (showRefresh = false) => {
-    if (showRefresh) {
-      setRefreshing(true)
+  // Filter projects when filters change
+  useEffect(() => {
+    if (projects.length > 0) {
+      applyFilters();
+    }
+  }, [projects, searchText, activeFilter, priorityFilter, projectFilter, sortBy]);
+
+  // Toggle search input
+  const toggleSearch = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    
+    if (showSearch) {
+      // Hide search
+      searchHeight.value = withTiming(0, { duration: 300 });
+      
+      // Reset search
+      setSearchText('');
+      
+      // Set flag after animation
+      setTimeout(() => {
+        setShowSearch(false);
+      }, 300);
     } else {
-      setLoading(true)
+      // Show search
+      setShowSearch(true);
+      
+      // Animate search height
+      searchHeight.value = withTiming(60, { duration: 300 });
+      
+      // Focus input after animation
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 300);
+    }
+  };
+  
+  // Toggle filters
+  const toggleFilters = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    
+    setShowFilters(!showFilters);
+    
+    if (showFilters) {
+      filtersHeight.value = withTiming(0, { duration: 300 });
+    } else {
+      filtersHeight.value = withTiming(200, { duration: 300 });
+    }
+  };
+  
+  // Toggle view mode
+  const toggleViewMode = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    
+    // Cycle through view modes: grid -> list -> board -> grid
+    setViewMode(prev => {
+      if (prev === 'grid') return 'list';
+      if (prev === 'list') return 'board';
+      return 'grid';
+    });
+    
+    // Animate FAB
+    fabScale.value = withSequence(
+      withTiming(0.8, { duration: 100 }),
+      withSpring(1, { damping: 15 })
+    );
+  };
+
+  // Simulated API call to fetch projects
+  const fetchProjects = async (showRefreshing = false) => {
+    if (showRefreshing) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
     }
     
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1500))
+    await new Promise(resolve => setTimeout(resolve, 1500));
     
     // Sample data
     const projectsData: Project[] = [
@@ -188,82 +292,171 @@ const ProjectsListScreen = ({ navigation }) => {
         color: '#607D8B',
         icon: 'users'
       }
-    ]
+    ];
     
-    setProjects(projectsData)
-    setLoading(false)
-    setRefreshing(false)
-  }
+    // Extract projects from tasks for filtering
+    const uniqueProjects = Array.from(new Set(projectsData.map(project => project.id)))
+      .map(id => {
+        const project = projectsData.find(p => p.id === id);
+        return {
+          id,
+          name: project?.title || 'Unknown Project',
+          color: project?.color || theme.neutrals.gray500
+        };
+      });
+    
+    setProjects(projectsData);
+    setFilteredProjects(projectsData);
+    
+    // Update loading state
+    setLoading(false);
+    setRefreshing(false);
+  };
   
-  // Filter projects based on active filter
-  const filteredProjects = () => {
-    if (activeFilter === 'all') {
-      return projects
-    } else if (activeFilter === 'active') {
-      return projects.filter(p => p.progress < 1)
-    } else {
-      return projects.filter(p => p.progress === 1)
+  // Apply filters to projects
+  const applyFilters = () => {
+    let filtered = [...projects];
+    
+    // Apply search filter
+    if (searchText) {
+      const searchLower = searchText.toLowerCase();
+      filtered = filtered.filter(project => 
+        project.title.toLowerCase().includes(searchLower) || 
+        project.description?.toLowerCase().includes(searchLower)
+      );
     }
-  }
+    
+    // Apply status filter
+    if (activeFilter !== 'all') {
+      if (activeFilter === 'active') {
+        filtered = filtered.filter(project => project.progress < 1);
+      } else if (activeFilter === 'completed') {
+        filtered = filtered.filter(project => project.progress === 1);
+      }
+    }
+    
+    // Apply priority filter (mock implementation)
+    if (priorityFilter !== 'all') {
+      // This would be based on a real priority field
+      filtered = filtered.filter((_, index) => {
+        if (priorityFilter === 'high') return index % 3 === 0;
+        if (priorityFilter === 'medium') return index % 3 === 1;
+        if (priorityFilter === 'low') return index % 3 === 2;
+        return true;
+      });
+    }
+    
+    // Apply project filter
+    if (projectFilter !== 'all') {
+      filtered = filtered.filter(project => project.id === projectFilter);
+    }
+    
+    // Apply sorting
+    filtered = sortProjects(filtered, sortBy);
+    
+    setFilteredProjects(filtered);
+  };
+  
+  // Sort projects based on selected sort option
+  const sortProjects = (projectList: Project[], sortOption: string) => {
+    const sorted = [...projectList];
+    
+    switch (sortOption) {
+      case 'dueDate':
+        return sorted.sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+      
+      case 'priority':
+        // Mock priority sorting - would use actual priority field
+        return sorted.sort((a, b) => {
+          const getPriority = (project: Project) => {
+            const id = parseInt(project.id);
+            return id % 3; // 0 = high, 1 = medium, 2 = low
+          };
+          return getPriority(a) - getPriority(b);
+        });
+      
+      case 'status':
+        // Sort by completion percentage
+        return sorted.sort((a, b) => b.progress - a.progress);
+      
+      case 'title':
+        return sorted.sort((a, b) => a.title.localeCompare(b.title));
+      
+      default:
+        return sorted;
+    }
+  };
   
   // Handle refresh
   const handleRefresh = () => {
-    fetchProjects(true)
-  }
-  
-  // Toggle view mode between grid and list
-  const toggleViewMode = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    
-    setViewMode(prev => (prev === 'grid' ? 'list' : 'grid'))
-    
-    // Animate FAB
-    fabScale.value = withSequence(
-      withTiming(0.8, { duration: 100 }),
-      withSpring(1, { damping: 15 })
-    )
-  }
+    fetchProjects(true);
+  };
   
   // Navigate to project details
   const handleProjectPress = (project: Project) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('ProjectDetails', { projectId: project.id })
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('ProjectDetailsScreen', { projectId: project.id });
+  };
   
   // Handle create new project
   const handleCreateProject = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    // Navigate to create project screen (not implemented in this example)
-    console.log('Create project')
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('NewProjectScreen');
+  };
   
   // Handle scroll for collapsing header
   const handleScroll = (event) => {
-    const scrollOffset = event.nativeEvent.contentOffset.y
-    scrollY.value = scrollOffset
+    const scrollOffset = event.nativeEvent.contentOffset.y;
+    scrollY.value = scrollOffset;
     
     // Collapse header on scroll
-    const newHeight = Math.max(80, 150 - scrollOffset)
-    headerHeight.value = withTiming(newHeight, { duration: 100 })
-  }
+    const newHeight = Math.max(80, 150 - scrollOffset);
+    headerHeight.value = withTiming(newHeight, { duration: 100 });
+  };
   
   // Animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       height: headerHeight.value
-    }
-  })
+    };
+  });
   
   const titleOpacityStyle = useAnimatedStyle(() => {
-    const opacity = withTiming(headerHeight.value > 100 ? 1 : 0, { duration: 200 })
-    return { opacity }
-  })
+    const opacity = withTiming(headerHeight.value > 100 ? 1 : 0, { duration: 200 });
+    return { opacity };
+  });
+  
+  const searchAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      height: searchHeight.value,
+      opacity: interpolate(
+        searchHeight.value, 
+        [0, 30, 60], 
+        [0, 0.7, 1],
+        Extrapolation.CLAMP
+      ),
+      overflow: searchHeight.value > 0 ? 'visible' : 'hidden'
+    };
+  });
+  
+  const filtersAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      height: filtersHeight.value,
+      opacity: interpolate(
+        filtersHeight.value, 
+        [0, 80, 200], 
+        [0, 0.7, 1],
+        Extrapolation.CLAMP
+      ),
+      overflow: filtersHeight.value > 0 ? 'visible' : 'hidden'
+    };
+  });
   
   const fabAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: fabScale.value }]
-    }
-  })
+    };
+  });
   
   // Render list skeleton loaders
   const renderSkeletons = () => (
@@ -291,7 +484,7 @@ const ProjectsListScreen = ({ navigation }) => {
         </View>
       )}
     </View>
-  )
+  );
   
   // Render grid item
   const renderGridItem = ({ item, index }: { item: Project, index: number }) => (
@@ -352,7 +545,7 @@ const ProjectsListScreen = ({ navigation }) => {
         </View>
       </Card>
     </Animated.View>
-  )
+  );
   
   // Render list item
   const renderListItem = ({ item, index }: { item: Project, index: number }) => (
@@ -417,61 +610,356 @@ const ProjectsListScreen = ({ navigation }) => {
               size={24}
             />
             
-            <Feather name="chevron-right" size={18} color={Colors.neutrals.gray500} />
+            <Feather name="chevron-right" size={18} color={theme.neutrals.gray500} />
           </View>
         </View>
       </Card>
     </Animated.View>
-  )
+  );
+
+  // Render board view
+  const renderBoardView = () => {
+    // Group projects by status (completed vs active)
+    const activeProjects = filteredProjects.filter(p => p.progress < 1);
+    const completedProjects = filteredProjects.filter(p => p.progress === 1);
+    
+    return (
+      <ScrollView
+        horizontal
+        contentContainerStyle={styles.boardContent}
+        showsHorizontalScrollIndicator={false}
+      >
+        {/* Active Projects Column */}
+        <View style={styles.boardColumn}>
+          <View style={styles.boardColumnHeader}>
+            <View style={[styles.boardColumnDot, { backgroundColor: theme.status.success }]} />
+            <Text style={[styles.boardColumnTitle, { color: theme.text.primary }]}>Active</Text>
+            <Text style={styles.boardColumnCount}>{activeProjects.length}</Text>
+          </View>
+          
+          <FlatList
+            data={activeProjects}
+            keyExtractor={item => item.id}
+            renderItem={({ item, index }) => renderBoardCard({ item, index })}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false} // Parent scroll handles this
+            contentContainerStyle={{ gap: 12 }}
+            ListEmptyComponent={
+              <View style={styles.boardEmptyState}>
+                <Text style={[styles.boardEmptyText, { color: theme.text.secondary }]}>No active projects</Text>
+              </View>
+            }
+          />
+        </View>
+        
+        {/* Completed Projects Column */}
+        <View style={styles.boardColumn}>
+          <View style={styles.boardColumnHeader}>
+            <View style={[styles.boardColumnDot, { backgroundColor: theme.status.warning }]} />
+            <Text style={[styles.boardColumnTitle, { color: theme.text.primary }]}>Completed</Text>
+            <Text style={styles.boardColumnCount}>{completedProjects.length}</Text>
+          </View>
+          
+          <FlatList
+            data={completedProjects}
+            keyExtractor={item => item.id}
+            renderItem={({ item, index }) => renderBoardCard({ item, index })}
+            showsVerticalScrollIndicator={false}
+            scrollEnabled={false} // Parent scroll handles this
+            contentContainerStyle={{ gap: 12 }}
+            ListEmptyComponent={
+              <View style={styles.boardEmptyState}>
+                <Text style={[styles.boardEmptyText, { color: theme.text.secondary }]}>No completed projects</Text>
+              </View>
+            }
+          />
+        </View>
+      </ScrollView>
+    );
+  };
+  
+  // Render board card
+  const renderBoardCard = ({ item, index }: { item: Project, index: number }) => (
+    <Animated.View
+      entering={FadeInDown.delay(index * 100).duration(400)}
+      layout={Layout.springify()}
+    >
+      <Card
+        style={styles.boardCard}
+        onPress={() => handleProjectPress(item)}
+        animationType="spring"
+        sharedElementId={`project.${item.id}.card`}
+      >
+        <View style={styles.boardCardContent}>
+          <View style={styles.boardCardHeader}>
+            <View 
+              style={[
+                styles.boardColorBadge,
+                { backgroundColor: item.color }
+              ]}
+            />
+            <Text style={[styles.boardCardTitle, { color: theme.text.primary }]} numberOfLines={2}>
+              {item.title}
+            </Text>
+          </View>
+          
+          <Text style={[styles.boardCardDescription, { color: theme.text.secondary }]} numberOfLines={2}>
+            {item.description}
+          </Text>
+          
+          <View style={styles.boardCardFooter}>
+            <View style={styles.boardCardStats}>
+              <View style={styles.boardCardStat}>
+                <Feather name="check-square" size={14} color={theme.text.secondary} />
+                <Text style={[styles.boardCardStatText, { color: theme.text.secondary }]}>
+                  {item.tasksCompleted}/{item.tasksTotal}
+                </Text>
+              </View>
+              
+              <View style={styles.boardCardProgress}>
+                <View style={[styles.boardProgressTrack, { backgroundColor: theme.neutrals.gray200 }]}>
+                  <View 
+                    style={[
+                      styles.boardProgressFill,
+                      { 
+                        width: `${item.progress * 100}%`,
+                        backgroundColor: item.color
+                      }
+                    ]}
+                  />
+                </View>
+              </View>
+            </View>
+            
+            <AvatarStack 
+              users={item.team}
+              maxDisplay={2}
+              size={20}
+            />
+          </View>
+        </View>
+      </Card>
+    </Animated.View>
+  );
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+    <View style={[styles.container, { backgroundColor: theme.background.primary }]}>
+      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} backgroundColor={theme.background.primary} />
       
       {/* Header */}
-      <Animated.View style={[styles.header, headerAnimatedStyle, { paddingTop: insets.top }]}>
+      <Animated.View 
+        style={[
+          styles.header, 
+          headerAnimatedStyle, 
+          { 
+            paddingTop: insets.top,
+            backgroundColor: theme.background.primary,
+            borderBottomColor: theme.neutrals.gray200
+          }
+        ]}
+      >
         <Animated.View style={[styles.titleContainer, titleOpacityStyle]}>
-          <Text style={styles.title}>Projects</Text>
+          <Text style={[styles.title, { color: theme.text.primary }]}>Projects</Text>
           
           <View style={styles.headerActions}>
             <TouchableOpacity 
-              style={styles.viewModeButton}
-              onPress={toggleViewMode}
+              style={[styles.headerButton, { backgroundColor: theme.neutrals.gray100 }]}
+              onPress={toggleSearch}
             >
               <Feather 
-                name={viewMode === 'grid' ? 'list' : 'grid'} 
-                size={20} 
-                color={Colors.neutrals.gray700} 
+                name="search" 
+                size={22} 
+                color={showSearch ? theme.primary.main : theme.text.secondary} 
               />
             </TouchableOpacity>
             
-            <TouchableOpacity style={styles.filterButton}>
-              <Feather name="filter" size={20} color={Colors.neutrals.gray700} />
+            <TouchableOpacity 
+              style={[
+                styles.headerButton, 
+                { 
+                  backgroundColor: showFilters 
+                    ? `${theme.primary.main}20` 
+                    : theme.neutrals.gray100 
+                }
+              ]}
+              onPress={toggleFilters}
+            >
+              <Feather 
+                name="sliders" 
+                size={22} 
+                color={showFilters ? theme.primary.main : theme.text.secondary} 
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.headerButton, { backgroundColor: theme.neutrals.gray100 }]}
+              onPress={toggleViewMode}
+            >
+              <Feather 
+                name={
+                  viewMode === 'grid' 
+                    ? 'list' 
+                    : viewMode === 'list' 
+                      ? 'columns' 
+                      : 'grid'
+                } 
+                size={22} 
+                color={theme.text.secondary} 
+              />
             </TouchableOpacity>
           </View>
         </Animated.View>
         
-        <View style={styles.filterContainer}>
-          <SegmentedControl
-            segments={FILTER_OPTIONS}
-            selectedId={activeFilter}
-            onChange={setActiveFilter}
-          />
-        </View>
+        {/* Search input */}
+        <Animated.View style={[styles.searchContainer, searchAnimatedStyle]}>
+          <View style={[styles.searchInputContainer, { backgroundColor: theme.neutrals.gray100 }]}>
+            <Feather name="search" size={18} color={theme.text.secondary} style={styles.searchIcon} />
+            <TextInput
+              ref={searchInputRef}
+              style={[styles.searchInput, { color: theme.text.primary }]}
+              placeholder="Search projects..."
+              placeholderTextColor={theme.text.secondary}
+              value={searchText}
+              onChangeText={setSearchText}
+              returnKeyType="search"
+            />
+            {searchText.length > 0 && (
+              <TouchableOpacity
+                style={styles.clearButton}
+                onPress={() => setSearchText('')}
+              >
+                <Feather name="x" size={16} color={theme.text.secondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        </Animated.View>
+        
+        {/* Filters */}
+        <Animated.View style={[styles.filtersContainer, filtersAnimatedStyle]}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersScrollContent}
+          >
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text.secondary }]}>Status</Text>
+              <SegmentedControl
+                segments={FILTER_OPTIONS}
+                selectedId={activeFilter}
+                onChange={setActiveFilter}
+              />
+            </View>
+            
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text.secondary }]}>Priority</Text>
+              <View style={styles.pillsContainer}>
+                {PRIORITY_OPTIONS.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setPriorityFilter(option.value)}
+                  >
+                    <View style={[
+                      styles.filterPill,
+                      priorityFilter === option.value && styles.activeFilterPill,
+                      { 
+                        backgroundColor: priorityFilter === option.value 
+                          ? `${theme.primary.main}15` 
+                          : theme.neutrals.gray100 
+                      }
+                    ]}>
+                      <Text style={[
+                        styles.filterPillText,
+                        { 
+                          color: priorityFilter === option.value 
+                            ? theme.primary.main 
+                            : theme.text.secondary
+                        }
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+            
+            <View style={styles.filterSection}>
+              <Text style={[styles.filterLabel, { color: theme.text.secondary }]}>Sort By</Text>
+              <View style={styles.pillsContainer}>
+                {SORT_OPTIONS.map(option => (
+                  <TouchableOpacity
+                    key={option.value}
+                    onPress={() => setSortBy(option.value)}
+                  >
+                    <View style={[
+                      styles.filterPill,
+                      sortBy === option.value && styles.activeFilterPill,
+                      { 
+                        backgroundColor: sortBy === option.value 
+                          ? `${theme.primary.main}15` 
+                          : theme.neutrals.gray100 
+                      }
+                    ]}>
+                      <Text style={[
+                        styles.filterPillText,
+                        { 
+                          color: sortBy === option.value 
+                            ? theme.primary.main 
+                            : theme.text.secondary
+                        }
+                      ]}>
+                        {option.label}
+                      </Text>
+                      
+                      {sortBy === option.value && (
+                        <Feather 
+                          name="chevron-down" 
+                          size={14} 
+                          color={theme.primary.main} 
+                          style={styles.sortIcon} 
+                        />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+        </Animated.View>
       </Animated.View>
       
       {/* Projects List */}
       {loading ? (
         renderSkeletons()
+      ) : viewMode === 'board' ? (
+        // Board View
+        <View 
+          style={[
+            styles.boardWrapper,
+            { 
+              marginTop: headerHeight.value + 
+                (showSearch ? searchHeight.value : 0) + 
+                (showFilters ? filtersHeight.value : 0)
+            }
+          ]}
+        >
+          {renderBoardView()}
+        </View>
       ) : (
+        // Grid or List View
         <AnimatedFlatList
-          data={filteredProjects()}
+          data={filteredProjects}
           keyExtractor={item => item.id}
           renderItem={viewMode === 'grid' ? renderGridItem : renderListItem}
           numColumns={viewMode === 'grid' ? 2 : 1}
+          key={viewMode} // Force remount when changing view mode
           contentContainerStyle={[
             styles.listContent,
-            { paddingTop: headerHeight.value + 16 }
+            { 
+              paddingTop: headerHeight.value + 
+                (showSearch ? searchHeight.value : 0) + 
+                (showFilters ? filtersHeight.value : 0) + 16
+            }
           ]}
           onScroll={handleScroll}
           scrollEventThrottle={16}
@@ -480,18 +968,20 @@ const ProjectsListScreen = ({ navigation }) => {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={handleRefresh}
-              tintColor={Colors.primary.blue}
-              colors={[Colors.primary.blue]}
+              tintColor={theme.primary.main}
+              colors={[theme.primary.main]}
             />
           }
           ListEmptyComponent={
             <View style={styles.emptyContainer}>
-              <Feather name="folder" size={60} color={Colors.neutrals.gray300} />
-              <Text style={styles.emptyTitle}>No Projects Found</Text>
-              <Text style={styles.emptyText}>
-                {activeFilter === 'all' 
-                  ? 'You have no projects yet. Create your first project!'
-                  : `No ${activeFilter} projects found.`
+              <Feather name="folder" size={60} color={theme.neutrals.gray300} />
+              <Text style={[styles.emptyTitle, { color: theme.text.primary }]}>No Projects Found</Text>
+              <Text style={[styles.emptyText, { color: theme.text.secondary }]}>
+                {searchText
+                  ? 'No projects match your search criteria'
+                  : activeFilter !== 'all'
+                    ? `No ${activeFilter} projects found`
+                    : 'You have no projects yet. Create your first project!'
                 }
               </Text>
             </View>
@@ -504,36 +994,35 @@ const ProjectsListScreen = ({ navigation }) => {
         <FAB
           icon="plus"
           onPress={handleCreateProject}
-          gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+          gradientColors={[theme.primary.main, theme.primary.dark]}
         />
       </Animated.View>
     </View>
-  )
-}
+  );
+};
 
 // Helper function to adjust color brightness
 const adjustColorBrightness = (color: string, percent: number) => {
-  const num = parseInt(color.replace('#', ''), 16)
-  const amt = Math.round(2.55 * percent)
-  const R = (num >> 16) + amt
-  const G = (num >> 8 & 0x00FF) + amt
-  const B = (num & 0x0000FF) + amt
+  const num = parseInt(color.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
   
-  const newR = Math.min(255, Math.max(0, R))
-  const newG = Math.min(255, Math.max(0, G))
-  const newB = Math.min(255, Math.max(0, B))
+  const newR = Math.min(255, Math.max(0, R));
+  const newG = Math.min(255, Math.max(0, G));
+  const newB = Math.min(255, Math.max(0, B));
   
   return '#' + (
     (newR << 16 | newG << 8 | newB)
       .toString(16)
       .padStart(6, '0')
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background.light
+    flex: 1
   },
   header: {
     position: 'absolute',
@@ -541,9 +1030,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 10,
-    backgroundColor: Colors.background.light,
     paddingHorizontal: Spacing.lg,
     paddingBottom: Spacing.md,
+    borderBottomWidth: 1,
     shadowColor: Colors.neutrals.black,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
@@ -559,31 +1048,78 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.gray900
+    fontWeight: Typography.weights.bold
   },
   headerActions: {
-    flexDirection: 'row'
+    flexDirection: 'row',
+    gap: 8
   },
-  viewModeButton: {
+  headerButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: Colors.neutrals.gray100,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Spacing.sm
-  },
-  filterButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: Colors.neutrals.gray100,
     justifyContent: 'center',
     alignItems: 'center'
   },
-  filterContainer: {
-    marginTop: Spacing.xs
+  searchContainer: {
+    overflow: 'hidden'
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 44,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    marginBottom: Spacing.sm
+  },
+  searchIcon: {
+    marginRight: 8
+  },
+  searchInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: Typography.sizes.body
+  },
+  clearButton: {
+    padding: 4
+  },
+  filtersContainer: {
+    overflow: 'hidden'
+  },
+  filtersScrollContent: {
+    paddingBottom: Spacing.md,
+    gap: 24
+  },
+  filterSection: {
+    marginRight: Spacing.lg
+  },
+  filterLabel: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.medium,
+    marginBottom: 8
+  },
+  pillsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8
+  },
+  filterPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16
+  },
+  activeFilterPill: {
+    borderWidth: 1,
+    borderColor: Colors.primary.blue
+  },
+  filterPillText: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.medium
+  },
+  sortIcon: {
+    marginLeft: 4
   },
   listContent: {
     paddingHorizontal: Spacing.lg,
@@ -729,6 +1265,113 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md
   },
+  // Board View Styles
+  boardWrapper: {
+    flex: 1
+  },
+  boardContent: {
+    padding: Spacing.lg,
+    paddingBottom: 100
+  },
+  boardColumn: {
+    width: width * 0.7,
+    marginRight: Spacing.lg,
+    height: '100%'
+  },
+  boardColumnHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.md
+  },
+  boardColumnDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    marginRight: 8
+  },
+  boardColumnTitle: {
+    fontSize: Typography.sizes.bodyLarge,
+    fontWeight: Typography.weights.semibold,
+    flex: 1
+  },
+  boardColumnCount: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.bold,
+    color: Colors.neutrals.gray600,
+    backgroundColor: Colors.neutrals.gray200,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 2
+  },
+  boardCard: {
+    borderRadius: 12,
+    overflow: 'hidden'
+  },
+  boardCardContent: {
+    padding: Spacing.md
+  },
+  boardCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: Spacing.xs
+  },
+  boardColorBadge: {
+    width: 12,
+    height: 12,
+    borderRadius: 3,
+    marginRight: 8
+  },
+  boardCardTitle: {
+    fontSize: Typography.sizes.bodySmall,
+    fontWeight: Typography.weights.semibold,
+    marginBottom: 4
+  },
+  boardCardDescription: {
+    fontSize: Typography.sizes.caption,
+    marginBottom: Spacing.md,
+    lineHeight: 16
+  },
+  boardCardFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  boardCardStats: {
+    flex: 1,
+    marginRight: 8
+  },
+  boardCardStat: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  boardCardStatText: {
+    fontSize: Typography.sizes.caption,
+    marginLeft: 4
+  },
+  boardCardProgress: {
+    width: '100%'
+  },
+  boardProgressTrack: {
+    height: 3,
+    borderRadius: 1.5,
+    overflow: 'hidden'
+  },
+  boardProgressFill: {
+    height: '100%',
+    borderRadius: 1.5
+  },
+  boardEmptyState: {
+    height: 100,
+    backgroundColor: Colors.neutrals.gray100,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    opacity: 0.7
+  },
+  boardEmptyText: {
+    fontSize: Typography.sizes.caption
+  },
   fab: {
     position: 'absolute',
     right: 20,
@@ -743,15 +1386,13 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: Typography.sizes.bodyLarge,
     fontWeight: Typography.weights.semibold,
-    color: Colors.neutrals.gray800,
     marginTop: Spacing.md,
     marginBottom: Spacing.sm
   },
   emptyText: {
     fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray600,
     textAlign: 'center'
   }
-})
+});
 
-export default ProjectsListScreen
+export default ProjectsListScreen;

@@ -1,14 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { 
   StyleSheet, 
-  View, 
   Text, 
+  View, 
   Dimensions, 
   ScrollView, 
   FlatList,
   TouchableOpacity,
   StatusBar,
-  RefreshControl
+  RefreshControl,
+  Platform
 } from 'react-native'
 import Animated, { 
   FadeInDown, 
@@ -18,10 +19,13 @@ import Animated, {
   useSharedValue,
   useAnimatedStyle,
   interpolate,
-  Extrapolation
+  Extrapolation,
+  withTiming,
+  withSpring
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import Colors from '../../theme/Colors'
 import Typography from '../../theme/Typography'
@@ -34,20 +38,28 @@ import TaskItem from '../Task/TaskItem'
 const { width, height } = Dimensions.get('window')
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
 
-const TaskDashboard = ({ navigation }) => {
+interface TaskDashboardProps {
+  navigation: any
+  initialFilter?: 'upcoming' | 'today' | 'completed'
+}
+
+const TaskDashboard = ({ navigation, initialFilter = 'upcoming' }: TaskDashboardProps) => {
   const [refreshing, setRefreshing] = useState(false)
-  const [selectedFilter, setSelectedFilter] = useState('upcoming')
+  const [selectedFilter, setSelectedFilter] = useState(initialFilter)
   const scrollY = useSharedValue(0)
   const lastContentOffset = useSharedValue(0)
   const isScrolling = useSharedValue(false)
   const fabVisible = useSharedValue(1)
+  const insets = useSafeAreaInsets()
   
+  // Define filters
   const filters = [
     { id: 'upcoming', label: 'Upcoming' },
     { id: 'today', label: 'Today' },
     { id: 'completed', label: 'Completed' }
   ]
   
+  // Define stat cards for dashboard
   const statCards = [
     { 
       id: '1', 
@@ -72,6 +84,7 @@ const TaskDashboard = ({ navigation }) => {
     }
   ]
   
+  // Mock tasks data
   const tasks = [
     { 
       id: '1', 
@@ -113,19 +126,34 @@ const TaskDashboard = ({ navigation }) => {
     }
   ]
   
+  // Set status bar based on platform
   useEffect(() => {
     StatusBar.setBarStyle('light-content')
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor('transparent')
+      StatusBar.setTranslucent(true)
+    }
+    
     return () => {
       StatusBar.setBarStyle('dark-content')
+      if (Platform.OS === 'android') {
+        StatusBar.setBackgroundColor(Colors.background.light)
+        StatusBar.setTranslucent(false)
+      }
     }
   }, [])
 
-  const onRefresh = async () => {
+  // Handle refresh action
+  const onRefresh = useCallback(async () => {
     setRefreshing(true)
+    
+    // Simulate API call
     await new Promise(resolve => setTimeout(resolve, 1500))
+    
     setRefreshing(false)
-  }
+  }, [])
   
+  // Scroll handler to show/hide FAB
   const scrollHandler = useAnimatedScrollHandler({
     onScroll: (event) => {
       if (
@@ -150,6 +178,7 @@ const TaskDashboard = ({ navigation }) => {
     },
   })
   
+  // Animated styles for header
   const headerAnimatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(
       scrollY.value,
@@ -171,6 +200,7 @@ const TaskDashboard = ({ navigation }) => {
     }
   })
   
+  // Blur effect as user scrolls
   const blurAnimatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
@@ -184,6 +214,7 @@ const TaskDashboard = ({ navigation }) => {
     }
   })
   
+  // FAB animation
   const fabAnimatedStyle = useAnimatedStyle(() => {
     const scale = interpolate(
       fabVisible.value,
@@ -204,33 +235,75 @@ const TaskDashboard = ({ navigation }) => {
       opacity
     }
   })
+  
+  // Filter tasks based on selected filter
+  const getFilteredTasks = () => {
+    const today = new Date().toISOString().split('T')[0]
+    
+    switch (selectedFilter) {
+      case 'today':
+        return tasks.filter(task => task.dueDate === today)
+      case 'completed':
+        return tasks.filter(task => task.status === 'completed')
+      case 'upcoming':
+      default:
+        return tasks.filter(task => task.status !== 'completed')
+    }
+  }
+  
+  // Navigate to task details
+  const navigateToTask = (taskId: string) => {
+    navigation.navigate('TaskDetails', { taskId })
+  }
+  
+  // Navigate to task creation screen
+  const navigateToNewTask = () => {
+    navigation.navigate('TaskScreen', { isNew: true })
+  }
+  
+  // Navigate to project details
+  const navigateToProject = (projectId: string) => {
+    navigation.navigate('ProjectDetails', { projectId })
+  }
 
   return (
     <View style={styles.container}>
-      <Animated.View style={[styles.header]}>
+      {/* Header with blur effect */}
+      <Animated.View style={[styles.header, { paddingTop: insets.top + 10 }]}>
         <AnimatedBlurView 
           intensity={80} 
           tint="dark" 
           style={[StyleSheet.absoluteFill, blurAnimatedStyle]} 
         />
         <Animated.View style={[styles.headerContent, headerAnimatedStyle]}>
-          <Text style={styles.greeting}>Hello, Alex</Text>
+          <Text style={styles.greeting} accessibilityRole="header">Hello, Alex</Text>
           <Text style={styles.date}>Tuesday, April 29</Text>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              accessibilityLabel="Search"
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('Search')}
+            >
               <Feather name="search" size={24} color={Colors.neutrals.white} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.iconButton}>
+            <TouchableOpacity 
+              style={styles.iconButton}
+              accessibilityLabel="Notifications"
+              accessibilityRole="button"
+              onPress={() => navigation.navigate('Notifications')}
+            >
               <Feather name="bell" size={24} color={Colors.neutrals.white} />
             </TouchableOpacity>
           </View>
         </Animated.View>
       </Animated.View>
       
+      {/* Main content */}
       <Animated.ScrollView
         style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 100 }]}
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
@@ -243,12 +316,16 @@ const TaskDashboard = ({ navigation }) => {
           />
         }
       >
+        {/* Overview section with cards */}
         <Animated.View entering={FadeInDown.delay(200).duration(700)}>
           <Text style={styles.sectionTitle}>Overview</Text>
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.cardsContainer}
+            decelerationRate="fast"
+            snapToInterval={width * 0.75 + 16}
+            snapToAlignment="start"
           >
             {statCards.map((card, index) => (
               <Animated.View 
@@ -267,6 +344,7 @@ const TaskDashboard = ({ navigation }) => {
           </ScrollView>
         </Animated.View>
         
+        {/* Tasks section */}
         <Animated.View 
           style={styles.tasksSection}
           entering={FadeInDown.delay(600).duration(700)}
@@ -283,7 +361,7 @@ const TaskDashboard = ({ navigation }) => {
           </View>
           
           <View style={styles.tasksList}>
-            {tasks.map((task, index) => (
+            {getFilteredTasks().map((task, index) => (
               <Animated.View 
                 key={task.id}
                 entering={FadeInDown.delay(700 + index * 100).duration(500)}
@@ -291,21 +369,45 @@ const TaskDashboard = ({ navigation }) => {
               >
                 <TaskItem 
                   task={task}
-                  onPress={() => navigation.navigate('TaskDetails', { taskId: task.id })}
+                  onPress={() => navigateToTask(task.id)}
                 />
               </Animated.View>
             ))}
+            
+            {getFilteredTasks().length === 0 && (
+              <Animated.View 
+                style={styles.emptyState}
+                entering={FadeIn.delay(700).duration(500)}
+              >
+                <Feather 
+                  name={selectedFilter === 'completed' ? 'check-circle' : 'clipboard'} 
+                  size={40} 
+                  color={Colors.neutrals.gray400} 
+                />
+                <Text style={styles.emptyStateText}>
+                  {selectedFilter === 'completed' 
+                    ? 'No completed tasks yet' 
+                    : selectedFilter === 'today'
+                      ? 'No tasks due today'
+                      : 'No upcoming tasks'
+                  }
+                </Text>
+              </Animated.View>
+            )}
           </View>
           
           <TouchableOpacity 
             style={styles.viewAllButton}
             onPress={() => navigation.navigate('TasksList')}
+            accessibilityRole="button"
+            accessibilityLabel="View all tasks"
           >
             <Text style={styles.viewAllText}>View All Tasks</Text>
             <Feather name="arrow-right" size={16} color={Colors.primary.blue} />
           </TouchableOpacity>
         </Animated.View>
         
+        {/* Projects section */}
         <Animated.View 
           style={styles.projectsSection}
           entering={FadeInDown.delay(900).duration(700)}
@@ -315,6 +417,8 @@ const TaskDashboard = ({ navigation }) => {
             <TouchableOpacity 
               style={styles.moreButton}
               onPress={() => navigation.navigate('ProjectsList')}
+              accessibilityRole="button"
+              accessibilityLabel="More projects options"
             >
               <Feather name="more-horizontal" size={24} color={Colors.neutrals.gray700} />
             </TouchableOpacity>
@@ -324,7 +428,9 @@ const TaskDashboard = ({ navigation }) => {
             <Animated.View entering={FadeIn.delay(1000).duration(700)}>
               <TouchableOpacity 
                 style={styles.projectCard}
-                onPress={() => navigation.navigate('ProjectDetails', { projectId: '1' })}
+                onPress={() => navigateToProject('1')}
+                accessibilityRole="button"
+                accessibilityLabel="Mobile App Redesign project, 40% complete"
               >
                 <View style={styles.projectCardHeader}>
                   <View style={[styles.projectIcon, { backgroundColor: 'rgba(61, 90, 254, 0.1)' }]}>
@@ -356,7 +462,9 @@ const TaskDashboard = ({ navigation }) => {
             <Animated.View entering={FadeIn.delay(1100).duration(700)}>
               <TouchableOpacity 
                 style={styles.projectCard}
-                onPress={() => navigation.navigate('ProjectDetails', { projectId: '2' })}
+                onPress={() => navigateToProject('2')}
+                accessibilityRole="button"
+                accessibilityLabel="Website Relaunch project, 70% complete"
               >
                 <View style={styles.projectCardHeader}>
                   <View style={[styles.projectIcon, { backgroundColor: 'rgba(0, 200, 83, 0.1)' }]}>
@@ -387,10 +495,13 @@ const TaskDashboard = ({ navigation }) => {
         </Animated.View>
       </Animated.ScrollView>
       
+      {/* Floating Action Button */}
       <Animated.View style={[styles.fab, fabAnimatedStyle]}>
         <TouchableOpacity 
           style={styles.fabButton}
-          onPress={() => navigation.navigate('TaskScreen', { isNew: true })}
+          onPress={navigateToNewTask}
+          accessibilityRole="button"
+          accessibilityLabel="Create new task"
         >
           <Feather name="plus" size={24} color={Colors.neutrals.white} />
         </TouchableOpacity>
@@ -481,11 +592,23 @@ const styles = StyleSheet.create({
     marginLeft: Spacing.lg
   },
   tasksList: {
-    marginTop: Spacing.md
+    marginTop: Spacing.md,
+    minHeight: 150
   },
   taskItemContainer: {
     marginBottom: Spacing.md,
     paddingHorizontal: Spacing.lg
+  },
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: Spacing.xl,
+    paddingHorizontal: Spacing.lg
+  },
+  emptyStateText: {
+    fontSize: Typography.sizes.body,
+    color: Colors.neutrals.gray600,
+    marginTop: Spacing.md
   },
   viewAllButton: {
     flexDirection: 'row',

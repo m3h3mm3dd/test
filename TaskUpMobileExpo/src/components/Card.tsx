@@ -1,3 +1,4 @@
+
 import React from 'react'
 import { 
   StyleSheet, 
@@ -18,9 +19,9 @@ import Animated, {
 import { SharedElement } from 'react-navigation-shared-element'
 import { LinearGradient } from 'expo-linear-gradient'
 
-import Colors from '../../theme/Colors'
-import Spacing from '../../theme/Spacing'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../theme/Colors'
+import Spacing from '../theme/Spacing'
+import { triggerImpact } from '../utils/HapticUtils'
 
 interface CardProps {
   children: React.ReactNode
@@ -138,7 +139,8 @@ const Card = ({
     onPress: handlePress,
     onPressIn: handlePressIn,
     onPressOut: handlePressOut,
-    disabled
+    disabled,
+    accessibilityRole: 'button'
   } : {}
   
   // Content to display

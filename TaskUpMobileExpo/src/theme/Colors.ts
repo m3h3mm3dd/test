@@ -1,52 +1,122 @@
+
 const Colors = {
   primary: {
-    blue: '#3D5AFE',
-    darkBlue: '#304FFE',
-    purple: '#6200EA',
-    green: '#00C853',
-    yellow: '#FFD600',
-    red: '#FF1744'
+    50: '#EEF2FF',
+    100: '#E0E7FF',
+    200: '#C7D2FE',
+    300: '#A5B4FC',
+    400: '#818CF8',
+    500: '#6366F1', // Main primary color
+    600: '#4F46E5',
+    700: '#4338CA',
+    800: '#3730A3',
+    900: '#312E81',
+    950: '#1E1B4B',
   },
   secondary: {
-    blue: '#82B1FF',
-    purple: '#B388FF',
-    green: '#69F0AE',
-    yellow: '#FFFF00',
-    red: '#FF8A80'
+    50: '#F0F9FF',
+    100: '#E0F2FE',
+    200: '#BAE6FD',
+    300: '#7DD3FC',
+    400: '#38BDF8',
+    500: '#0EA5E9', // Main secondary color
+    600: '#0284C7',
+    700: '#0369A1',
+    800: '#075985',
+    900: '#0C4A6E',
+    950: '#082F49',
+  },
+  accent: {
+    50: '#FDF2F8',
+    100: '#FCE7F3',
+    200: '#FBCFE8',
+    300: '#F9A8D4',
+    400: '#F472B6',
+    500: '#EC4899', // Main accent color
+    600: '#DB2777',
+    700: '#BE185D',
+    800: '#9D174D',
+    900: '#831843',
+    950: '#500724',
+  },
+  success: {
+    50: '#ECFDF5',
+    100: '#D1FAE5',
+    200: '#A7F3D0',
+    300: '#6EE7B7',
+    400: '#34D399',
+    500: '#10B981', // Main success color
+    600: '#059669',
+    700: '#047857',
+    800: '#065F46',
+    900: '#064E3B',
+    950: '#022C22',
+  },
+  warning: {
+    50: '#FFFBEB',
+    100: '#FEF3C7',
+    200: '#FDE68A',
+    300: '#FCD34D',
+    400: '#FBBF24',
+    500: '#F59E0B', // Main warning color
+    600: '#D97706',
+    700: '#B45309',
+    800: '#92400E',
+    900: '#78350F',
+    950: '#451A03',
+  },
+  error: {
+    50: '#FEF2F2',
+    100: '#FEE2E2',
+    200: '#FECACA',
+    300: '#FCA5A5',
+    400: '#F87171',
+    500: '#EF4444', // Main error color
+    600: '#DC2626',
+    700: '#B91C1C',
+    800: '#991B1B',
+    900: '#7F1D1D',
+    950: '#450A0A',
   },
   neutrals: {
-    white: '#FFFFFF',
-    black: '#000000',
-    gray100: '#F5F5F5',
-    gray200: '#EEEEEE',
-    gray300: '#E0E0E0',
-    gray400: '#BDBDBD',
-    gray500: '#9E9E9E',
-    gray600: '#757575',
-    gray700: '#616161',
-    gray800: '#424242',
-    gray900: '#212121'
+    50: '#FAFAFA',
+    100: '#F5F5F5',
+    200: '#E5E5E5',
+    300: '#D4D4D4',
+    400: '#A3A3A3',
+    500: '#737373',
+    600: '#525252',
+    700: '#404040',
+    800: '#262626',
+    900: '#171717',
+    950: '#0A0A0A',
   },
   background: {
-    light: '#FAFAFA',
-    dark: '#121212'
+    light: '#FFFFFF',
+    dark: '#121212',
+    paper: '#F9FAFB',
+    subtle: '#F3F4F6',
+  },
+  text: {
+    primary: '#111827',
+    secondary: '#4B5563',
+    disabled: '#9CA3AF',
+    light: '#FFFFFF',
   },
   status: {
-    success: '#00C853',
-    warning: '#FFAB00',
-    error: '#D50000',
-    info: '#00B8D4'
+    online: '#10B981',
+    offline: '#6B7280',
+    busy: '#EF4444',
+    away: '#F59E0B',
   },
   gradient: {
-    primary: ['#3D5AFE', '#304FFE'],
-    success: ['#00C853', '#009688'],
-    warning: ['#FFAB00', '#FF6D00'],
-    error: ['#D50000', '#B71C1C'],
-    purple: ['#6200EA', '#3F51B5']
+    primary: ['#6366F1', '#4F46E5'],
+    secondary: ['#0EA5E9', '#0369A1'],
+    accent: ['#EC4899', '#BE185D'],
+    success: ['#10B981', '#047857'],
+    warning: ['#F59E0B', '#B45309'],
+    error: ['#EF4444', '#B91C1C'],
   },
-  tint: '#3D5AFE',
-  tabIconDefault: '#9E9E9E',
-  tabIconSelected: '#3D5AFE'
-}
+};
 
-export default Colors
+export default Colors;

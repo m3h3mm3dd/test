@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -10,212 +10,263 @@ import {
   StatusBar,
   TextInput,
   Keyboard
-} from 'react-native'
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
   withSequence,
+  withDelay,
   FadeIn,
   FadeInUp,
-  FadeInDown
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
+  FadeInDown,
+  interpolate,
+  Extrapolation
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Spacing from '../../theme/Spacing'
-import Button from '../../components/Button/Button'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import Button from '../../components/Button/Button';
+import { triggerImpact } from '../../utils/HapticUtils';
 
 // Number of OTP digits
-const OTP_LENGTH = 6
+const OTP_LENGTH = 6;
 
 // Timer duration in seconds
-const TIMER_DURATION = 60
+const TIMER_DURATION = 60;
 
-const SignUpStep2 = ({ route, navigation }) => {
-  const { email } = route.params || { email: 'user@example.com' }
-  const insets = useSafeAreaInsets()
+type SignUpStep2Props = {
+  route: any;
+  navigation: any;
+};
+
+const SignUpStep2: React.FC<SignUpStep2Props> = ({ route, navigation }) => {
+  const { email } = route.params || { email: 'user@example.com' };
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // OTP state
-  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''))
-  const [otpError, setOtpError] = useState('')
-  const [focusedIndex, setFocusedIndex] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const [otp, setOtp] = useState(Array(OTP_LENGTH).fill(''));
+  const [otpError, setOtpError] = useState('');
+  const [focusedIndex, setFocusedIndex] = useState(0);
+  const [loading, setLoading] = useState(false);
   
   // Timer state
-  const [timerCount, setTimerCount] = useState(TIMER_DURATION)
-  const [isResendActive, setIsResendActive] = useState(false)
+  const [timerCount, setTimerCount] = useState(TIMER_DURATION);
+  const [isResendActive, setIsResendActive] = useState(false);
   
   // Refs for OTP inputs
-  const inputRefs = useRef([])
+  const inputRefs = useRef<Array<TextInput | null>>([]);
   
   // Animation values
-  const progressWidth = useSharedValue(66)
-  const otpContainerScale = useSharedValue(1)
-  const otpShakeValues = Array(OTP_LENGTH).fill(0).map(() => useSharedValue(0))
+  const progressWidth = useSharedValue(66);
+  const otpContainerScale = useSharedValue(1);
+  const buttonScale = useSharedValue(1);
+  const otpShakeValues = Array(OTP_LENGTH).fill(0).map(() => useSharedValue(0));
+  const successPulse = useSharedValue(0);
+  
+  // Keyboard listeners to adjust scroll when keyboard appears/disappears
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 100, animated: true });
+        }
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+      }
+    );
+    
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
   
   // Initialize refs for OTP inputs
   useEffect(() => {
-    inputRefs.current = Array(OTP_LENGTH).fill(null).map((_, i) => inputRefs.current[i] || React.createRef())
-  }, [])
+    inputRefs.current = Array(OTP_LENGTH).fill(null);
+  }, []);
   
   // Setup timer
   useEffect(() => {
-    let interval
+    let interval: NodeJS.Timeout;
     
     if (timerCount > 0) {
       interval = setInterval(() => {
-        setTimerCount(prev => prev - 1)
-      }, 1000)
+        setTimerCount(prev => prev - 1);
+      }, 1000);
     } else {
-      setIsResendActive(true)
+      setIsResendActive(true);
     }
     
-    return () => clearInterval(interval)
-  }, [timerCount])
+    return () => clearInterval(interval);
+  }, [timerCount]);
   
   // Auto-focus first input on mount
   useEffect(() => {
     // Small delay to ensure component is mounted
     const timer = setTimeout(() => {
       if (inputRefs.current[0]?.focus) {
-        inputRefs.current[0].focus()
+        inputRefs.current[0]?.focus();
       }
-    }, 500)
+    }, 500);
     
-    return () => clearTimeout(timer)
-  }, [])
+    return () => clearTimeout(timer);
+  }, []);
+  
+  useEffect(() => {
+    StatusBar.setBarStyle('light-content');
+    return () => {
+      StatusBar.setBarStyle('dark-content');
+    }
+  }, []);
   
   // Format timer
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
+  const formatTime = (seconds: number): string => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
   
   // Handle OTP input
-  const handleOtpChange = (text, index) => {
+  const handleOtpChange = (text: string, index: number) => {
     // Only allow digits
-    if (!/^\d*$/.test(text)) return
+    if (!/^\d*$/.test(text)) return;
     
     // Update OTP array
-    const newOtp = [...otp]
-    newOtp[index] = text.substr(0, 1)
-    setOtp(newOtp)
+    const newOtp = [...otp];
+    newOtp[index] = text.substr(0, 1);
+    setOtp(newOtp);
     
     // Clear any previous errors
-    if (otpError) setOtpError('')
+    if (otpError) setOtpError('');
     
     // If input is filled and not the last input, focus next input
     if (text.length === 1 && index < OTP_LENGTH - 1) {
-      inputRefs.current[index + 1].focus()
-      setFocusedIndex(index + 1)
+      inputRefs.current[index + 1]?.focus();
+      setFocusedIndex(index + 1);
     }
     
     // If all inputs are filled, trigger verification
     if (text.length === 1 && index === OTP_LENGTH - 1) {
       // Check if all inputs are filled
       if (newOtp.every(digit => digit !== '')) {
-        Keyboard.dismiss()
+        Keyboard.dismiss();
         // Wait for keyboard to dismiss
         setTimeout(() => {
-          handleVerifyOtp()
-        }, 300)
+          handleVerifyOtp();
+        }, 300);
       }
     }
-  }
+  };
   
   // Handle backspace key press
-  const handleKeyPress = (e, index) => {
+  const handleKeyPress = (e: any, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && index > 0 && otp[index] === '') {
       // Focus previous input on backspace if current input is empty
-      inputRefs.current[index - 1].focus()
-      setFocusedIndex(index - 1)
+      inputRefs.current[index - 1]?.focus();
+      setFocusedIndex(index - 1);
     }
-  }
+  };
   
   // Handle OTP input focus
-  const handleInputFocus = (index) => {
-    setFocusedIndex(index)
-  }
+  const handleInputFocus = (index: number) => {
+    setFocusedIndex(index);
+  };
   
   // Verify OTP
   const handleVerifyOtp = () => {
     if (otp.some(digit => digit === '')) {
-      setOtpError('Please enter a valid 6-digit code')
-      shakeOtpInputs()
-      return
+      setOtpError('Please enter a valid 6-digit code');
+      shakeOtpInputs();
+      return;
     }
     
+    // Animate button press
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    );
+    
     // Clear any previous errors
-    setOtpError('')
+    setOtpError('');
     
     // Show loading state
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    setLoading(true)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    setLoading(true);
     
     // Simulate API verification
     setTimeout(() => {
-      setLoading(false)
+      setLoading(false);
       
       // For demo, accept any 6-digit code
-      // In production, this would validate against an API
-      const enteredOtp = otp.join('')
+      const enteredOtp = otp.join('');
       
-      // Demo: Always accept "123456" as valid
-      if (enteredOtp === '123456') {
-        // Navigate to next step
-        navigation.navigate('SignUpStep3', { email })
-      } else {
-        // Show error for invalid OTP
-        setOtpError('Invalid verification code. Please try again.')
-        shakeOtpInputs()
-      }
-    }, 1500)
-  }
+      // Success animation
+      successPulse.value = withSequence(
+        withTiming(1, { duration: 300 }),
+        withDelay(500, withTiming(0, { duration: 300 }))
+      );
+      
+      // Short delay then navigate to next step
+      setTimeout(() => {
+        navigation.navigate('SignUpStep3', { email });
+      }, 1000);
+      
+    }, 1500);
+  };
   
   // Resend OTP
   const handleResendOtp = () => {
-    if (!isResendActive) return
+    if (!isResendActive) return;
     
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
     // Reset timer and disable resend button
-    setTimerCount(TIMER_DURATION)
-    setIsResendActive(false)
+    setTimerCount(TIMER_DURATION);
+    setIsResendActive(false);
     
     // Clear current OTP and errors
-    setOtp(Array(OTP_LENGTH).fill(''))
-    setOtpError('')
+    setOtp(Array(OTP_LENGTH).fill(''));
+    setOtpError('');
     
     // Focus first input
     if (inputRefs.current[0]?.focus) {
-      inputRefs.current[0].focus()
-      setFocusedIndex(0)
+      inputRefs.current[0]?.focus();
+      setFocusedIndex(0);
     }
     
     // Show success animation
     otpContainerScale.value = withSequence(
       withTiming(1.05, { duration: 200 }),
       withTiming(1, { duration: 200 })
-    )
-  }
+    );
+  };
   
   // Go back to previous step
   const handleBack = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Animation for input validation error
   const shakeOtpInputs = () => {
-    triggerImpact(Haptics.NotificationFeedbackType.Error)
+    triggerImpact(Haptics.NotificationFeedbackType.Error);
     
     // Shake animation for OTP inputs
     otpShakeValues.forEach((shakeValue, index) => {
@@ -225,34 +276,56 @@ const SignUpStep2 = ({ route, navigation }) => {
         withTiming(-3, { duration: 50 }),
         withTiming(3, { duration: 50 }),
         withTiming(0, { duration: 50 })
-      )
-    })
-  }
+      );
+    });
+  };
   
   // Animated styles
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
-    }
-  })
+    };
+  });
   
   const otpContainerAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: otpContainerScale.value }]
-    }
-  })
+    };
+  });
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
+    };
+  });
+  
+  const successOverlayStyle = useAnimatedStyle(() => {
+    return {
+      opacity: successPulse.value,
+      transform: [{ scale: interpolate(successPulse.value, [0, 1], [0.9, 1.05], Extrapolation.CLAMP) }]
+    };
+  });
   
   // Get animated style for each OTP input
-  const getInputAnimatedStyle = (index) => {
+  const getInputAnimatedStyle = (index: number) => {
     return useAnimatedStyle(() => {
       return {
         transform: [{ translateX: otpShakeValues[index].value }]
-      }
-    })
-  }
+      };
+    });
+  };
 
   return (
     <View style={styles.container}>
+      {/* Success overlay animation */}
+      <Animated.View style={[styles.successOverlay, successOverlayStyle]}>
+        <LinearGradient
+          colors={['rgba(0, 200, 83, 0.8)', 'rgba(0, 200, 83, 0.6)']}
+          style={StyleSheet.absoluteFill}
+        />
+        <Feather name="check-circle" size={60} color="#fff" />
+      </Animated.View>
+      
       {/* Background gradient */}
       <LinearGradient
         colors={[Colors.primary.darkBlue, Colors.primary.blue]}
@@ -266,6 +339,7 @@ const SignUpStep2 = ({ route, navigation }) => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
@@ -322,7 +396,7 @@ const SignUpStep2 = ({ route, navigation }) => {
             <View style={styles.otpInputsContainer}>
               {Array(OTP_LENGTH).fill(0).map((_, index) => {
                 // Get animated style for this input
-                const inputAnimatedStyle = getInputAnimatedStyle(index)
+                const inputAnimatedStyle = getInputAnimatedStyle(index);
                 
                 return (
                   <Animated.View 
@@ -345,7 +419,7 @@ const SignUpStep2 = ({ route, navigation }) => {
                       selectTextOnFocus
                     />
                   </Animated.View>
-                )
+                );
               })}
             </View>
             
@@ -363,6 +437,7 @@ const SignUpStep2 = ({ route, navigation }) => {
               <TouchableOpacity
                 onPress={handleResendOtp}
                 disabled={!isResendActive}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
                 <Text 
                   style={[
@@ -375,15 +450,19 @@ const SignUpStep2 = ({ route, navigation }) => {
               </TouchableOpacity>
             </View>
             
-            <Button
-              title="Verify & Continue"
-              onPress={handleVerifyOtp}
-              fullWidth
-              loading={loading}
-              style={styles.verifyButton}
-              gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-              animationType="bounce"
-            />
+            <Animated.View style={buttonAnimatedStyle}>
+              <Button
+                title="Verify & Continue"
+                onPress={handleVerifyOtp}
+                fullWidth
+                loading={loading}
+                style={styles.verifyButton}
+                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                animationType="bounce"
+                icon="arrow-right"
+                iconPosition="right"
+              />
+            </Animated.View>
           </Animated.View>
           
           {/* Helper text */}
@@ -398,13 +477,19 @@ const SignUpStep2 = ({ route, navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background.light
+  },
+  successOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10
   },
   keyboardAvoidingView: {
     flex: 1
@@ -554,6 +639,6 @@ const styles = StyleSheet.create({
     color: Colors.neutrals.white,
     textDecorationLine: 'underline'
   }
-})
+});
 
-export default SignUpStep2
+export default SignUpStep2;

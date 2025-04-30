@@ -1,31 +1,58 @@
 import React from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import * as Haptics from 'expo-haptics'
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
-import { ListItemProps } from '../../types/UITypes'
+import Animated, { 
+  useAnimatedStyle, 
+  useSharedValue, 
+  withTiming,
+  withSpring
+} from 'react-native-reanimated'
 import Colors from '../../theme/Colors'
 import Typography from '../../theme/Typography'
+import { triggerImpact } from '../../utils/HapticUtils'
+
+interface ListItemProps {
+  title: string
+  subtitle?: string
+  leftIcon?: React.ReactNode
+  rightIcon?: React.ReactNode
+  onPress?: () => void
+  disabled?: boolean
+  highlighted?: boolean
+  onLongPress?: () => void
+  testID?: string
+}
 
 const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity)
 
-const ListItem = ({ title, subtitle, leftIcon, rightIcon, onPress }: ListItemProps) => {
+const ListItem = ({ 
+  title, 
+  subtitle, 
+  leftIcon, 
+  rightIcon, 
+  onPress,
+  disabled = false,
+  highlighted = false,
+  onLongPress,
+  testID
+}: ListItemProps) => {
   const scale = useSharedValue(1)
   
   const handlePress = () => {
-    if (!onPress) return
+    if (!onPress || disabled) return
     
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     onPress()
   }
   
   const handlePressIn = () => {
-    if (!onPress) return
+    if (!onPress || disabled) return
     scale.value = withTiming(0.98, { duration: 100 })
   }
   
   const handlePressOut = () => {
-    if (!onPress) return
-    scale.value = withTiming(1, { duration: 100 })
+    if (!onPress || disabled) return
+    scale.value = withSpring(1, { damping: 15, stiffness: 300 })
   }
   
   const animatedStyle = useAnimatedStyle(() => {
@@ -40,15 +67,26 @@ const ListItem = ({ title, subtitle, leftIcon, rightIcon, onPress }: ListItemPro
         onPress: handlePress,
         onPressIn: handlePressIn,
         onPressOut: handlePressOut,
+        onLongPress: onLongPress,
+        disabled,
+        testID,
         accessible: true,
         accessibilityRole: 'button',
+        accessibilityLabel: title,
+        accessibilityHint: subtitle,
+        accessibilityState: { disabled },
         activeOpacity: 0.7
       }
-    : {}
+    : { testID }
 
   return (
     <Container
-      style={[styles.container, onPress && animatedStyle]}
+      style={[
+        styles.container, 
+        onPress && animatedStyle,
+        highlighted && styles.highlighted,
+        disabled && styles.disabled
+      ]}
       {...containerProps}
     >
       {leftIcon && <View style={styles.leftIcon}>{leftIcon}</View>}
@@ -82,7 +120,18 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: Colors.neutrals.white,
     borderRadius: 8,
-    marginBottom: 8
+    marginBottom: 8,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2
+  },
+  highlighted: {
+    backgroundColor: Colors.primary.blue + '10' // 10% opacity
+  },
+  disabled: {
+    opacity: 0.6
   },
   leftIcon: {
     marginRight: 16

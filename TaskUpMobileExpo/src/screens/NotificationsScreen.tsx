@@ -7,7 +7,8 @@ import {
   FlatList, 
   StatusBar, 
   SafeAreaView,
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native'
 import Animated, { 
   useSharedValue, 
@@ -19,6 +20,7 @@ import Animated, {
   FadeIn,
   FadeOut,
   SlideInRight,
+  SlideInLeft,
   ZoomIn,
   interpolate,
   Extrapolation
@@ -26,6 +28,7 @@ import Animated, {
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { SwipeableRow } from '../components/SwipeableRow'
 
 import Colors from '../theme/Colors'
@@ -56,10 +59,12 @@ interface Notification {
 }
 
 const NotificationsScreen = ({ navigation }) => {
+  const insets = useSafeAreaInsets()
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [selectedTab, setSelectedTab] = useState('all')
   const [isFilterOpen, setIsFilterOpen] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
   
   // Refs
   const flatListRef = useRef<FlatList>(null)
@@ -69,6 +74,8 @@ const NotificationsScreen = ({ navigation }) => {
   const filterHeight = useSharedValue(0)
   const filterOpacity = useSharedValue(0)
   const scrollY = useSharedValue(0)
+  const notificationItemScale = useSharedValue(1)
+  const emptyAnimationProgress = useSharedValue(0)
   
   // Tabs for filtering
   const tabs = [
@@ -203,7 +210,26 @@ const NotificationsScreen = ({ navigation }) => {
     // Calculate unread count
     const unread = mockNotifications.filter(n => !n.read).length
     setUnreadCount(unread)
+    
+    // Animate empty state if no notifications
+    if (mockNotifications.length === 0) {
+      emptyAnimationProgress.value = withDelay(
+        500,
+        withTiming(1, { duration: 800 })
+      )
+    }
   }, [])
+  
+  // Handle refresh
+  const onRefresh = () => {
+    setRefreshing(true)
+    
+    // Simulate refreshing data
+    setTimeout(() => {
+      setRefreshing(false)
+      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    }, 1500)
+  }
   
   // Filter notifications based on selected tab
   const getFilteredNotifications = () => {
@@ -220,12 +246,18 @@ const NotificationsScreen = ({ navigation }) => {
   }
   
   const handleBackPress = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     navigation.goBack()
   }
   
   const handleNotificationPress = (notification: Notification) => {
-    triggerImpact()
+    // Animate notification item
+    notificationItemScale.value = withSequence(
+      withTiming(0.97, { duration: 100 }),
+      withTiming(1, { duration: 150 })
+    )
+    
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     
     // Mark as read if unread
     if (!notification.read) {
@@ -265,18 +297,37 @@ const NotificationsScreen = ({ navigation }) => {
     // Check if it was unread before removing
     const wasUnread = notifications.find(n => n.id === id)?.read === false
     
-    setNotifications(prev => 
-      prev.filter(n => n.id !== id)
+    // Animate the removal with a scale effect
+    notificationItemScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(0, { duration: 200 })
     )
     
-    // Update unread count if needed
-    if (wasUnread) {
-      setUnreadCount(prev => Math.max(0, prev - 1))
-    }
+    // Remove notification after animation
+    setTimeout(() => {
+      setNotifications(prev => 
+        prev.filter(n => n.id !== id)
+      )
+      
+      // Update unread count if needed
+      if (wasUnread) {
+        setUnreadCount(prev => Math.max(0, prev - 1))
+      }
+      
+      // Update empty animation if this was the last notification
+      if (notifications.length === 1) {
+        emptyAnimationProgress.value = withDelay(
+          200,
+          withTiming(1, { duration: 800 })
+        )
+      }
+    }, 300)
+    
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
   }
   
   const toggleFilter = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     
     setIsFilterOpen(prev => !prev)
     
@@ -292,8 +343,15 @@ const NotificationsScreen = ({ navigation }) => {
   }
   
   const selectTab = (tabId: string) => {
-    triggerImpact()
+    if (tabId === selectedTab) return
+    
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     setSelectedTab(tabId)
+    
+    // Scroll to top when changing tabs
+    if (flatListRef.current) {
+      flatListRef.current.scrollToOffset({ offset: 0, animated: true })
+    }
   }
   
   const handleScroll = (event) => {
@@ -349,7 +407,19 @@ const NotificationsScreen = ({ navigation }) => {
   // Animated styling
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
-      height: headerHeight.value
+      height: headerHeight.value,
+      shadowOpacity: interpolate(
+        scrollY.value,
+        [0, 20],
+        [0, 0.1],
+        Extrapolation.CLAMP
+      ),
+      elevation: interpolate(
+        scrollY.value,
+        [0, 20],
+        [0, 4],
+        Extrapolation.CLAMP
+      )
     }
   })
   
@@ -370,6 +440,26 @@ const NotificationsScreen = ({ navigation }) => {
     return {
       height: filterHeight.value,
       opacity: filterOpacity.value
+    }
+  })
+  
+  const notificationItemAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: notificationItemScale.value }]
+    }
+  })
+  
+  const emptyStateAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: emptyAnimationProgress.value,
+      transform: [
+        { scale: interpolate(
+          emptyAnimationProgress.value,
+          [0, 1],
+          [0.8, 1],
+          Extrapolation.CLAMP
+        )}
+      ]
     }
   })
   
@@ -398,6 +488,7 @@ const NotificationsScreen = ({ navigation }) => {
     return (
       <Animated.View 
         entering={SlideInRight.delay(index * 50).duration(300)}
+        style={notificationItemAnimatedStyle}
       >
         <SwipeableRow
           leftActions={!item.read ? renderLeftActions(item) : []}
@@ -409,7 +500,7 @@ const NotificationsScreen = ({ navigation }) => {
               !item.read && styles.unreadNotification
             ]}
             onPress={() => handleNotificationPress(item)}
-            activeOpacity={0.7}
+            activeOpacity={0.8}
           >
             <View style={[
               styles.notificationIcon,
@@ -564,8 +655,18 @@ const NotificationsScreen = ({ navigation }) => {
         onScroll={handleScroll}
         scrollEventThrottle={16}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary.blue}
+            colors={[Colors.primary.blue]}
+          />
+        }
         ListEmptyComponent={
-          <View style={styles.emptyContainer}>
+          <Animated.View 
+            style={[styles.emptyContainer, emptyStateAnimatedStyle]}
+          >
             <Animated.View 
               style={styles.emptyIconContainer}
               entering={ZoomIn.duration(500)}
@@ -579,7 +680,7 @@ const NotificationsScreen = ({ navigation }) => {
                 : `No ${selectedTab} notifications at the moment.`
               }
             </Text>
-          </View>
+          </Animated.View>
         }
       />
     </SafeAreaView>
@@ -596,7 +697,10 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background.light,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutrals.gray200,
-    overflow: 'hidden'
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    zIndex: 10
   },
   headerTop: {
     flexDirection: 'row',
@@ -675,7 +779,8 @@ const styles = StyleSheet.create({
   notificationsList: {
     paddingHorizontal: 16,
     paddingTop: 8,
-    paddingBottom: 24
+    paddingBottom: 24,
+    minHeight: height - 180
   },
   notificationItem: {
     flexDirection: 'row',

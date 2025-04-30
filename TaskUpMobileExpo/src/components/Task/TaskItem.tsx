@@ -14,7 +14,8 @@ import Animated, {
   withSequence,
   Easing,
   Extrapolation,
-  interpolate
+  interpolate,
+  withSpring
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import { PanGestureHandler } from 'react-native-gesture-handler'
@@ -27,6 +28,12 @@ import { formatDateString } from '../../utils/helpers'
 import AvatarStack from '../Avatar/AvatarStack'
 import { triggerImpact } from '../../utils/HapticUtils'
 
+interface User {
+  id: string
+  name: string
+  imageUrl?: string | null
+}
+
 interface Task {
   id: string
   title: string
@@ -35,7 +42,7 @@ interface Task {
   dueDate: string
   priority: 'low' | 'medium' | 'high'
   project: string
-  assignees: Array<{ id: string, name: string, imageUrl?: string | null }>
+  assignees: User[]
 }
 
 interface TaskItemProps {
@@ -52,12 +59,16 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
   
   // Animation values
   const cardScale = useSharedValue(1)
+  const cardOpacity = useSharedValue(1)
   const priorityPulse = useSharedValue(1)
   const translateX = useSharedValue(0)
   const swipeLeftThreshold = width * -0.3
   const swipeRightThreshold = width * 0.3
   
   useEffect(() => {
+    // Entrance animation
+    cardScale.value = withSpring(1, { damping: 12, stiffness: 100 })
+    
     // Animate priority indicator for high priority overdue tasks
     if (isOverdue && isPriorityHigh) {
       priorityPulse.value = withRepeat(
@@ -71,6 +82,11 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
     } else {
       priorityPulse.value = 1
     }
+    
+    return () => {
+      // Clean up animations
+      cardOpacity.value = withTiming(0, { duration: 200 })
+    }
   }, [isOverdue, isPriorityHigh])
   
   const handlePressIn = () => {
@@ -78,7 +94,7 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
   }
   
   const handlePressOut = () => {
-    cardScale.value = withTiming(1, { duration: 150 })
+    cardScale.value = withSpring(1, { damping: 12, stiffness: 150 })
   }
   
   const handlePress = () => {
@@ -88,20 +104,20 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
     }
   }
   
-  const onGestureEvent = ({ translationX }) => {
+  const onGestureEvent = ({ nativeEvent }) => {
     // Limit the translation for visual cue but without resistance
-    translateX.value = translationX
+    translateX.value = nativeEvent.translationX
   }
   
-  const onGestureEnd = ({ translationX, velocityX }) => {
+  const onGestureEnd = ({ nativeEvent }) => {
     // Check swipe distance and velocity
     const hasSwiped = 
-      translationX < swipeLeftThreshold || 
-      translationX > swipeRightThreshold ||
-      Math.abs(velocityX) > 800
+      nativeEvent.translationX < swipeLeftThreshold || 
+      nativeEvent.translationX > swipeRightThreshold ||
+      Math.abs(nativeEvent.velocityX) > 800
     
     if (hasSwiped) {
-      if (translationX < 0) {
+      if (nativeEvent.translationX < 0) {
         // Swiped left - mark as completed
         triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
         translateX.value = withTiming(swipeLeftThreshold, { duration: 200 })
@@ -140,7 +156,8 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
       transform: [
         { scale: cardScale.value },
         { translateX: translateX.value }
-      ]
+      ],
+      opacity: cardOpacity.value
     }
   })
   
@@ -209,7 +226,11 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
   }
 
   return (
-    <View style={styles.container}>
+    <View 
+      style={styles.container}
+      accessible={true}
+      accessibilityLabel={`Task: ${task.title}, Status: ${getStatusLabel()}, Priority: ${task.priority}, Due: ${formatDateString(task.dueDate)}`}
+    >
       <Animated.View style={[styles.leftActionContainer, leftActionStyle]}>
         <View style={[styles.actionButton, styles.completeAction]}>
           <Feather name="check" size={20} color="#fff" />

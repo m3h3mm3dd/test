@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { 
   StyleSheet, 
   View, 
@@ -7,7 +7,8 @@ import {
   ScrollView, 
   Text,
   TouchableOpacity,
-  Dimensions
+  Dimensions,
+  RefreshControl
 } from 'react-native'
 import Animated, { 
   useSharedValue,
@@ -18,18 +19,22 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInRight,
-  withTiming
+  withTiming,
+  withSequence,
+  withSpring
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
 import { BlurView } from 'expo-blur'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as Haptics from 'expo-haptics'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
 import Spacing from '../theme/Spacing'
 import Button from '../components/Button/Button'
 import TaskDashboard from '../components/Dashboard/TaskDashboard'
+import { triggerImpact } from '../utils/HapticUtils'
 
 const { width, height } = Dimensions.get('window')
 const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
@@ -39,13 +44,54 @@ const DashboardScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets()
   const scrollY = useSharedValue(0)
   const [tabIndex, setTabIndex] = useState(0)
+  const [refreshing, setRefreshing] = useState(false)
+  const [greeting, setGreeting] = useState('')
+  
+  // Animation values
+  const headerHeight = useSharedValue(200)
+  const avatarScale = useSharedValue(1)
+  const notificationBadgeScale = useSharedValue(1)
+  const statCardOpacity = useSharedValue(0)
   
   useEffect(() => {
     StatusBar.setBarStyle('light-content')
     
+    // Set greeting based on time of day
+    const hours = new Date().getHours()
+    let greetingText = ''
+    
+    if (hours < 12) {
+      greetingText = 'Good morning,'
+    } else if (hours < 18) {
+      greetingText = 'Good afternoon,'
+    } else {
+      greetingText = 'Good evening,'
+    }
+    
+    setGreeting(greetingText)
+    
+    // Animate notification badge
+    notificationBadgeScale.value = withSequence(
+      withDelay(1000, withSpring(1.5, { damping: 10 })),
+      withSpring(1, { damping: 15 })
+    )
+    
+    // Animate stat cards
+    statCardOpacity.value = withTiming(1, { duration: 800 })
+    
     return () => {
       StatusBar.setBarStyle('dark-content')
     }
+  }, [])
+  
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true)
+    
+    // Simulate refresh
+    setTimeout(() => {
+      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+      setRefreshing(false)
+    }, 1500)
   }, [])
   
   const scrollHandler = useAnimatedScrollHandler({
@@ -54,6 +100,24 @@ const DashboardScreen = ({ navigation }) => {
     }
   })
   
+  const navigateToNotifications = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    navigation.navigate('NotificationsScreen')
+  }
+  
+  const navigateToProfile = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    navigation.navigate('ProfileScreen')
+  }
+  
+  const handleTabPress = (index) => {
+    if (tabIndex === index) return
+    
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    setTabIndex(index)
+  }
+  
+  // Animated styles
   const tabBarAnimatedStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
       scrollY.value,
@@ -92,6 +156,34 @@ const DashboardScreen = ({ navigation }) => {
       height
     }
   })
+  
+  const avatarAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: avatarScale.value }]
+    }
+  })
+  
+  const notificationBadgeAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: notificationBadgeScale.value }]
+    }
+  })
+  
+  const statCardsAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      opacity: statCardOpacity.value,
+      transform: [
+        { 
+          translateY: interpolate(
+            statCardOpacity.value,
+            [0, 1],
+            [20, 0],
+            Extrapolation.CLAMP
+          )
+        }
+      ]
+    }
+  })
 
   return (
     <View style={styles.container}>
@@ -111,26 +203,30 @@ const DashboardScreen = ({ navigation }) => {
         
         <View style={styles.headerContent}>
           <Animated.View style={[styles.titleContainer, contentOpacity]}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
+            <Text style={styles.welcomeText}>{greeting}</Text>
             <Text style={styles.nameText}>Alex Johnson</Text>
           </Animated.View>
           
           <View style={styles.headerActions}>
             <TouchableOpacity 
               style={styles.iconButton}
-              onPress={() => navigation.navigate('NotificationsScreen')}
+              onPress={navigateToNotifications}
             >
               <Feather name="bell" size={22} color={Colors.neutrals.white} />
-              <View style={styles.notificationBadge} />
+              <Animated.View 
+                style={[styles.notificationBadge, notificationBadgeAnimatedStyle]} 
+              />
             </TouchableOpacity>
             
             <TouchableOpacity 
               style={styles.profileButton}
-              onPress={() => navigation.navigate('ProfileScreen')}
+              onPress={navigateToProfile}
             >
-              <View style={styles.profileAvatar}>
+              <Animated.View 
+                style={[styles.profileAvatar, avatarAnimatedStyle]}
+              >
                 <Text style={styles.profileInitials}>AJ</Text>
-              </View>
+              </Animated.View>
             </TouchableOpacity>
           </View>
         </View>
@@ -141,7 +237,7 @@ const DashboardScreen = ({ navigation }) => {
         <View style={styles.tabBarContent}>
           <TouchableOpacity 
             style={[styles.tabBarButton, tabIndex === 0 && styles.activeTabBarButton]}
-            onPress={() => setTabIndex(0)}
+            onPress={() => handleTabPress(0)}
           >
             <Feather 
               name="grid" 
@@ -160,7 +256,7 @@ const DashboardScreen = ({ navigation }) => {
           
           <TouchableOpacity 
             style={[styles.tabBarButton, tabIndex === 1 && styles.activeTabBarButton]}
-            onPress={() => setTabIndex(1)}
+            onPress={() => handleTabPress(1)}
           >
             <Feather 
               name="list" 
@@ -179,7 +275,7 @@ const DashboardScreen = ({ navigation }) => {
           
           <TouchableOpacity 
             style={[styles.tabBarButton, tabIndex === 2 && styles.activeTabBarButton]}
-            onPress={() => setTabIndex(2)}
+            onPress={() => handleTabPress(2)}
           >
             <Feather 
               name="bar-chart-2" 
@@ -203,14 +299,27 @@ const DashboardScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         scrollEventThrottle={16}
         onScroll={scrollHandler}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor={Colors.primary.blue}
+            colors={[Colors.primary.blue]}
+          />
+        }
       >
         <View style={styles.contentContainer}>
-          <View style={styles.statsCards}>
+          <Animated.View 
+            style={[styles.statsCards, statCardsAnimatedStyle]}
+          >
             <Animated.View 
               style={styles.statsCardContainer}
               entering={FadeInDown.delay(200).duration(600)}
             >
-              <TouchableOpacity style={[styles.statsCard, styles.tasksCard]}>
+              <TouchableOpacity 
+                style={[styles.statsCard, styles.tasksCard]}
+                activeOpacity={0.9}
+              >
                 <LinearGradient
                   colors={[Colors.primary.blue, Colors.primary.darkBlue]}
                   start={{ x: 0, y: 0 }}
@@ -229,7 +338,10 @@ const DashboardScreen = ({ navigation }) => {
               style={styles.statsCardContainer}
               entering={FadeInDown.delay(300).duration(600)}
             >
-              <TouchableOpacity style={[styles.statsCard, styles.projectsCard]}>
+              <TouchableOpacity 
+                style={[styles.statsCard, styles.projectsCard]}
+                activeOpacity={0.9}
+              >
                 <LinearGradient
                   colors={[Colors.secondary.green, '#009688']}
                   start={{ x: 0, y: 0 }}
@@ -248,7 +360,10 @@ const DashboardScreen = ({ navigation }) => {
               style={styles.statsCardContainer}
               entering={FadeInDown.delay(400).duration(600)}
             >
-              <TouchableOpacity style={[styles.statsCard, styles.teamsCard]}>
+              <TouchableOpacity 
+                style={[styles.statsCard, styles.teamsCard]}
+                activeOpacity={0.9}
+              >
                 <LinearGradient
                   colors={['#9C27B0', '#673AB7']}
                   start={{ x: 0, y: 0 }}
@@ -262,7 +377,7 @@ const DashboardScreen = ({ navigation }) => {
                 <Text style={styles.statsLabel}>Teams</Text>
               </TouchableOpacity>
             </Animated.View>
-          </View>
+          </Animated.View>
           
           {tabIndex === 0 && (
             <Animated.View entering={FadeIn.duration(500)}>
@@ -279,7 +394,7 @@ const DashboardScreen = ({ navigation }) => {
               </Text>
               <Button 
                 title="View Task Dashboard"
-                onPress={() => setTabIndex(0)}
+                onPress={() => handleTabPress(0)}
                 variant="primary"
                 icon="grid"
                 style={styles.emptyButton}
@@ -297,7 +412,7 @@ const DashboardScreen = ({ navigation }) => {
               </Text>
               <Button 
                 title="View Task Dashboard"
-                onPress={() => setTabIndex(0)}
+                onPress={() => handleTabPress(0)}
                 variant="primary"
                 icon="grid"
                 style={styles.emptyButton}
@@ -305,8 +420,29 @@ const DashboardScreen = ({ navigation }) => {
               />
             </Animated.View>
           )}
+          
+          {/* Bottom padding for scroll content */}
+          <View style={{ height: 80 }} />
         </View>
       </Animated.ScrollView>
+      
+      {/* Floating Action Button */}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => {
+          triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+        }}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={[Colors.primary.blue, Colors.primary.darkBlue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          borderRadius={28}
+        />
+        <Feather name="plus" size={24} color={Colors.neutrals.white} />
+      </TouchableOpacity>
     </View>
   )
 }
@@ -392,7 +528,12 @@ const styles = StyleSheet.create({
     height: 56,
     borderRadius: 28,
     overflow: 'hidden',
-    zIndex: 20
+    zIndex: 20,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 8
   },
   tabBarContent: {
     flexDirection: 'row',
@@ -445,7 +586,12 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8
   },
   statsCardGradient: {
     borderRadius: 16
@@ -493,6 +639,21 @@ const styles = StyleSheet.create({
   },
   emptyButton: {
     marginTop: Spacing.lg
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8
   }
 })
 

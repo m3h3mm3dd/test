@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -9,128 +9,192 @@ import {
   ScrollView,
   StatusBar,
   Keyboard
-} from 'react-native'
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
   withSequence,
+  withDelay,
   FadeIn,
   FadeInUp,
   FadeInDown,
-  SlideInLeft
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
+  FadeOut,
+  Easing
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Spacing from '../../theme/Spacing'
-import Input from '../../components/Input/Input'
-import Button from '../../components/Button/Button'
-import { isValidEmail } from '../../utils/validators'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import Input from '../../components/Input/Input';
+import Button from '../../components/Button/Button';
+import { isValidEmail } from '../../utils/validators';
+import { triggerImpact } from '../../utils/HapticUtils';
 
-const ForgotPassword = ({ navigation }) => {
-  const insets = useSafeAreaInsets()
+type ForgotPasswordProps = {
+  navigation: any;
+};
+
+const ForgotPassword: React.FC<ForgotPasswordProps> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Form state
-  const [email, setEmail] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [success, setSuccess] = useState(false)
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
   
   // Animation values
-  const inputScale = useSharedValue(1)
-  const successOpacity = useSharedValue(0)
+  const inputScale = useSharedValue(1);
+  const formPosition = useSharedValue(50);
+  const successOpacity = useSharedValue(0);
+  const successScale = useSharedValue(0.8);
+  const buttonScale = useSharedValue(1);
+  
+  // Keyboard listeners
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 100, animated: true });
+        }
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+      }
+    );
+    
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
   
   useEffect(() => {
-    StatusBar.setBarStyle('light-content')
+    StatusBar.setBarStyle('light-content');
+    
+    // Start form entrance animation
+    formPosition.value = withTiming(0, {
+      duration: 800,
+      easing: Easing.out(Easing.cubic)
+    });
+    
     return () => {
-      StatusBar.setBarStyle('dark-content')
+      StatusBar.setBarStyle('dark-content');
     }
-  }, [])
+  }, []);
   
   // Handle form submission
   const handleSubmit = () => {
     // Dismiss keyboard
-    Keyboard.dismiss()
+    Keyboard.dismiss();
     
     // Validate email
     if (!email) {
-      setEmailError('Email is required')
-      shakeInput()
-      return
+      setEmailError('Email is required');
+      shakeInput();
+      return;
     }
     
     if (!isValidEmail(email)) {
-      setEmailError('Please enter a valid email')
-      shakeInput()
-      return
+      setEmailError('Please enter a valid email');
+      shakeInput();
+      return;
     }
     
+    // Animate button press
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    );
+    
     // Clear any previous errors
-    setEmailError('')
+    setEmailError('');
     
     // Show loading state
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    setLoading(true)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    setLoading(true);
     
     // Simulate API call
     setTimeout(() => {
-      setLoading(false)
+      setLoading(false);
       
       // Show success state
-      setSuccess(true)
+      setSuccess(true);
       
       // Animate success message
-      successOpacity.value = withTiming(1, { duration: 500 })
+      successOpacity.value = withTiming(1, { duration: 500 });
+      successScale.value = withSpring(1, { damping: 12 });
       
       // Trigger success haptic
-      triggerImpact(Haptics.NotificationFeedbackType.Success)
-    }, 2000)
-  }
+      triggerImpact(Haptics.NotificationFeedbackType.Success);
+    }, 2000);
+  };
   
   // Handle back button press
   const handleBack = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Handle login button press
   const handleLogin = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Animation for input validation error
   const shakeInput = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
     // Add a subtle shake animation
     inputScale.value = withSequence(
-      withTiming(1.02, { duration: 100 }),
-      withTiming(0.98, { duration: 100 }),
-      withTiming(1.02, { duration: 100 }),
+      withTiming(1.02, { duration: 50 }),
+      withTiming(0.98, { duration: 50 }),
+      withTiming(1.02, { duration: 50 }),
+      withTiming(0.98, { duration: 50 }),
       withSpring(1)
-    )
-  }
+    );
+  };
   
   // Animated styles
   const inputAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: inputScale.value }]
-    }
-  })
+    };
+  });
+  
+  const formAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateY: formPosition.value }]
+    };
+  });
   
   const successAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: successOpacity.value
-    }
-  })
+      opacity: successOpacity.value,
+      transform: [{ scale: successScale.value }]
+    };
+  });
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -147,6 +211,7 @@ const ForgotPassword = ({ navigation }) => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
@@ -177,13 +242,12 @@ const ForgotPassword = ({ navigation }) => {
           
           {/* Form */}
           <Animated.View 
-            style={[styles.formContainer, inputAnimatedStyle]}
+            style={[styles.formContainer, formAnimatedStyle]}
             entering={FadeInUp.delay(400).duration(800)}
           >
             {success ? (
               <Animated.View 
                 style={[styles.successContainer, successAnimatedStyle]}
-                entering={FadeIn.duration(500)}
               >
                 <View style={styles.successIconContainer}>
                   <Feather name="check-circle" size={60} color={Colors.secondary.green} />
@@ -207,30 +271,41 @@ const ForgotPassword = ({ navigation }) => {
                   style={styles.loginButton}
                   variant="secondary"
                   animationType="spring"
+                  icon="log-in"
+                  iconPosition="left"
                 />
               </Animated.View>
             ) : (
               <>
-                <Input
-                  label="Email Address"
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder="your.email@example.com"
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  leftIcon="mail"
-                  error={emailError}
-                />
+                <Animated.View style={inputAnimatedStyle}>
+                  <Input
+                    label="Email Address"
+                    value={email}
+                    onChangeText={(text) => {
+                      setEmail(text);
+                      if (emailError) setEmailError('');
+                    }}
+                    placeholder="your.email@example.com"
+                    keyboardType="email-address"
+                    autoCapitalize="none"
+                    leftIcon="mail"
+                    error={emailError}
+                  />
+                </Animated.View>
                 
-                <Button
-                  title="Send Reset Link"
-                  onPress={handleSubmit}
-                  fullWidth
-                  loading={loading}
-                  style={styles.submitButton}
-                  gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-                  animationType="bounce"
-                />
+                <Animated.View style={buttonAnimatedStyle}>
+                  <Button
+                    title="Send Reset Link"
+                    onPress={handleSubmit}
+                    fullWidth
+                    loading={loading}
+                    style={styles.submitButton}
+                    gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                    animationType="bounce"
+                    icon="send"
+                    iconPosition="right"
+                  />
+                </Animated.View>
               </>
             )}
           </Animated.View>
@@ -238,7 +313,7 @@ const ForgotPassword = ({ navigation }) => {
           {/* Footer */}
           <Animated.View 
             style={styles.footerContainer}
-            entering={SlideInLeft.delay(600).duration(800)}
+            entering={FadeInUp.delay(600).duration(800)}
           >
             <TouchableOpacity 
               onPress={handleLogin}
@@ -252,8 +327,8 @@ const ForgotPassword = ({ navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -304,7 +379,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
-    marginBottom: Spacing.xl
+    marginBottom: Spacing.xl,
+    transform: [{ translateY: 50 }]
   },
   submitButton: {
     height: 56,
@@ -360,6 +436,6 @@ const styles = StyleSheet.create({
   loginButton: {
     minWidth: 200
   }
-})
+});
 
-export default ForgotPassword
+export default ForgotPassword;

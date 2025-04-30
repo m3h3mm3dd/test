@@ -57,7 +57,7 @@ const Avatar = ({
     }
   }
   
-  const initials = getInitials(name)
+  const initials = getInitials(name || '')
   const fontSize = size * 0.4
   const borderWidth = size * 0.075
   const statusSize = size * 0.3

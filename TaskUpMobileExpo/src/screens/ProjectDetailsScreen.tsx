@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -7,9 +7,9 @@ import {
   TouchableOpacity,
   StatusBar,
   Dimensions,
-  Image,
-  FlatList
-} from 'react-native'
+  FlatList,
+  ActivityIndicator
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -20,31 +20,34 @@ import Animated, {
   Extrapolation,
   FadeIn,
   FadeInDown,
-  FadeInRight
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import { BlurView } from 'expo-blur'
-import { SharedElement } from 'react-navigation-shared-element'
-import * as Haptics from 'expo-haptics'
+  FadeInRight,
+  Layout
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import { BlurView } from 'expo-blur';
+import { SharedElement } from 'react-navigation-shared-element';
+import * as Haptics from 'expo-haptics';
+import { useNavigation, useRoute } from '@react-navigation/native';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import Spacing from '../theme/Spacing'
-import Card from '../components/Card'
-import Button from '../components/Button/Button'
-import AvatarStack from '../components/Avatar/AvatarStack'
-import Avatar from '../components/Avatar/Avatar'
-import StatusPill from '../components/StatusPill'
-import SwipeableRow from '../components/SwipeableRow'
-import FAB from '../components/FAB'
-import SegmentedControl from '../components/Controls/SegmentedControl'
-import { triggerImpact } from '../utils/HapticUtils'
-import { timeAgo } from '../utils/helpers'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import Spacing from '../theme/Spacing';
+import Card from '../components/Card';
+import Button from '../components/Button/Button';
+import AvatarStack from '../components/Avatar/AvatarStack';
+import Avatar from '../components/Avatar/Avatar';
+import StatusPill from '../components/StatusPill';
+import SwipeableRow from '../components/SwipeableRow';
+import FAB from '../components/FAB';
+import SegmentedControl from '../components/Controls/SegmentedControl';
+import { triggerImpact } from '../utils/HapticUtils';
+import { timeAgo } from '../utils/helpers';
+import { useTheme } from '../hooks/useTheme';
 
-const { width, height } = Dimensions.get('window')
-const AnimatedBlurView = Animated.createAnimatedComponent(BlurView)
+const { width, height } = Dimensions.get('window');
+const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 
 // Tab options
 const TABS = [
@@ -52,7 +55,7 @@ const TABS = [
   { id: 'tasks', label: 'Tasks', icon: 'check-square' },
   { id: 'files', label: 'Files', icon: 'file' },
   { id: 'team', label: 'Team', icon: 'users' }
-]
+];
 
 // Task Priority enum
 enum TaskPriority {
@@ -69,38 +72,41 @@ enum TaskStatus {
 }
 
 // Project Details Screen
-const ProjectDetailsScreen = ({ route, navigation }) => {
-  const { projectId } = route.params || { projectId: '1' }
-  const insets = useSafeAreaInsets()
+const ProjectDetailsScreen = () => {
+  const navigation = useNavigation();
+  const route = useRoute();
+  const { projectId } = route.params || { projectId: '1' };
+  const insets = useSafeAreaInsets();
+  const { theme } = useTheme();
   
   // Refs
-  const scrollRef = useRef(null)
+  const scrollRef = useRef(null);
   
   // State
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('overview')
-  const [project, setProject] = useState(null)
-  const [tasks, setTasks] = useState([])
-  const [files, setFiles] = useState([])
-  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [project, setProject] = useState(null);
+  const [tasks, setTasks] = useState([]);
+  const [files, setFiles] = useState([]);
+  const [activities, setActivities] = useState([]);
   
   // Animation values
-  const headerHeight = useSharedValue(300)
-  const headerOpacity = useSharedValue(1)
-  const scrollY = useSharedValue(0)
-  const titleOpacity = useSharedValue(0)
+  const headerHeight = useSharedValue(300);
+  const headerOpacity = useSharedValue(1);
+  const scrollY = useSharedValue(0);
+  const titleOpacity = useSharedValue(0);
   
   // Load project data
   useEffect(() => {
-    fetchProjectDetails()
-  }, [projectId])
+    fetchProjectDetails();
+  }, [projectId]);
   
   // Simulate API call to fetch project details
   const fetchProjectDetails = async () => {
-    setLoading(true)
+    setLoading(true);
     
     // Simulate API delay
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await new Promise(resolve => setTimeout(resolve, 1000));
     
     // Project data
     const projectData = {
@@ -123,7 +129,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
       client: 'InnovateTech Solutions',
       createdBy: 'Alex Johnson',
       createdAt: '2025-04-10T09:30:00Z'
-    }
+    };
     
     // Task data
     const tasksData = [
@@ -174,7 +180,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         dueDate: '2025-05-10',
         assignee: projectData.team[0] // Alex
       }
-    ]
+    ];
     
     // Files data
     const filesData = [
@@ -210,7 +216,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         uploadedBy: projectData.team[1],
         uploadedAt: '2025-04-14T11:20:00Z'
       }
-    ]
+    ];
     
     // Activities data
     const activitiesData = [
@@ -259,66 +265,66 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         newStatus: 'in-progress',
         timestamp: '2025-04-25T09:45:00Z'
       }
-    ]
+    ];
     
     // Update state
-    setProject(projectData)
-    setTasks(tasksData)
-    setFiles(filesData)
-    setActivities(activitiesData)
-    setLoading(false)
-  }
+    setProject(projectData);
+    setTasks(tasksData);
+    setFiles(filesData);
+    setActivities(activitiesData);
+    setLoading(false);
+  };
   
   // Handle scroll for header animations
   const handleScroll = (event) => {
-    const scrollOffset = event.nativeEvent.contentOffset.y
-    scrollY.value = scrollOffset
+    const scrollOffset = event.nativeEvent.contentOffset.y;
+    scrollY.value = scrollOffset;
     
     // Animate header
-    const newHeight = Math.max(100, 300 - scrollOffset)
-    headerHeight.value = withTiming(newHeight, { duration: 100 })
+    const newHeight = Math.max(100, 300 - scrollOffset);
+    headerHeight.value = withTiming(newHeight, { duration: 100 });
     
     // Fade in/out title
     if (scrollOffset > 150) {
-      titleOpacity.value = withTiming(1, { duration: 200 })
+      titleOpacity.value = withTiming(1, { duration: 200 });
     } else {
-      titleOpacity.value = withTiming(0, { duration: 200 })
+      titleOpacity.value = withTiming(0, { duration: 200 });
     }
     
     // Fade out header content when scrolled down
-    const contentOpacity = Math.max(0, 1 - (scrollOffset / 150))
-    headerOpacity.value = withTiming(contentOpacity, { duration: 100 })
-  }
+    const contentOpacity = Math.max(0, 1 - (scrollOffset / 150));
+    headerOpacity.value = withTiming(contentOpacity, { duration: 100 });
+  };
   
   // Navigate back
   const handleBack = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Switch tabs
   const handleTabPress = (tabId) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    setActiveTab(tabId)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    setActiveTab(tabId);
     
     // Scroll to top when changing tabs
     if (scrollRef.current) {
-      scrollRef.current.scrollTo({ y: 0, animated: true })
+      scrollRef.current.scrollTo({ y: 0, animated: true });
     }
-  }
+  };
   
   // Navigate to task details
   const handleTaskPress = (task) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    navigation.navigate('TaskDetails', { taskId: task.id })
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('TaskDetailsScreen', { taskId: task.id });
+  };
   
   // Animated styles
   const headerAnimatedStyle = useAnimatedStyle(() => {
     return {
       height: headerHeight.value
-    }
-  })
+    };
+  });
   
   const headerContentStyle = useAnimatedStyle(() => {
     return {
@@ -333,19 +339,20 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
           ) 
         }
       ]
-    }
-  })
+    };
+  });
   
   const headerTitleStyle = useAnimatedStyle(() => {
     return {
       opacity: titleOpacity.value
-    }
-  })
+    };
+  });
   
   // Render task item
   const renderTaskItem = ({ item, index }) => (
     <Animated.View
       entering={FadeInDown.delay(index * 100).duration(400)}
+      layout={Layout.springify()}
     >
       <SwipeableRow
         rightActions={[
@@ -358,12 +365,12 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 // Set task to in-progress
                 setTasks(prev => prev.map(t => 
                   t.id === item.id ? { ...t, status: TaskStatus.IN_PROGRESS } : t
-                ))
+                ));
               } else {
                 // Set task to completed
                 setTasks(prev => prev.map(t => 
                   t.id === item.id ? { ...t, status: TaskStatus.COMPLETED, completedAt: new Date().toISOString() } : t
-                ))
+                ));
               }
             }
           }
@@ -426,8 +433,8 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                   name="calendar" 
                   size={14}
                   color={isOverdue(item.dueDate) && item.status !== TaskStatus.COMPLETED
-                    ? Colors.secondary.red
-                    : Colors.neutrals.gray600
+                    ? theme.status.error
+                    : theme.text.secondary
                   }
                 />
                 <Text 
@@ -444,12 +451,13 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         </Card>
       </SwipeableRow>
     </Animated.View>
-  )
+  );
   
   // Render file item
   const renderFileItem = ({ item, index }) => (
     <Animated.View
       entering={FadeInDown.delay(index * 100).duration(400)}
+      layout={Layout.springify()}
     >
       <Card
         style={styles.fileCard}
@@ -481,18 +489,19 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
           </View>
           
           <TouchableOpacity style={styles.fileAction}>
-            <Feather name="download" size={20} color={Colors.primary.blue} />
+            <Feather name="download" size={20} color={theme.primary.main} />
           </TouchableOpacity>
         </View>
       </Card>
     </Animated.View>
-  )
+  );
   
   // Render activity item
   const renderActivityItem = ({ item, index }) => (
     <Animated.View
       entering={FadeInRight.delay(index * 100).duration(400)}
       style={styles.activityItem}
+      layout={Layout.springify()}
     >
       <View style={styles.activityTimeline}>
         <View style={styles.activityDot} />
@@ -518,12 +527,13 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         </View>
       </View>
     </Animated.View>
-  )
+  );
   
   // Render team member
   const renderTeamMember = ({ item, index }) => (
     <Animated.View
       entering={FadeInDown.delay(index * 100).duration(400)}
+      layout={Layout.springify()}
     >
       <Card
         style={styles.teamMemberCard}
@@ -547,16 +557,16 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
           
           <View style={styles.teamMemberActions}>
             <TouchableOpacity style={styles.teamMemberAction}>
-              <Feather name="message-circle" size={20} color={Colors.primary.blue} />
+              <Feather name="message-circle" size={20} color={theme.primary.main} />
             </TouchableOpacity>
             <TouchableOpacity style={styles.teamMemberAction}>
-              <Feather name="mail" size={20} color={Colors.primary.blue} />
+              <Feather name="mail" size={20} color={theme.primary.main} />
             </TouchableOpacity>
           </View>
         </View>
       </Card>
     </Animated.View>
-  )
+  );
   
   // Get activity message based on type
   const getActivityMessage = (activity) => {
@@ -566,81 +576,81 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
           <Text style={styles.activityText}>
             Completed task <Text style={styles.activityHighlight}>{activity.task}</Text>
           </Text>
-        )
+        );
       case 'file_uploaded':
         return (
           <Text style={styles.activityText}>
             Uploaded file <Text style={styles.activityHighlight}>{activity.file}</Text>
           </Text>
-        )
+        );
       case 'task_assigned':
         return (
           <Text style={styles.activityText}>
             Assigned <Text style={styles.activityHighlight}>{activity.task}</Text> to <Text style={styles.activityHighlight}>{activity.assignee.name}</Text>
           </Text>
-        )
+        );
       case 'comment':
         return (
           <View>
             <Text style={styles.activityText}>Added a comment:</Text>
             <Text style={styles.activityComment}>{activity.comment}</Text>
           </View>
-        )
+        );
       case 'task_status_changed':
         return (
           <Text style={styles.activityText}>
             Changed status of <Text style={styles.activityHighlight}>{activity.task}</Text> from <Text style={styles.activityHighlight}>{formatStatus(activity.oldStatus)}</Text> to <Text style={styles.activityHighlight}>{formatStatus(activity.newStatus)}</Text>
           </Text>
-        )
+        );
       default:
-        return <Text style={styles.activityText}>{activity.type}</Text>
+        return <Text style={styles.activityText}>{activity.type}</Text>;
     }
-  }
+  };
   
   // Format task status for display
   const formatStatus = (status) => {
     switch (status) {
       case 'todo':
-        return 'To Do'
+        return 'To Do';
       case 'in-progress':
-        return 'In Progress'
+        return 'In Progress';
       case 'completed':
-        return 'Completed'
+        return 'Completed';
       default:
-        return status
+        return status;
     }
-  }
+  };
   
   // Get color for file type
   const getFileColor = (type) => {
     switch (type) {
       case 'figma':
-        return '#F24E1E'
+        return '#F24E1E';
       case 'pdf':
-        return '#FF5252'
+        return '#FF5252';
       case 'document':
-        return '#2196F3'
+        return '#2196F3';
       case 'archive':
-        return '#FF9800'
+        return '#FF9800';
       default:
-        return Colors.neutrals.gray600
+        return theme.text.secondary;
     }
-  }
+  };
   
   // Check if a date is in the past
   const isOverdue = (dateString) => {
-    return new Date(dateString) < new Date()
-  }
+    return new Date(dateString) < new Date();
+  };
   
   // Format date for display
   const formatDate = (dateString) => {
-    const options = { month: 'short', day: 'numeric' }
-    return new Date(dateString).toLocaleDateString('en-US', options)
-  }
+    const options = { month: 'short', day: 'numeric' };
+    return new Date(dateString).toLocaleDateString('en-US', options);
+  };
   
   // Render active tab content
   const renderTabContent = () => {
-    if (!project) return null
+    if (!project) return null;
     
     switch (activeTab) {
       case 'overview':
@@ -659,7 +669,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
               <Card style={styles.detailsCard}>
                 <View style={styles.detailRow}>
                   <View style={styles.detailLabel}>
-                    <Feather name="calendar" size={16} color={Colors.neutrals.gray600} />
+                    <Feather name="calendar" size={16} color={theme.text.secondary} />
                     <Text style={styles.detailText}>Start Date</Text>
                   </View>
                   <Text style={styles.detailValue}>{formatDate(project.startDate)}</Text>
@@ -669,7 +679,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 
                 <View style={styles.detailRow}>
                   <View style={styles.detailLabel}>
-                    <Feather name="calendar" size={16} color={Colors.neutrals.gray600} />
+                    <Feather name="calendar" size={16} color={theme.text.secondary} />
                     <Text style={styles.detailText}>Due Date</Text>
                   </View>
                   <Text 
@@ -686,7 +696,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 
                 <View style={styles.detailRow}>
                   <View style={styles.detailLabel}>
-                    <Feather name="briefcase" size={16} color={Colors.neutrals.gray600} />
+                    <Feather name="briefcase" size={16} color={theme.text.secondary} />
                     <Text style={styles.detailText}>Client</Text>
                   </View>
                   <Text style={styles.detailValue}>{project.client}</Text>
@@ -696,7 +706,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 
                 <View style={styles.detailRow}>
                   <View style={styles.detailLabel}>
-                    <Feather name="user" size={16} color={Colors.neutrals.gray600} />
+                    <Feather name="user" size={16} color={theme.text.secondary} />
                     <Text style={styles.detailText}>Created By</Text>
                   </View>
                   <Text style={styles.detailValue}>{project.createdBy}</Text>
@@ -751,12 +761,12 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 
                 <TouchableOpacity style={styles.viewAllButton}>
                   <Text style={styles.viewAllText}>View All Activities</Text>
-                  <Feather name="chevron-right" size={16} color={Colors.primary.blue} />
+                  <Feather name="chevron-right" size={16} color={theme.primary.main} />
                 </TouchableOpacity>
               </View>
             </Animated.View>
           </View>
-        )
+        );
       
       case 'tasks':
         return (
@@ -790,7 +800,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
               style={styles.addTaskButton}
             />
           </View>
-        )
+        );
       
       case 'files':
         return (
@@ -811,7 +821,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
               style={styles.uploadButton}
             />
           </View>
-        )
+        );
       
       case 'team':
         return (
@@ -836,18 +846,18 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
               style={styles.addMemberButton}
             />
           </View>
-        )
+        );
         
       default:
-        return null
+        return null;
     }
-  }
+  };
   
   // Loading state
   if (loading) {
     return (
       <View style={[styles.container, { paddingTop: insets.top }]}>
-        <View style={[styles.header, { height: 300, backgroundColor: Colors.primary.blue }]}>
+        <View style={[styles.header, { height: 300, backgroundColor: project?.color || theme.primary.main }]}>
           <View style={styles.headerActions}>
             <TouchableOpacity style={styles.backButton} onPress={handleBack}>
               <Feather name="arrow-left" size={24} color="#fff" />
@@ -856,29 +866,29 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
         </View>
         
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary.blue} />
+          <ActivityIndicator size="large" color={theme.primary.main} />
         </View>
       </View>
-    )
+    );
   }
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={project?.color || Colors.primary.blue} />
+      <StatusBar barStyle="light-content" backgroundColor={project?.color || theme.primary.main} />
       
       {/* Header */}
       <Animated.View 
         style={[
           styles.header, 
           headerAnimatedStyle, 
-          { backgroundColor: project?.color || Colors.primary.blue }
+          { backgroundColor: project?.color || theme.primary.main }
         ]}
       >
         {/* Background gradient */}
         <LinearGradient
           colors={[
-            project?.color || Colors.primary.blue, 
-            adjustColorBrightness(project?.color || Colors.primary.blue, -20)
+            project?.color || theme.primary.main, 
+            adjustColorBrightness(project?.color || theme.primary.main, -20)
           ]}
           style={StyleSheet.absoluteFill}
           start={{ x: 0, y: 0 }}
@@ -961,7 +971,7 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
               <Feather 
                 name={tab.icon} 
                 size={18} 
-                color={activeTab === tab.id ? Colors.primary.blue : Colors.neutrals.gray600} 
+                color={activeTab === tab.id ? theme.primary.main : theme.text.secondary} 
               />
               <Text 
                 style={[
@@ -1000,39 +1010,39 @@ const ProjectDetailsScreen = ({ route, navigation }) => {
                 : 'plus'
         }
         onPress={() => {}}
-        gradientColors={[project?.color || Colors.primary.blue, adjustColorBrightness(project?.color || Colors.primary.blue, -20)]}
+        gradientColors={[project?.color || theme.primary.main, adjustColorBrightness(project?.color || theme.primary.main, -20)]}
       />
     </View>
-  )
-}
+  );
+};
 
 // Helper function to adjust color brightness
 const adjustColorBrightness = (color: string, percent: number) => {
-  const num = parseInt(color.replace('#', ''), 16)
-  const amt = Math.round(2.55 * percent)
-  const R = (num >> 16) + amt
-  const G = (num >> 8 & 0x00FF) + amt
-  const B = (num & 0x0000FF) + amt
+  const num = parseInt(color.replace('#', ''), 16);
+  const amt = Math.round(2.55 * percent);
+  const R = (num >> 16) + amt;
+  const G = (num >> 8 & 0x00FF) + amt;
+  const B = (num & 0x0000FF) + amt;
   
-  const newR = Math.min(255, Math.max(0, R))
-  const newG = Math.min(255, Math.max(0, G))
-  const newB = Math.min(255, Math.max(0, B))
+  const newR = Math.min(255, Math.max(0, R));
+  const newG = Math.min(255, Math.max(0, G));
+  const newB = Math.min(255, Math.max(0, B));
   
   return '#' + (
     (newR << 16 | newG << 8 | newB)
       .toString(16)
       .padStart(6, '0')
-  )
-}
+  );
+};
 
 // Configure shared element transitions
 ProjectDetailsScreen.sharedElements = (route, otherRoute, showing) => {
-  const { projectId } = route.params
+  const { projectId } = route.params;
   return [
     { id: `project.${projectId}.card` },
     { id: `project.${projectId}.title` }
-  ]
-}
+  ];
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -1532,6 +1542,6 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     minWidth: 150
   }
-})
+});
 
-export default ProjectDetailsScreen
+export default ProjectDetailsScreen;

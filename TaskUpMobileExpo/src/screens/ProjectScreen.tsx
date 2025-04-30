@@ -1,19 +1,23 @@
-import React, { useState, useEffect } from 'react'
-import { StyleSheet, Text, View, SafeAreaView, StatusBar, FlatList } from 'react-native'
-import Animated, { FadeIn, SlideInLeft } from 'react-native-reanimated'
+import React, { useState, useEffect } from 'react';
+import { StyleSheet, Text, View, SafeAreaView, StatusBar, FlatList } from 'react-native';
+import Animated, { FadeIn, SlideInLeft } from 'react-native-reanimated';
+import { useNavigation } from '@react-navigation/native';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import Spacing from '../theme/Spacing'
-import ListItem from '../components/ListItem/ListItem'
-import PrimaryButton from '../components/Button/PrimaryButton'
-import SkeletonLoader from '../components/Skeleton/SkeletonLoader'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import Spacing from '../theme/Spacing';
+import ListItem from '../components/ListItem/ListItem';
+import PrimaryButton from '../components/Button/Button';
+import SkeletonLoader from '../components/Skeleton/SkeletonLoader';
+import { useTheme } from '../theme/ThemeProvider';
 
-const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView)
+const AnimatedSafeAreaView = Animated.createAnimatedComponent(SafeAreaView);
 
-const ProjectScreen = ({ navigation }) => {
-  const [loading, setLoading] = useState(true)
-  const [projects, setProjects] = useState([])
+const ProjectScreen = () => {
+  const navigation = useNavigation();
+  const { theme } = useTheme();
+  const [loading, setLoading] = useState(true);
+  const [projects, setProjects] = useState([]);
 
   useEffect(() => {
     // Simulate data loading
@@ -22,22 +26,32 @@ const ProjectScreen = ({ navigation }) => {
         { id: '1', title: 'Mobile App Redesign', tasksCount: 8, progress: 0.4 },
         { id: '2', title: 'Website Development', tasksCount: 12, progress: 0.7 },
         { id: '3', title: 'Marketing Campaign', tasksCount: 5, progress: 0.2 }
-      ])
-      setLoading(false)
-    }, 1500)
+      ]);
+      setLoading(false);
+    }, 1500);
 
-    return () => clearTimeout(timer)
-  }, [])
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleProjectPress = (projectId) => {
+    navigation.navigate('ProjectDetailsScreen', { projectId });
+  };
+
+  const handleNewProject = () => {
+    // Navigate to create new project screen
+    navigation.navigate('NewProjectScreen');
+  };
 
   const renderProjectItem = ({ item }) => (
-    <Animated.View entering={SlideInLeft.delay(parseInt(item.id) * 100)}>
+    <Animated.View entering={SlideInLeft.delay(parseInt(item.id) * 100).duration(300)}>
       <ListItem
         title={item.title}
         subtitle={`${item.tasksCount} tasks`}
         rightIcon={<ProgressIndicator progress={item.progress} />}
+        onPress={() => handleProjectPress(item.id)}
       />
     </Animated.View>
-  )
+  );
 
   const renderSkeletons = () => (
     <>
@@ -49,15 +63,18 @@ const ProjectScreen = ({ navigation }) => {
         </View>
       ))}
     </>
-  )
+  );
 
   return (
-    <AnimatedSafeAreaView style={styles.container} entering={FadeIn}>
-      <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
+    <AnimatedSafeAreaView 
+      style={[styles.container, { backgroundColor: theme.background.primary }]}
+      entering={FadeIn.duration(400)}
+    >
+      <StatusBar barStyle={theme.isDark ? "light-content" : "dark-content"} backgroundColor={theme.background.primary} />
       
-      <Animated.View style={styles.header} entering={SlideInLeft.delay(100)}>
-        <Text style={styles.title}>Projects</Text>
-        <Text style={styles.subtitle}>Manage your projects</Text>
+      <Animated.View style={styles.header} entering={SlideInLeft.delay(100).duration(300)}>
+        <Text style={[styles.title, { color: theme.text.primary }]}>Projects</Text>
+        <Text style={[styles.subtitle, { color: theme.text.secondary }]}>Manage your projects</Text>
       </Animated.View>
 
       <View style={styles.content}>
@@ -74,38 +91,43 @@ const ProjectScreen = ({ navigation }) => {
         )}
       </View>
 
-      <Animated.View style={styles.footer} entering={SlideInLeft.delay(300)}>
+      <Animated.View style={styles.footer} entering={SlideInLeft.delay(300).duration(300)}>
         <PrimaryButton
           title="New Project"
-          onPress={() => {}}
+          onPress={handleNewProject}
           fullWidth
+          icon="plus"
         />
       </Animated.View>
     </AnimatedSafeAreaView>
-  )
-}
+  );
+};
 
 // Helper component for progress
 const ProgressIndicator = ({ progress }) => {
+  const { theme } = useTheme();
+  
   return (
     <View style={styles.progressContainer}>
-      <View style={styles.progressTrack}>
+      <View style={[styles.progressTrack, { backgroundColor: theme.neutrals.gray200 }]}>
         <View 
           style={[
             styles.progressFill,
-            { width: `${progress * 100}%` }
+            { 
+              width: `${progress * 100}%`,
+              backgroundColor: theme.primary.main
+            }
           ]} 
         />
       </View>
-      <Text style={styles.progressText}>{`${Math.round(progress * 100)}%`}</Text>
+      <Text style={[styles.progressText, { color: theme.text.secondary }]}>{`${Math.round(progress * 100)}%`}</Text>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    backgroundColor: Colors.background.light
+    flex: 1
   },
   header: {
     padding: Spacing.lg,
@@ -113,12 +135,10 @@ const styles = StyleSheet.create({
   },
   title: {
     fontSize: Typography.sizes.title,
-    fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.gray900
+    fontWeight: Typography.weights.bold
   },
   subtitle: {
     fontSize: Typography.sizes.body,
-    color: Colors.neutrals.gray600,
     marginTop: Spacing.xs
   },
   content: {
@@ -139,18 +159,15 @@ const styles = StyleSheet.create({
   progressTrack: {
     width: 60,
     height: 6,
-    backgroundColor: Colors.neutrals.gray200,
     borderRadius: 3,
     overflow: 'hidden'
   },
   progressFill: {
     height: '100%',
-    backgroundColor: Colors.primary.blue,
     borderRadius: 3
   },
   progressText: {
     fontSize: Typography.sizes.caption,
-    color: Colors.neutrals.gray600,
     marginTop: 4
   },
   skeletonContainer: {
@@ -166,6 +183,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.md,
     alignSelf: 'flex-end'
   }
-})
+});
 
-export default ProjectScreen
+export default ProjectScreen;

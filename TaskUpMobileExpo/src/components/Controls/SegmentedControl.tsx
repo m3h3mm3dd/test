@@ -102,7 +102,12 @@ const SegmentedControl = ({
   })
 
   return (
-    <View style={styles.container} onLayout={handleContainerLayout}>
+    <View 
+      style={styles.container} 
+      onLayout={handleContainerLayout}
+      accessible={true}
+      accessibilityRole="tablist"
+    >
       <Animated.View style={[styles.indicator, indicatorStyle]} />
       
       <View style={styles.segments}>
@@ -142,6 +147,10 @@ const SegmentedControl = ({
               onPress={() => handlePress(segment.id)}
               onLayout={(event) => handleSegmentLayout(segment.id, event)}
               activeOpacity={0.7}
+              accessible={true}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isSelected }}
+              accessibilityLabel={segment.label}
             >
               <Animated.Text style={[styles.segmentText, textStyle]}>
                 {segment.label}

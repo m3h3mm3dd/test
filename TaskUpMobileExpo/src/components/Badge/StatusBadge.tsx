@@ -1,7 +1,11 @@
 import React from 'react'
 import { StyleSheet, View } from 'react-native'
-import { BadgeProps } from '../../types/UITypes'
 import Colors from '../../theme/Colors'
+
+interface BadgeProps {
+  status: 'online' | 'busy' | 'away' | 'offline'
+  size?: number
+}
 
 const StatusBadge = ({ status, size = 10 }: BadgeProps) => {
   const getBadgeColor = () => {
@@ -9,7 +13,7 @@ const StatusBadge = ({ status, size = 10 }: BadgeProps) => {
       case 'online':
         return Colors.secondary.green
       case 'busy':
-        return Colors.error
+        return Colors.secondary.red || Colors.error
       case 'away':
         return Colors.warning
       case 'offline':

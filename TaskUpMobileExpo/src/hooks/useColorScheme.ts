@@ -1,44 +1,37 @@
-/* src/components/useColorScheme.ts */
-import { useColorScheme as _useColorScheme } from 'react-native';
-import { Colors } from '@/theme/Colors';
-import { Metrics } from '@/theme/Metrics';
-import { Spacing } from '@/theme/Spacing';
-import { Typography } from '@/theme/Typography';
+
+import { useContext } from 'react';
+import { ThemeContext, ColorScheme } from '@/theme/ThemeProvider';
 
 /**
- * Supported color scheme types
- */
-export type ColorScheme = 'light' | 'dark';
-
-/**
- * Hook to get the current system color scheme ('light' | 'dark').
+ * Hook to get the current color scheme ('light' | 'dark').
  */
 export function useColorScheme(): ColorScheme {
-  const scheme = _useColorScheme();
-  return scheme === 'dark' ? 'dark' : 'light';
+  const { colorScheme } = useContext(ThemeContext);
+  return colorScheme;
 }
 
 /**
- * Hook to retrieve theme values: colors, metrics, spacing, and typography tailored to the active color scheme.
+ * Hook to toggle between light and dark mode
  */
-export function useTheme() {
-  const scheme = useColorScheme();
-
-  const themeColors = {
-    primary: Colors.primary.blue,
-    darkPrimary: Colors.primary.darkBlue,
-    tint: Colors.tint,
-    tabIconDefault: Colors.tabIconDefault,
-    tabIconSelected: Colors.tabIconSelected,
-    background: scheme === 'dark'
-      ? Colors.background.dark
-      : Colors.background.light,
-  };
-
-  return {
-    colors: themeColors,
-    metrics: Metrics,
-    spacing: Spacing,
-    typography: Typography,
-  };
+export function useColorSchemeToggle(): () => void {
+  const { toggleColorScheme } = useContext(ThemeContext);
+  return toggleColorScheme;
 }
+
+/**
+ * Hook to set a specific color scheme
+ */
+export function useSetColorScheme(): (scheme: ColorScheme) => void {
+  const { setColorScheme } = useContext(ThemeContext);
+  return setColorScheme;
+}
+
+/**
+ * Hook to determine if current theme is dark mode
+ */
+export function useIsDarkMode(): boolean {
+  const { isDark } = useContext(ThemeContext);
+  return isDark;
+}
+
+export { useTheme } from '@/theme/ThemeProvider';

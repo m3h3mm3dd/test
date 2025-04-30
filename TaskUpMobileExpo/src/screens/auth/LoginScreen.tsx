@@ -22,7 +22,8 @@ import Animated, {
   FadeIn,
   FadeInDown,
   FadeInUp,
-  SlideInDown
+  SlideInDown,
+  Easing
 } from 'react-native-reanimated'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Feather } from '@expo/vector-icons'
@@ -55,7 +56,9 @@ const LoginScreen = ({ navigation }) => {
   // Animation values
   const logoScale = useSharedValue(0.8)
   const formOpacity = useSharedValue(0)
+  const formTranslateY = useSharedValue(50)
   const checkboxScale = useSharedValue(1)
+  const buttonScale = useSharedValue(1)
   
   // Initialize animations
   useEffect(() => {
@@ -67,10 +70,15 @@ const LoginScreen = ({ navigation }) => {
       withTiming(1, { duration: 400 })
     )
     
-    // Form fade in
+    // Form fade in and slide up
     formOpacity.value = withDelay(
       600,
       withTiming(1, { duration: 800 })
+    )
+    
+    formTranslateY.value = withDelay(
+      600,
+      withTiming(0, { duration: 800 })
     )
     
     return () => {
@@ -103,6 +111,12 @@ const LoginScreen = ({ navigation }) => {
       setPasswordError('')
     }
     
+    // Animate button
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    )
+    
     // If validation passes, attempt login
     if (isValid) {
       triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
@@ -115,6 +129,8 @@ const LoginScreen = ({ navigation }) => {
         // Navigate to dashboard on success
         navigation.replace('MainTabs')
       }, 1500)
+    } else {
+      triggerImpact(Haptics.NotificationFeedbackType.Error)
     }
   }
   
@@ -133,11 +149,13 @@ const LoginScreen = ({ navigation }) => {
   
   // Navigate to forgot password
   const navigateToForgotPassword = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     navigation.navigate('ForgotPassword')
   }
   
   // Navigate to sign up
   const navigateToSignUp = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     navigation.navigate('SignUpStep1')
   }
   
@@ -150,13 +168,20 @@ const LoginScreen = ({ navigation }) => {
   
   const formAnimatedStyle = useAnimatedStyle(() => {
     return {
-      opacity: formOpacity.value
+      opacity: formOpacity.value,
+      transform: [{ translateY: formTranslateY.value }]
     }
   })
   
   const checkboxAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: checkboxScale.value }]
+    }
+  })
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
     }
   })
 
@@ -203,7 +228,6 @@ const LoginScreen = ({ navigation }) => {
           {/* Login form */}
           <Animated.View 
             style={[styles.formContainer, formAnimatedStyle]}
-            entering={FadeInUp.delay(700).duration(800)}
           >
             <Text style={styles.formTitle}>Login</Text>
             
@@ -211,7 +235,10 @@ const LoginScreen = ({ navigation }) => {
               <Input
                 label="Email"
                 value={email}
-                onChangeText={setEmail}
+                onChangeText={(text) => {
+                  setEmail(text)
+                  if (emailError) setEmailError('')
+                }}
                 placeholder="your.email@example.com"
                 keyboardType="email-address"
                 autoCapitalize="none"
@@ -222,7 +249,10 @@ const LoginScreen = ({ navigation }) => {
               <Input
                 label="Password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(text) => {
+                  setPassword(text)
+                  if (passwordError) setPasswordError('')
+                }}
                 placeholder="Enter your password"
                 secureTextEntry
                 leftIcon="lock"
@@ -255,15 +285,17 @@ const LoginScreen = ({ navigation }) => {
               </TouchableOpacity>
             </View>
             
-            <Button
-              title="Login"
-              onPress={handleLogin}
-              fullWidth
-              loading={loading}
-              style={styles.loginButton}
-              gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-              animationType="bounce"
-            />
+            <Animated.View style={buttonAnimatedStyle}>
+              <Button
+                title="Login"
+                onPress={handleLogin}
+                fullWidth
+                loading={loading}
+                style={styles.loginButton}
+                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                animationType="bounce"
+              />
+            </Animated.View>
             
             <View style={styles.dividerContainer}>
               <View style={styles.divider} />
@@ -362,7 +394,8 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 10 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
-    elevation: 10
+    elevation: 10,
+    transform: [{ translateY: 50 }]
   },
   formTitle: {
     fontSize: Typography.sizes.title,

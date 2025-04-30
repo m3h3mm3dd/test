@@ -5,7 +5,8 @@ import Animated, {
   useSharedValue, 
   withTiming, 
   interpolate,
-  Extrapolation 
+  Extrapolation,
+  withSpring
 } from 'react-native-reanimated'
 import { LinearGradient } from 'expo-linear-gradient'
 import { Feather } from '@expo/vector-icons'
@@ -13,6 +14,8 @@ import { Feather } from '@expo/vector-icons'
 import Colors from '../../theme/Colors'
 import Typography from '../../theme/Typography'
 import Spacing from '../../theme/Spacing'
+import { triggerImpact } from '../../utils/HapticUtils'
+import * as Haptics from 'expo-haptics'
 
 const { width } = Dimensions.get('window')
 const CARD_WIDTH = width * 0.75
@@ -23,6 +26,8 @@ interface DashboardCardProps {
   icon: keyof typeof Feather.glyphMap
   gradientColors: string[]
   onPress?: () => void
+  description?: string
+  loading?: boolean
 }
 
 const DashboardCard = ({ 
@@ -30,7 +35,9 @@ const DashboardCard = ({
   value, 
   icon, 
   gradientColors, 
-  onPress 
+  onPress,
+  description,
+  loading = false
 }: DashboardCardProps) => {
   const scale = useSharedValue(1)
   const rotation = useSharedValue(0)
@@ -43,6 +50,13 @@ const DashboardCard = ({
   const handlePressOut = () => {
     scale.value = withTiming(1, { duration: 200 })
     rotation.value = withTiming(0, { duration: 250 })
+  }
+  
+  const handlePress = () => {
+    if (onPress) {
+      triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+      onPress()
+    }
   }
   
   const animatedStyle = useAnimatedStyle(() => {
@@ -65,9 +79,14 @@ const DashboardCard = ({
   return (
     <TouchableOpacity
       activeOpacity={0.9}
-      onPress={onPress}
+      onPress={handlePress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      disabled={loading}
+      accessible={true}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}: ${value}`}
+      accessibilityHint="Double tap to view details"
     >
       <Animated.View style={[styles.card, animatedStyle]}>
         <LinearGradient
@@ -81,7 +100,11 @@ const DashboardCard = ({
           </View>
           
           <Text style={styles.title}>{title}</Text>
-          <Text style={styles.value}>{value}</Text>
+          <Text style={styles.value}>{loading ? '...' : value}</Text>
+          
+          {description && (
+            <Text style={styles.description}>{description}</Text>
+          )}
           
           <View style={styles.decorativeDots}>
             <View style={[styles.dot, styles.dot1]} />
@@ -130,6 +153,11 @@ const styles = StyleSheet.create({
     fontSize: Typography.sizes.title,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.white
+  },
+  description: {
+    fontSize: Typography.sizes.caption,
+    color: 'rgba(255, 255, 255, 0.7)',
+    marginTop: 8
   },
   decorativeDots: {
     position: 'absolute',

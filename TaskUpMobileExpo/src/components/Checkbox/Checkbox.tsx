@@ -3,6 +3,7 @@ import { StyleSheet, TouchableOpacity, View } from 'react-native'
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
 import Colors from '../../theme/Colors'
+import { triggerImpact } from '../../utils/HapticUtils'
 
 interface CheckboxProps {
   checked: boolean
@@ -17,7 +18,7 @@ const Checkbox = ({ checked, onToggle, size = 24, disabled = false }: CheckboxPr
   const handlePress = () => {
     if (disabled) return
     
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     scale.value = withTiming(0.8, { duration: 100 }, () => {
       scale.value = withTiming(1, { duration: 100 })
     })
@@ -44,7 +45,7 @@ const Checkbox = ({ checked, onToggle, size = 24, disabled = false }: CheckboxPr
           styles.container,
           { width: size, height: size, borderRadius: size / 6 },
           checked && styles.checkedContainer,
-          disabled && styles.disabledContainer,
+          disabled && (checked ? styles.disabledCheckedContainer : styles.disabledContainer),
           animatedStyle
         ]}
       >
@@ -71,7 +72,11 @@ const styles = StyleSheet.create({
   },
   disabledContainer: {
     borderColor: Colors.neutrals.gray400,
-    backgroundColor: checked => checked ? Colors.neutrals.gray400 : 'transparent'
+    backgroundColor: 'transparent'
+  },
+  disabledCheckedContainer: {
+    borderColor: Colors.neutrals.gray400,
+    backgroundColor: Colors.neutrals.gray400
   },
   checkmark: {
     width: '100%',

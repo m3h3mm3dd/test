@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -7,107 +7,157 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  StatusBar
-} from 'react-native'
+  StatusBar,
+  Keyboard
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
+  withSequence,
   FadeIn,
   FadeInUp,
   FadeInDown
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Spacing from '../../theme/Spacing'
-import Input from '../../components/Input/Input'
-import Button from '../../components/Button/Button'
-import { isValidEmail } from '../../utils/validators'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import Input from '../../components/Input/Input';
+import Button from '../../components/Button/Button';
+import { isValidEmail } from '../../utils/validators';
+import { triggerImpact } from '../../utils/HapticUtils';
 
-const SignUpStep1 = ({ navigation }) => {
-  const insets = useSafeAreaInsets()
+type SignUpStep1Props = {
+  navigation: any;
+};
+
+const SignUpStep1: React.FC<SignUpStep1Props> = ({ navigation }) => {
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Form state
-  const [email, setEmail] = useState('')
-  const [emailError, setEmailError] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [email, setEmail] = useState('');
+  const [emailError, setEmailError] = useState('');
+  const [loading, setLoading] = useState(false);
   
   // Animation values
-  const progressWidth = useSharedValue(33)
-  const emailInputScale = useSharedValue(1)
+  const progressWidth = useSharedValue(33);
+  const emailInputScale = useSharedValue(1);
+  const buttonScale = useSharedValue(1);
+  
+  // Keyboard listeners to adjust animation when keyboard appears/disappears
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 100, animated: true });
+        }
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+      }
+    );
+    
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
   
   useEffect(() => {
-    StatusBar.setBarStyle('light-content')
+    StatusBar.setBarStyle('light-content');
     return () => {
-      StatusBar.setBarStyle('dark-content')
+      StatusBar.setBarStyle('dark-content');
     }
-  }, [])
+  }, []);
   
   // Validate email and proceed to next step
   const handleContinue = () => {
     if (!email) {
-      setEmailError('Email is required')
-      shakeInput()
-      return
+      setEmailError('Email is required');
+      shakeInput();
+      return;
     }
     
     if (!isValidEmail(email)) {
-      setEmailError('Please enter a valid email')
-      shakeInput()
-      return
+      setEmailError('Please enter a valid email');
+      shakeInput();
+      return;
     }
     
     // Clear any previous errors
-    setEmailError('')
+    setEmailError('');
+    
+    // Animate button press
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    );
     
     // Show loading state
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    setLoading(true)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    setLoading(true);
     
     // Simulate API check for existing email
     setTimeout(() => {
-      setLoading(false)
+      setLoading(false);
       
       // Navigate to next step with email
-      navigation.navigate('SignUpStep2', { email })
-    }, 1500)
-  }
+      navigation.navigate('SignUpStep2', { email });
+    }, 1500);
+  };
   
   // Animation for input validation error
   const shakeInput = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
     // Add a subtle shake animation
-    emailInputScale.value = withSpring(1.02, { damping: 2, stiffness: 500 }, () => {
-      emailInputScale.value = withSpring(1)
-    })
-  }
+    emailInputScale.value = withSequence(
+      withTiming(1.02, { duration: 50 }),
+      withTiming(0.98, { duration: 50 }),
+      withTiming(1.02, { duration: 50 }),
+      withTiming(0.98, { duration: 50 }),
+      withSpring(1)
+    );
+  };
   
   // Go back to login screen
   const handleBack = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Animated styles
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
-    }
-  })
+    };
+  });
   
   const emailInputAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: emailInputScale.value }]
-    }
-  })
+    };
+  });
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -124,6 +174,7 @@ const SignUpStep1 = ({ navigation }) => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
@@ -177,7 +228,10 @@ const SignUpStep1 = ({ navigation }) => {
             <Input
               label="Email Address"
               value={email}
-              onChangeText={setEmail}
+              onChangeText={(text) => {
+                setEmail(text);
+                if (emailError) setEmailError('');
+              }}
               placeholder="your.email@example.com"
               keyboardType="email-address"
               autoCapitalize="none"
@@ -193,15 +247,19 @@ const SignUpStep1 = ({ navigation }) => {
               <Text style={styles.link}> Privacy Policy</Text>
             </Text>
             
-            <Button
-              title="Continue"
-              onPress={handleContinue}
-              fullWidth
-              loading={loading}
-              style={styles.continueButton}
-              gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-              animationType="bounce"
-            />
+            <Animated.View style={buttonAnimatedStyle}>
+              <Button
+                title="Continue"
+                onPress={handleContinue}
+                fullWidth
+                loading={loading}
+                style={styles.continueButton}
+                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                animationType="bounce"
+                icon="arrow-right"
+                iconPosition="right"
+              />
+            </Animated.View>
           </Animated.View>
           
           {/* Alternative signup options */}
@@ -216,15 +274,24 @@ const SignUpStep1 = ({ navigation }) => {
             </View>
             
             <View style={styles.socialButtonsContainer}>
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity 
+                style={styles.socialButton}
+                activeOpacity={0.8}
+              >
                 <Feather name="github" size={20} color="#fff" />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity 
+                style={styles.socialButton}
+                activeOpacity={0.8}
+              >
                 <Feather name="twitter" size={20} color="#fff" />
               </TouchableOpacity>
               
-              <TouchableOpacity style={styles.socialButton}>
+              <TouchableOpacity 
+                style={styles.socialButton}
+                activeOpacity={0.8}
+              >
                 <Feather name="mail" size={20} color="#fff" />
               </TouchableOpacity>
             </View>
@@ -232,8 +299,8 @@ const SignUpStep1 = ({ navigation }) => {
         </ScrollView>
       </KeyboardAvoidingView>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -352,6 +419,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginHorizontal: Spacing.sm
   }
-})
+});
 
-export default SignUpStep1
+export default SignUpStep1;

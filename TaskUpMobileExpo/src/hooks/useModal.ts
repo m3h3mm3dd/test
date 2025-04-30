@@ -1,44 +1,69 @@
-import { useState, useCallback } from 'react'
-import * as Haptics from 'expo-haptics'
+
+import { useState, useCallback } from 'react';
+import * as Haptics from 'expo-haptics';
+import { Platform } from 'react-native';
+
+interface UseModalOptions {
+  initialState?: boolean;
+  enableHaptics?: boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
+}
 
 interface UseModalReturn {
-  isVisible: boolean
-  showModal: () => void
-  hideModal: () => void
-  toggleModal: () => void
+  isVisible: boolean;
+  showModal: () => void;
+  hideModal: () => void;
+  toggleModal: () => void;
 }
 
 /**
- * Hook to handle modal visibility state with haptic feedback
+ * Enhanced hook to handle modal visibility with haptic feedback and callbacks
  */
-const useModal = (initialState: boolean = false): UseModalReturn => {
-  const [isVisible, setIsVisible] = useState<boolean>(initialState)
+const useModal = ({
+  initialState = false,
+  enableHaptics = true,
+  onOpen,
+  onClose
+}: UseModalOptions = {}): UseModalReturn => {
+  const [isVisible, setIsVisible] = useState<boolean>(initialState);
+
+  const triggerHaptic = useCallback(async (style: Haptics.ImpactFeedbackStyle) => {
+    if (enableHaptics && Platform.OS !== 'web') {
+      try {
+        await Haptics.impactAsync(style);
+      } catch (error) {
+        console.warn('Haptic feedback unavailable', error);
+      }
+    }
+  }, [enableHaptics]);
 
   const showModal = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium)
-    setIsVisible(true)
-  }, [])
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
+    setIsVisible(true);
+    onOpen?.();
+  }, [triggerHaptic, onOpen]);
 
   const hideModal = useCallback(() => {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-    setIsVisible(false)
-  }, [])
+    triggerHaptic(Haptics.ImpactFeedbackStyle.Light);
+    setIsVisible(false);
+    onClose?.();
+  }, [triggerHaptic, onClose]);
 
   const toggleModal = useCallback(() => {
-    Haptics.impactAsync(
-      isVisible 
-        ? Haptics.ImpactFeedbackStyle.Light 
-        : Haptics.ImpactFeedbackStyle.Medium
-    )
-    setIsVisible(prev => !prev)
-  }, [isVisible])
+    if (isVisible) {
+      hideModal();
+    } else {
+      showModal();
+    }
+  }, [isVisible, showModal, hideModal]);
 
   return {
     isVisible,
     showModal,
     hideModal,
     toggleModal
-  }
-}
+  };
+};
 
-export default useModal
+export default useModal;

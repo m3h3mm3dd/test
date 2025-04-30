@@ -2,7 +2,6 @@
 import React, { useEffect, useState } from 'react';
 import { LogBox, StatusBar } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { NavigationContainer } from '@react-navigation/native';
 import * as Haptics from 'expo-haptics';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
@@ -50,9 +49,7 @@ export default function App() {
     <SafeAreaProvider>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
-        <NavigationContainer>
-          <AppNavigator />
-        </NavigationContainer>
+        <AppNavigator />
       </GestureHandlerRootView>
     </SafeAreaProvider>
   );

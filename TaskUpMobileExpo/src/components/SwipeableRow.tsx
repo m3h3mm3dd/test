@@ -25,9 +25,9 @@ import {
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../theme/Colors'
+import Typography from '../theme/Typography'
+import { triggerImpact } from '../utils/HapticUtils'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const MAX_SWIPE_WIDTH = Math.min(SCREEN_WIDTH * 0.65, 250)
@@ -111,7 +111,7 @@ const SwipeableRow = ({
   }
   
   // Pan gesture handler
-  const onGestureEvent = (event: PanGestureHandlerGestureEvent) => {
+  const onGestureEvent = useCallback((event: PanGestureHandlerGestureEvent) => {
     if (disabled) return
     
     const { translationX, velocityX } = event.nativeEvent
@@ -144,9 +144,9 @@ const SwipeableRow = ({
         runOnJS(onSwipeStart)()
       }
     }
-  }
+  }, [disabled, leftActions, rightActions, maxLeftSwipe, maxRightSwipe, friction, prevTranslateX.value, onSwipeStart])
   
-  const onGestureEnd = (event: PanGestureHandlerGestureEvent) => {
+  const onGestureEnd = useCallback((event: PanGestureHandlerGestureEvent) => {
     if (disabled) return
     
     const { translationX, velocityX } = event.nativeEvent
@@ -204,7 +204,7 @@ const SwipeableRow = ({
     } else {
       resetPosition()
     }
-  }
+  }, [disabled, leftActions, rightActions, maxLeftSwipe, maxRightSwipe, threshold, prevTranslateX.value, handleSwipeComplete])
   
   // Derive values for actions visibility and position
   const leftActionsProgress = useDerivedValue(() => {
@@ -276,7 +276,10 @@ const SwipeableRow = ({
     if (!leftActions.length) return null
     
     return (
-      <Animated.View style={[styles.actionsContainer, styles.leftActionsContainer, leftActionsStyle]}>
+      <Animated.View 
+        style={[styles.actionsContainer, styles.leftActionsContainer, leftActionsStyle]}
+        accessibilityRole="menubar"
+      >
         {leftActions.map((action, index) => (
           <TouchableOpacity
             key={`left-${index}`}
@@ -286,6 +289,10 @@ const SwipeableRow = ({
             ]}
             onPress={() => handleActionPress(action)}
             activeOpacity={0.8}
+            accessible={true}
+            accessibilityRole="menuitem"
+            accessibilityLabel={action.label}
+            accessibilityHint={`Swipe right to ${action.label}`}
           >
             <Feather name={action.icon} size={18} color="#fff" />
             <Text style={styles.actionText}>{action.label}</Text>
@@ -300,7 +307,10 @@ const SwipeableRow = ({
     if (!rightActions.length) return null
     
     return (
-      <Animated.View style={[styles.actionsContainer, styles.rightActionsContainer, rightActionsStyle]}>
+      <Animated.View 
+        style={[styles.actionsContainer, styles.rightActionsContainer, rightActionsStyle]}
+        accessibilityRole="menubar"
+      >
         {rightActions.map((action, index) => (
           <TouchableOpacity
             key={`right-${index}`}
@@ -310,6 +320,10 @@ const SwipeableRow = ({
             ]}
             onPress={() => handleActionPress(action)}
             activeOpacity={0.8}
+            accessible={true}
+            accessibilityRole="menuitem"
+            accessibilityLabel={action.label}
+            accessibilityHint={`Swipe left to ${action.label}`}
           >
             <Feather name={action.icon} size={18} color="#fff" />
             <Text style={styles.actionText}>{action.label}</Text>

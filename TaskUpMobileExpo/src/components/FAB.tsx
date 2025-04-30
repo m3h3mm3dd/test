@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react'
 import { 
   StyleSheet, 
@@ -26,6 +27,8 @@ import Animated, {
 import { Feather } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
 import * as Haptics from 'expo-haptics'
+import Svg, { Circle } from 'react-native-svg'
+import { ActivityIndicator } from 'react-native'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
@@ -357,6 +360,9 @@ const FAB = ({
       onLongPress={handleLongPress}
       activeOpacity={0.9}
       disabled={disabled || loading}
+      accessibilityRole="button"
+      accessibilityLabel={label || "Action button"}
+      accessibilityState={{ disabled: disabled || loading }}
     >
       {renderBubbleButtons()}
       

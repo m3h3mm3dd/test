@@ -52,6 +52,8 @@ interface InputProps {
   onFocus?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void
   onBlur?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void
   animateSuccess?: boolean
+  returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send'
+  onSubmitEditing?: () => void
 }
 
 const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
@@ -80,7 +82,9 @@ const Input = ({
   numberOfLines = 1,
   onFocus,
   onBlur,
-  animateSuccess = false
+  animateSuccess = false,
+  returnKeyType,
+  onSubmitEditing
 }: InputProps) => {
   const [isFocused, setIsFocused] = useState(false)
   const [isPasswordVisible, setIsPasswordVisible] = useState(false)
@@ -273,6 +277,8 @@ const Input = ({
             style={styles.leftIcon} 
             onPress={onLeftIconPress}
             disabled={!onLeftIconPress}
+            accessibilityRole={onLeftIconPress ? 'button' : undefined}
+            accessibilityLabel={onLeftIconPress ? `${leftIcon} button` : undefined}
           >
             <Feather 
               name={leftIcon} 
@@ -313,6 +319,7 @@ const Input = ({
           placeholderTextColor={Colors.neutrals.gray500}
           accessible={true}
           accessibilityLabel={label}
+          accessibilityHint={placeholder}
           accessibilityState={{ disabled }}
           autoCapitalize={autoCapitalize}
           autoCorrect={autoCorrect}
@@ -320,6 +327,8 @@ const Input = ({
           maxLength={maxLength}
           multiline={multiline}
           numberOfLines={multiline ? numberOfLines : undefined}
+          returnKeyType={returnKeyType}
+          onSubmitEditing={onSubmitEditing}
         />
         
         {secureTextEntry && (
@@ -343,6 +352,8 @@ const Input = ({
             style={styles.rightIcon} 
             onPress={onRightIconPress}
             disabled={!onRightIconPress}
+            accessibilityRole={onRightIconPress ? 'button' : undefined}
+            accessibilityLabel={onRightIconPress ? `${rightIcon} button` : undefined}
           >
             <Feather 
               name={rightIcon} 

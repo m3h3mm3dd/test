@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   View, 
@@ -9,161 +9,202 @@ import {
   ScrollView,
   StatusBar,
   Image,
-  Alert,
-  ActivityIndicator
-} from 'react-native'
+  Keyboard
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
   withSequence,
+  withDelay,
   runOnJS,
   interpolate,
   FadeIn,
   FadeInUp,
   FadeInDown,
-  SlideInDown
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import { BlurView } from 'expo-blur'
+  SlideInDown,
+  Easing
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Spacing from '../../theme/Spacing'
-import Input from '../../components/Input/Input'
-import Button from '../../components/Button/Button'
-import { validateField } from '../../utils/validators'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import Input from '../../components/Input/Input';
+import Button from '../../components/Button/Button';
+import { validateField } from '../../utils/validators';
+import { triggerImpact } from '../../utils/HapticUtils';
 
 // Default avatar placeholder
-const DEFAULT_AVATAR = 'https://via.placeholder.com/150'
+const DEFAULT_AVATAR = 'https://via.placeholder.com/150';
 
 // Photo picker options
 const PHOTO_OPTIONS = [
   { id: 'take', icon: 'camera', label: 'Take Photo' },
   { id: 'library', icon: 'image', label: 'Photo Library' },
   { id: 'remove', icon: 'trash-2', label: 'Remove Photo', destructive: true }
-]
+];
 
-const SignUpStep3 = ({ route, navigation }) => {
-  const { email } = route.params || { email: 'user@example.com' }
-  const insets = useSafeAreaInsets()
+type SignUpStep3Props = {
+  route: any;
+  navigation: any;
+};
+
+const SignUpStep3: React.FC<SignUpStep3Props> = ({ route, navigation }) => {
+  const { email } = route.params || { email: 'user@example.com' };
+  const insets = useSafeAreaInsets();
+  const scrollViewRef = useRef<ScrollView>(null);
   
   // Form state
-  const [fullName, setFullName] = useState('')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirmPassword, setConfirmPassword] = useState('')
-  const [avatarUri, setAvatarUri] = useState('')
+  const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [avatarUri, setAvatarUri] = useState('');
   
   // Validation errors
-  const [nameError, setNameError] = useState('')
-  const [usernameError, setUsernameError] = useState('')
-  const [passwordError, setPasswordError] = useState('')
-  const [confirmPasswordError, setConfirmPasswordError] = useState('')
+  const [nameError, setNameError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [confirmPasswordError, setConfirmPasswordError] = useState('');
   
   // UI state
-  const [loading, setLoading] = useState(false)
-  const [showPhotoOptions, setShowPhotoOptions] = useState(false)
+  const [loading, setLoading] = useState(false);
+  const [showPhotoOptions, setShowPhotoOptions] = useState(false);
   
   // Animation values
-  const progressWidth = useSharedValue(100)
-  const formScale = useSharedValue(1)
-  const photoOptionsHeight = useSharedValue(0)
-  const photoOptionsOpacity = useSharedValue(0)
-  const confettiOpacity = useSharedValue(0)
-  const confettiScale = useSharedValue(0)
+  const progressWidth = useSharedValue(100);
+  const formScale = useSharedValue(1);
+  const formPosition = useSharedValue(0);
+  const photoOptionsHeight = useSharedValue(0);
+  const photoOptionsOpacity = useSharedValue(0);
+  const confettiOpacity = useSharedValue(0);
+  const confettiScale = useSharedValue(0);
+  const buttonScale = useSharedValue(1);
+  
+  // Keyboard listeners to adjust scroll when keyboard appears/disappears
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 100, animated: true });
+        }
+      }
+    );
+    
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        if (scrollViewRef.current) {
+          scrollViewRef.current.scrollTo({ y: 0, animated: true });
+        }
+      }
+    );
+    
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
   
   // Setup status bar
   useEffect(() => {
-    StatusBar.setBarStyle('light-content')
+    StatusBar.setBarStyle('light-content');
+    
+    // Start form entrance animation
+    formPosition.value = withTiming(0, {
+      duration: 800,
+      easing: Easing.out(Easing.cubic)
+    });
+    
     return () => {
-      StatusBar.setBarStyle('dark-content')
+      StatusBar.setBarStyle('dark-content');
     }
-  }, [])
+  }, []);
   
   // Toggle photo options
   const togglePhotoOptions = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
     if (showPhotoOptions) {
       // Hide photo options
-      photoOptionsHeight.value = withTiming(0, { duration: 300 })
+      photoOptionsHeight.value = withTiming(0, { duration: 300 });
       photoOptionsOpacity.value = withTiming(0, { duration: 300 }, () => {
-        runOnJS(setShowPhotoOptions)(false)
-      })
+        runOnJS(setShowPhotoOptions)(false);
+      });
     } else {
       // Show photo options
-      setShowPhotoOptions(true)
-      photoOptionsHeight.value = withTiming(200, { duration: 300 })
-      photoOptionsOpacity.value = withTiming(1, { duration: 300 })
+      setShowPhotoOptions(true);
+      photoOptionsHeight.value = withTiming(200, { duration: 300 });
+      photoOptionsOpacity.value = withTiming(1, { duration: 300 });
     }
-  }
+  };
   
   // Handle photo option selection
-  const handlePhotoOption = (option) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+  const handlePhotoOption = (option: typeof PHOTO_OPTIONS[0]) => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
     
     // Hide photo options
-    togglePhotoOptions()
+    togglePhotoOptions();
     
     // Handle option selection
     switch (option.id) {
       case 'take':
         // Simulate opening camera
         setTimeout(() => {
-          setAvatarUri('https://via.placeholder.com/150/3D5AFE/FFFFFF?text=User')
-        }, 500)
-        break
+          setAvatarUri('https://via.placeholder.com/150/3D5AFE/FFFFFF?text=User');
+        }, 500);
+        break;
       
       case 'library':
         // Simulate opening photo library
         setTimeout(() => {
-          setAvatarUri('https://via.placeholder.com/150/3D5AFE/FFFFFF?text=User')
-        }, 500)
-        break
+          setAvatarUri('https://via.placeholder.com/150/3D5AFE/FFFFFF?text=User');
+        }, 500);
+        break;
       
       case 'remove':
         // Remove avatar
-        setAvatarUri('')
-        break
+        setAvatarUri('');
+        break;
     }
-  }
+  };
   
   // Validate form fields
   const validateForm = () => {
-    let isValid = true
+    let isValid = true;
     
     // Validate full name
-    const nameErrorMsg = validateField('Full Name', fullName, { required: true, minLength: 2 })
-    setNameError(nameErrorMsg)
-    isValid = isValid && !nameErrorMsg
+    const nameErrorMsg = validateField('Full Name', fullName, { required: true, minLength: 2 });
+    setNameError(nameErrorMsg);
+    isValid = isValid && !nameErrorMsg;
     
     // Validate username
-    const usernameErrorMsg = validateField('Username', username, { required: true, minLength: 3 })
-    setUsernameError(usernameErrorMsg)
-    isValid = isValid && !usernameErrorMsg
+    const usernameErrorMsg = validateField('Username', username, { required: true, minLength: 3 });
+    setUsernameError(usernameErrorMsg);
+    isValid = isValid && !usernameErrorMsg;
     
     // Validate password
-    const passwordErrorMsg = validateField('Password', password, { required: true, minLength: 8 })
-    setPasswordError(passwordErrorMsg)
-    isValid = isValid && !passwordErrorMsg
+    const passwordErrorMsg = validateField('Password', password, { required: true, minLength: 8 });
+    setPasswordError(passwordErrorMsg);
+    isValid = isValid && !passwordErrorMsg;
     
     // Validate confirm password
     const confirmPasswordErrorMsg = validateField('Confirm Password', confirmPassword, { 
       required: true, 
       match: password,
       matchFieldName: 'password'
-    })
-    setConfirmPasswordError(confirmPasswordErrorMsg)
-    isValid = isValid && !confirmPasswordErrorMsg
+    });
+    setConfirmPasswordError(confirmPasswordErrorMsg);
+    isValid = isValid && !confirmPasswordErrorMsg;
     
-    return isValid
-  }
+    return isValid;
+  };
   
   // Handle form submission
   const handleSubmit = () => {
@@ -173,68 +214,80 @@ const SignUpStep3 = ({ route, navigation }) => {
       formScale.value = withSequence(
         withTiming(0.98, { duration: 100 }),
         withTiming(1, { duration: 100 })
-      )
+      );
       
-      triggerImpact(Haptics.NotificationFeedbackType.Error)
-      return
+      triggerImpact(Haptics.NotificationFeedbackType.Error);
+      return;
     }
     
+    // Animate button press
+    buttonScale.value = withSequence(
+      withTiming(0.95, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    );
+    
     // Show loading state
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-    setLoading(true)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    setLoading(true);
     
     // Simulate API call for account creation
     setTimeout(() => {
-      setLoading(false)
+      setLoading(false);
       
       // Show success animation
-      showSuccessAnimation()
+      showSuccessAnimation();
       
       // Simulate navigation to dashboard
       setTimeout(() => {
         navigation.reset({
           index: 0,
           routes: [{ name: 'MainTabs' }]
-        })
-      }, 3000)
-    }, 2000)
-  }
+        });
+      }, 3000);
+    }, 2000);
+  };
   
   // Show success animation
   const showSuccessAnimation = () => {
     // Play success haptic
-    triggerImpact(Haptics.NotificationFeedbackType.Success)
+    triggerImpact(Haptics.NotificationFeedbackType.Success);
     
     // Show confetti animation
-    confettiOpacity.value = withTiming(1, { duration: 300 })
-    confettiScale.value = withTiming(1.5, { duration: 1000 })
-  }
+    confettiOpacity.value = withTiming(1, { duration: 300 });
+    confettiScale.value = withTiming(1.5, { 
+      duration: 1000,
+      easing: Easing.out(Easing.back(2))
+    });
+  };
   
   // Go back to previous step
   const handleBack = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    navigation.goBack()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    navigation.goBack();
+  };
   
   // Animated styles
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progressWidth.value}%`
-    }
-  })
+    };
+  });
   
   const formAnimatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ scale: formScale.value }]
-    }
-  })
+      transform: [
+        { scale: formScale.value },
+        { translateY: formPosition.value }
+      ]
+    };
+  });
   
   const photoOptionsAnimatedStyle = useAnimatedStyle(() => {
     return {
       height: photoOptionsHeight.value,
       opacity: photoOptionsOpacity.value
-    }
-  })
+    };
+  });
   
   const confettiAnimatedStyle = useAnimatedStyle(() => {
     return {
@@ -243,8 +296,14 @@ const SignUpStep3 = ({ route, navigation }) => {
         { scale: confettiScale.value },
         { rotate: `${interpolate(confettiScale.value, [0, 1.5], [0, 45])}deg` }
       ]
-    }
-  })
+    };
+  });
+  
+  const buttonAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
+    };
+  });
 
   return (
     <View style={styles.container}>
@@ -263,6 +322,7 @@ const SignUpStep3 = ({ route, navigation }) => {
             <Feather name="check" size={60} color="#fff" />
           </View>
           <Text style={styles.successText}>Account Created!</Text>
+          <Text style={styles.successSubText}>Redirecting to dashboard...</Text>
         </View>
       </Animated.View>
       
@@ -271,6 +331,7 @@ const SignUpStep3 = ({ route, navigation }) => {
         style={styles.keyboardAvoidingView}
       >
         <ScrollView 
+          ref={scrollViewRef}
           contentContainerStyle={[
             styles.scrollContent,
             { paddingTop: insets.top + 20, paddingBottom: insets.bottom + 20 }
@@ -390,7 +451,10 @@ const SignUpStep3 = ({ route, navigation }) => {
             <Input
               label="Full Name"
               value={fullName}
-              onChangeText={setFullName}
+              onChangeText={(text) => {
+                setFullName(text);
+                if (nameError) setNameError('');
+              }}
               placeholder="John Doe"
               leftIcon="user"
               error={nameError}
@@ -399,7 +463,10 @@ const SignUpStep3 = ({ route, navigation }) => {
             <Input
               label="Username"
               value={username}
-              onChangeText={setUsername}
+              onChangeText={(text) => {
+                setUsername(text);
+                if (usernameError) setUsernameError('');
+              }}
               placeholder="johndoe"
               leftIcon="at-sign"
               error={usernameError}
@@ -408,7 +475,10 @@ const SignUpStep3 = ({ route, navigation }) => {
             <Input
               label="Password"
               value={password}
-              onChangeText={setPassword}
+              onChangeText={(text) => {
+                setPassword(text);
+                if (passwordError) setPasswordError('');
+              }}
               placeholder="Create a strong password"
               secureTextEntry
               leftIcon="lock"
@@ -418,7 +488,10 @@ const SignUpStep3 = ({ route, navigation }) => {
             <Input
               label="Confirm Password"
               value={confirmPassword}
-              onChangeText={setConfirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                if (confirmPasswordError) setConfirmPasswordError('');
+              }}
               placeholder="Repeat your password"
               secureTextEntry
               leftIcon="lock"
@@ -432,15 +505,19 @@ const SignUpStep3 = ({ route, navigation }) => {
               <Text style={styles.link}> Privacy Policy</Text>
             </Text>
             
-            <Button
-              title="Create Account"
-              onPress={handleSubmit}
-              fullWidth
-              loading={loading}
-              style={styles.submitButton}
-              gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
-              animationType="bounce"
-            />
+            <Animated.View style={buttonAnimatedStyle}>
+              <Button
+                title="Create Account"
+                onPress={handleSubmit}
+                fullWidth
+                loading={loading}
+                style={styles.submitButton}
+                gradientColors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                animationType="bounce"
+                icon="check"
+                iconPosition="right"
+              />
+            </Animated.View>
           </Animated.View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -462,8 +539,8 @@ const SignUpStep3 = ({ route, navigation }) => {
         </Animated.View>
       )}
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -533,7 +610,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 10,
-    marginBottom: Spacing.xl
+    marginBottom: Spacing.xl,
+    transform: [{ translateY: 50 }]
   },
   avatarContainer: {
     alignItems: 'center',
@@ -655,8 +733,13 @@ const styles = StyleSheet.create({
   successText: {
     fontSize: 28,
     fontWeight: Typography.weights.bold,
-    color: Colors.neutrals.white
+    color: Colors.neutrals.white,
+    marginBottom: Spacing.sm
+  },
+  successSubText: {
+    fontSize: Typography.sizes.body,
+    color: 'rgba(255, 255, 255, 0.8)'
   }
-})
+});
 
-export default SignUpStep3
+export default SignUpStep3;

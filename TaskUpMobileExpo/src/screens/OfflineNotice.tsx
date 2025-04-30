@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react'
+import React, { useEffect } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
   Dimensions, 
   TouchableOpacity
-} from 'react-native'
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -15,26 +15,28 @@ import Animated, {
   withDelay,
   Easing,
   runOnJS
-} from 'react-native-reanimated'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
+} from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import { useNetworkStatus } from '../hooks/useNetworkStatus'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useTheme } from '../theme/ThemeProvider';
 
-const { width } = Dimensions.get('window')
+const { width } = Dimensions.get('window');
 
 const OfflineNotice = () => {
-  const insets = useSafeAreaInsets()
-  const { isConnected, checkConnection } = useNetworkStatus()
+  const insets = useSafeAreaInsets();
+  const { isConnected, checkConnection } = useNetworkStatus();
+  const { theme } = useTheme();
   
   // Animation values
-  const translateY = useSharedValue(-100)
-  const opacity = useSharedValue(0)
-  const iconScale = useSharedValue(1)
-  const pulseOpacity = useSharedValue(0.5)
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
+  const iconScale = useSharedValue(1);
+  const pulseOpacity = useSharedValue(0.5);
   
   // Show banner when offline
   useEffect(() => {
@@ -43,8 +45,8 @@ const OfflineNotice = () => {
       translateY.value = withTiming(0, { 
         duration: 500,
         easing: Easing.out(Easing.back(2))
-      })
-      opacity.value = withTiming(1, { duration: 300 })
+      });
+      opacity.value = withTiming(1, { duration: 300 });
       
       // Pulse animation for icon
       iconScale.value = withRepeat(
@@ -54,7 +56,7 @@ const OfflineNotice = () => {
         ),
         -1,
         true
-      )
+      );
       
       // Pulse animation for signal rings
       pulseOpacity.value = withRepeat(
@@ -64,13 +66,13 @@ const OfflineNotice = () => {
         ),
         -1,
         true
-      )
+      );
     } else {
       // Slide out banner
-      translateY.value = withTiming(-100, { duration: 300 })
-      opacity.value = withTiming(0, { duration: 200 })
+      translateY.value = withTiming(-100, { duration: 300 });
+      opacity.value = withTiming(0, { duration: 200 });
     }
-  }, [isConnected])
+  }, [isConnected]);
   
   // Handle retry connection
   const handleRetry = () => {
@@ -78,32 +80,32 @@ const OfflineNotice = () => {
     iconScale.value = withSequence(
       withTiming(0.8, { duration: 100 }),
       withTiming(1, { duration: 100 })
-    )
+    );
     
     // Check connection
-    checkConnection()
-  }
+    checkConnection();
+  };
   
   // Animated styles
   const containerStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateY: translateY.value }],
       opacity: opacity.value
-    }
-  })
+    };
+  });
   
   const iconContainerStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: iconScale.value }]
-    }
-  })
+    };
+  });
   
   const pulseRingStyle = useAnimatedStyle(() => {
     return {
       opacity: pulseOpacity.value,
       transform: [{ scale: withTiming(iconScale.value * 1.5, { duration: 500 }) }]
-    }
-  })
+    };
+  });
   
   return (
     <Animated.View 
@@ -114,7 +116,7 @@ const OfflineNotice = () => {
       ]}
     >
       <LinearGradient
-        colors={['#d32f2f', '#c62828']}
+        colors={[theme.status.error, theme.status.errorDark]}
         style={StyleSheet.absoluteFill}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
@@ -142,8 +144,8 @@ const OfflineNotice = () => {
         </TouchableOpacity>
       </View>
     </Animated.View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -205,6 +207,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginLeft: 8
   }
-})
+});
 
-export default OfflineNotice
+export default OfflineNotice;

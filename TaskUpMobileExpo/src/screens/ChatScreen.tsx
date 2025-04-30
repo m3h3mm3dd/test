@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { 
   StyleSheet, 
   View, 
@@ -26,12 +26,14 @@ import Animated, {
   FadeOut,
   SlideInRight,
   SlideInLeft,
+  ZoomIn,
   interpolate,
   Extrapolation
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import * as Haptics from 'expo-haptics'
 import { LinearGradient } from 'expo-linear-gradient'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
@@ -80,6 +82,7 @@ const CURRENT_USER_ID = 'user123'
 
 const ChatScreen = ({ route, navigation }) => {
   const { chatId, chatName, groupChat = false } = route?.params || {}
+  const insets = useSafeAreaInsets()
   
   // States
   const [messages, setMessages] = useState<Message[]>([])
@@ -97,14 +100,15 @@ const ChatScreen = ({ route, navigation }) => {
   const inputRef = useRef<TextInput>(null)
   
   // Animated Values
-  const headerHeight = useSharedValue(64)
+  const headerHeight = useSharedValue(64 + insets.top)
   const inputContainerHeight = useSharedValue(60)
   const messageContainerHeight = useSharedValue(height - 150)
   const scrollPosition = useSharedValue(0)
   const keyboardHeight = useSharedValue(0)
   const isKeyboardVisible = useSharedValue(false)
-  const isSending = useSharedValue(false)
+  const isSending = useSharedValue(0)
   const typingIndicatorOpacity = useSharedValue(0)
+  const buttonScale = useSharedValue(1)
   
   // Load chat history
   useEffect(() => {
@@ -185,6 +189,11 @@ const ChatScreen = ({ route, navigation }) => {
       }, 5000)
     }, 2000)
     
+    // Scroll to bottom on initial load
+    setTimeout(() => {
+      flatListRef.current?.scrollToEnd({ animated: true })
+    }, 500)
+    
     return () => clearTimeout(typingTimer)
   }, [])
   
@@ -226,14 +235,21 @@ const ChatScreen = ({ route, navigation }) => {
   }, [])
   
   const handleBackPress = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     navigation.goBack()
   }
   
   const handleSend = () => {
     if (!inputText.trim()) return
     
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+    
+    // Animate send button
+    buttonScale.value = withSequence(
+      withTiming(0.9, { duration: 100 }),
+      withTiming(1, { duration: 100 })
+    )
+    
     isSending.value = withSequence(
       withTiming(1, { duration: 100 }),
       withTiming(0, { duration: 300 })
@@ -291,7 +307,7 @@ const ChatScreen = ({ route, navigation }) => {
   }
   
   const scrollToBottom = () => {
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
     flatListRef.current?.scrollToEnd({ animated: true })
   }
   
@@ -320,12 +336,21 @@ const ChatScreen = ({ route, navigation }) => {
     const opacity = interpolate(
       scrollPosition.value,
       [0, 100],
-      [1, 0.9],
+      [1, 0.95],
+      Extrapolation.CLAMP
+    )
+    
+    const elevation = interpolate(
+      scrollPosition.value,
+      [0, 50],
+      [0, 8],
       Extrapolation.CLAMP
     )
     
     return {
-      opacity
+      opacity,
+      elevation,
+      shadowOpacity: scrollPosition.value > 20 ? 0.15 : 0
     }
   })
   
@@ -355,10 +380,18 @@ const ChatScreen = ({ route, navigation }) => {
     }
   })
   
+  const sendButtonStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: buttonScale.value }]
+    }
+  })
+  
   const renderMessage = ({ item, index }) => {
     const isCurrentUser = item.sender.id === CURRENT_USER_ID
     const showAvatar = !isCurrentUser && 
       (index === 0 || messages[index - 1].sender.id !== item.sender.id)
+    const showTimestamp = index === 0 || 
+      new Date(item.timestamp).getDate() !== new Date(messages[index - 1].timestamp).getDate()
     
     const avatarComponent = showAvatar ? (
       <Avatar 
@@ -374,79 +407,94 @@ const ChatScreen = ({ route, navigation }) => {
     const AnimationComponent = isCurrentUser ? SlideInRight : SlideInLeft
     
     return (
-      <Animated.View 
-        entering={AnimationComponent.delay(index * 50).duration(300)}
-        style={[
-          styles.messageRow,
-          isCurrentUser ? styles.currentUserMessageRow : styles.otherUserMessageRow
-        ]}
-      >
-        {!isCurrentUser && avatarComponent}
+      <>
+        {showTimestamp && (
+          <View style={styles.timestampContainer}>
+            <Text style={styles.timestampText}>
+              {new Date(item.timestamp).toLocaleDateString([], { weekday: 'long', month: 'short', day: 'numeric' })}
+            </Text>
+          </View>
+        )}
         
-        <View 
+        <Animated.View 
+          entering={AnimationComponent.delay(index * 50).duration(300)}
           style={[
-            styles.messageBubble,
-            isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
+            styles.messageRow,
+            isCurrentUser ? styles.currentUserMessageRow : styles.otherUserMessageRow
           ]}
         >
-          {!isCurrentUser && !showAvatar && (
-            <View style={styles.spacer} />
-          )}
+          {!isCurrentUser && avatarComponent}
           
-          {item.replyTo && (
-            <View style={styles.replyContainer}>
-              <View style={styles.replyLine} />
-              <Text style={styles.replyText} numberOfLines={1}>
-                {item.replyTo.sender.name}: {item.replyTo.text}
-              </Text>
-            </View>
-          )}
-          
-          <Text style={[
-            styles.messageText,
-            isCurrentUser ? styles.currentUserText : styles.otherUserText
-          ]}>
-            {item.text}
-          </Text>
-          
-          {item.attachments && item.attachments.length > 0 && (
-            <View style={styles.attachmentsContainer}>
-              {item.attachments.map((attachment, i) => (
-                attachment.type === 'image' ? (
-                  <TouchableOpacity 
-                    key={`${item.id}-attachment-${i}`}
-                    style={styles.imageAttachment}
-                    activeOpacity={0.9}
-                  >
-                    <View style={styles.imageAttachmentPlaceholder}>
-                      <Feather name="image" size={24} color={Colors.neutrals.gray500} />
-                    </View>
-                  </TouchableOpacity>
-                ) : (
-                  <TouchableOpacity 
-                    key={`${item.id}-attachment-${i}`}
-                    style={styles.fileAttachment}
-                    activeOpacity={0.9}
-                  >
-                    <Feather name="file" size={16} color={Colors.primary.blue} />
-                    <Text style={styles.fileAttachmentName} numberOfLines={1}>
-                      {attachment.name || 'File'}
-                    </Text>
-                  </TouchableOpacity>
-                )
-              ))}
-            </View>
-          )}
-          
-          <View style={styles.messageFooter}>
-            <Text style={styles.messageTime}>
-              {formatMessageTime(item.timestamp)}
+          <View 
+            style={[
+              styles.messageBubble,
+              isCurrentUser ? styles.currentUserBubble : styles.otherUserBubble
+            ]}
+          >
+            {!isCurrentUser && !showAvatar && (
+              <View style={styles.spacer} />
+            )}
+            
+            {/* Sender name for group chats */}
+            {groupChat && !isCurrentUser && showAvatar && (
+              <Text style={styles.senderName}>{item.sender.name}</Text>
+            )}
+            
+            {item.replyTo && (
+              <View style={styles.replyContainer}>
+                <View style={styles.replyLine} />
+                <Text style={styles.replyText} numberOfLines={1}>
+                  {item.replyTo.sender.name}: {item.replyTo.text}
+                </Text>
+              </View>
+            )}
+            
+            <Text style={[
+              styles.messageText,
+              isCurrentUser ? styles.currentUserText : styles.otherUserText
+            ]}>
+              {item.text}
             </Text>
             
-            {isCurrentUser && renderMessageStatus(item.status)}
+            {item.attachments && item.attachments.length > 0 && (
+              <View style={styles.attachmentsContainer}>
+                {item.attachments.map((attachment, i) => (
+                  attachment.type === 'image' ? (
+                    <TouchableOpacity 
+                      key={`${item.id}-attachment-${i}`}
+                      style={styles.imageAttachment}
+                      activeOpacity={0.9}
+                    >
+                      <View style={styles.imageAttachmentPlaceholder}>
+                        <Feather name="image" size={24} color={Colors.neutrals.gray500} />
+                      </View>
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity 
+                      key={`${item.id}-attachment-${i}`}
+                      style={styles.fileAttachment}
+                      activeOpacity={0.9}
+                    >
+                      <Feather name="file" size={16} color={Colors.primary.blue} />
+                      <Text style={styles.fileAttachmentName} numberOfLines={1}>
+                        {attachment.name || 'File'}
+                      </Text>
+                    </TouchableOpacity>
+                  )
+                ))}
+              </View>
+            )}
+            
+            <View style={styles.messageFooter}>
+              <Text style={styles.messageTime}>
+                {formatMessageTime(item.timestamp)}
+              </Text>
+              
+              {isCurrentUser && renderMessageStatus(item.status)}
+            </View>
           </View>
-        </View>
-      </Animated.View>
+        </Animated.View>
+      </>
     )
   }
   
@@ -463,7 +511,11 @@ const ChatScreen = ({ route, navigation }) => {
           <Feather name="arrow-left" size={24} color={Colors.neutrals.gray800} />
         </TouchableOpacity>
         
-        <View style={styles.headerTitleContainer}>
+        <TouchableOpacity 
+          style={styles.headerTitleContainer}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('ProfileScreen')}
+        >
           <Text style={styles.headerTitle}>{chatName || 'Chat'}</Text>
           {isTyping ? (
             <Animated.View style={typingIndicatorStyle}>
@@ -490,14 +542,20 @@ const ChatScreen = ({ route, navigation }) => {
               </Text>
             </View>
           )}
-        </View>
+        </TouchableOpacity>
         
         <View style={styles.headerActions}>
-          <TouchableOpacity style={styles.headerButton}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+          >
             <Feather name="phone" size={20} color={Colors.primary.blue} />
           </TouchableOpacity>
           
-          <TouchableOpacity style={styles.headerButton}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+          >
             <Feather name="more-vertical" size={20} color={Colors.neutrals.gray700} />
           </TouchableOpacity>
         </View>
@@ -556,7 +614,10 @@ const ChatScreen = ({ route, navigation }) => {
         
         {/* Input area */}
         <Animated.View style={[styles.inputContainer, inputAnimatedStyle]}>
-          <TouchableOpacity style={styles.attachButton}>
+          <TouchableOpacity 
+            style={styles.attachButton}
+            onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+          >
             <Feather name="plus" size={24} color={Colors.primary.blue} />
           </TouchableOpacity>
           
@@ -574,22 +635,27 @@ const ChatScreen = ({ route, navigation }) => {
           </View>
           
           {inputText.trim() ? (
-            <TouchableOpacity 
-              style={styles.sendButton}
-              onPress={handleSend}
-              activeOpacity={0.7}
-            >
-              <LinearGradient
-                colors={[Colors.primary.blue, Colors.primary.darkBlue]}
-                style={styles.sendButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
+            <Animated.View style={sendButtonStyle}>
+              <TouchableOpacity 
+                style={styles.sendButton}
+                onPress={handleSend}
+                activeOpacity={0.7}
               >
-                <Feather name="send" size={18} color={Colors.neutrals.white} />
-              </LinearGradient>
-            </TouchableOpacity>
+                <LinearGradient
+                  colors={[Colors.primary.blue, Colors.primary.darkBlue]}
+                  style={styles.sendButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                >
+                  <Feather name="send" size={18} color={Colors.neutrals.white} />
+                </LinearGradient>
+              </TouchableOpacity>
+            </Animated.View>
           ) : (
-            <TouchableOpacity style={styles.micButton}>
+            <TouchableOpacity 
+              style={styles.micButton}
+              onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+            >
               <Feather name="mic" size={22} color={Colors.neutrals.gray700} />
             </TouchableOpacity>
           )}
@@ -611,7 +677,10 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: Colors.neutrals.gray200,
-    backgroundColor: Colors.background.light
+    backgroundColor: Colors.background.light,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12
   },
   backButton: {
     padding: 8
@@ -664,6 +733,18 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 16
   },
+  timestampContainer: {
+    alignItems: 'center',
+    marginVertical: 16
+  },
+  timestampText: {
+    fontSize: Typography.sizes.caption,
+    color: Colors.neutrals.gray600,
+    backgroundColor: 'rgba(240, 242, 245, 0.8)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12
+  },
   messageRow: {
     flexDirection: 'row',
     marginBottom: 16
@@ -715,6 +796,12 @@ const styles = StyleSheet.create({
   },
   spacer: {
     height: 8
+  },
+  senderName: {
+    fontSize: Typography.sizes.caption,
+    fontWeight: Typography.weights.semibold,
+    color: Colors.primary.blue,
+    marginBottom: 4
   },
   replyContainer: {
     paddingLeft: 8,
@@ -831,7 +918,12 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    overflow: 'hidden'
+    overflow: 'hidden',
+    shadowColor: Colors.primary.blue,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4
   },
   sendButtonGradient: {
     width: '100%',

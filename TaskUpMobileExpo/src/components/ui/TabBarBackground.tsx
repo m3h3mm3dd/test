@@ -1,13 +1,23 @@
-import React from 'react';
-import { View, StyleSheet } from 'react-native';
-import { BlurView } from 'expo-blur';
+import React from 'react'
+import { View, StyleSheet, ViewStyle } from 'react-native'
+import { BlurView } from 'expo-blur'
 
-export default function TabBarBackground({ style }) {
+interface TabBarBackgroundProps {
+  style?: ViewStyle
+  intensity?: number
+  tint?: 'dark' | 'light' | 'default'
+}
+
+export default function TabBarBackground({ 
+  style, 
+  intensity = 80,
+  tint = 'light'
+}: TabBarBackgroundProps) {
   return (
     <View style={[styles.container, style]}>
-      <BlurView intensity={80} style={StyleSheet.absoluteFill} />
+      <BlurView intensity={intensity} tint={tint} style={StyleSheet.absoluteFill} />
     </View>
-  );
+  )
 }
 
 const styles = StyleSheet.create({
@@ -21,4 +31,4 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: 'rgba(0, 0, 0, 0.1)',
   },
-});
+})

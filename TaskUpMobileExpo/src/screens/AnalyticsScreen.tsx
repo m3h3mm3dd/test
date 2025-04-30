@@ -7,7 +7,8 @@ import {
   ScrollView, 
   Dimensions,
   StatusBar,
-  SafeAreaView
+  SafeAreaView,
+  RefreshControl
 } from 'react-native'
 import Animated, {
   useSharedValue,
@@ -15,13 +16,16 @@ import Animated, {
   useAnimatedScrollHandler,
   withTiming,
   withSequence,
+  withDelay,
   FadeIn,
   SlideInRight,
+  ZoomIn,
   interpolate,
   Extrapolation
 } from 'react-native-reanimated'
 import { Feather } from '@expo/vector-icons'
 import { LinearGradient } from 'expo-linear-gradient'
+import * as Haptics from 'expo-haptics'
 import Svg, { 
   Path, 
   Line, 
@@ -34,7 +38,6 @@ import Svg, {
   Stop
 } from 'react-native-svg'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import * as Haptics from 'expo-haptics'
 
 import Colors from '../theme/Colors'
 import Typography from '../theme/Typography'
@@ -88,6 +91,7 @@ const AnalyticsScreen = ({ navigation }) => {
   const [projectsData, setProjectsData] = useState<ProjectProgress[]>([])
   const [teamsData, setTeamsData] = useState<TeamPerformance[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   
   const insets = useSafeAreaInsets()
   
@@ -96,6 +100,7 @@ const AnalyticsScreen = ({ navigation }) => {
   const headerHeight = useSharedValue(60 + insets.top)
   const chartProgress = useSharedValue(0)
   const barChartProgress = useSharedValue(0)
+  const cardScale = useSharedValue(1)
   
   // Load analytics data
   useEffect(() => {
@@ -105,10 +110,34 @@ const AnalyticsScreen = ({ navigation }) => {
       generateData(dateRange)
       setIsLoading(false)
       
-      // Animate charts
-      chartProgress.value = withTiming(1, { duration: 1500 })
-      barChartProgress.value = withTiming(1, { duration: 1500 })
+      // Animate charts with delay
+      setTimeout(() => {
+        chartProgress.value = withTiming(1, { duration: 1500 })
+        barChartProgress.value = withTiming(1, { duration: 1500 })
+      }, 300)
     }, 1000)
+  }, [dateRange])
+  
+  // Handle refresh
+  const onRefresh = React.useCallback(() => {
+    setRefreshing(true)
+    
+    // Reset chart animations
+    chartProgress.value = 0
+    barChartProgress.value = 0
+    
+    // Simulate reload
+    setTimeout(() => {
+      generateData(dateRange)
+      setRefreshing(false)
+      
+      // Animate charts after refresh
+      setTimeout(() => {
+        chartProgress.value = withTiming(1, { duration: 1500 })
+        barChartProgress.value = withTiming(1, { duration: 1500 })
+        triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+      }, 300)
+    }, 1500)
   }, [dateRange])
   
   // Generate mock data based on date range
@@ -218,7 +247,14 @@ const AnalyticsScreen = ({ navigation }) => {
   const handleDateRangeChange = (range: string) => {
     if (range === dateRange) return
     
-    triggerImpact()
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+    
+    // Animate card scale
+    cardScale.value = withSequence(
+      withTiming(0.97, { duration: 100 }),
+      withTiming(1, { duration: 200 })
+    )
+    
     setDateRange(range)
     setIsLoading(true)
     
@@ -292,13 +328,12 @@ const AnalyticsScreen = ({ navigation }) => {
         const delay = i * 100
         
         return {
-          opacity: withTiming(progress, { duration: 300 }, (finished) => {
-            if (finished) {
-              return withTiming(1, { duration: 300 })
-            }
-          }),
+          opacity: withDelay(
+            delay,
+            withTiming(progress, { duration: 300 })
+          ),
           transform: [
-            { scale: withTiming(progress, { duration: 300 + delay }) }
+            { scale: withDelay(delay, withTiming(progress, { duration: 300 })) }
           ]
         }
       })
@@ -453,6 +488,8 @@ const AnalyticsScreen = ({ navigation }) => {
                 fill="none"
                 strokeLinejoin="round"
                 strokeLinecap="round"
+                strokeDasharray="1000"
+                strokeDashoffset="1000"
               />
             </Animated.View>
             
@@ -503,7 +540,7 @@ const AnalyticsScreen = ({ navigation }) => {
         
         return {
           height: barChartHeight * project.progress * progress,
-          opacity: withTiming(1, { duration: 300 + delay })
+          opacity: withDelay(delay, withTiming(1, { duration: 300 }))
         }
       })
     })
@@ -579,9 +616,9 @@ const AnalyticsScreen = ({ navigation }) => {
         const delay = i * 150
         
         return {
-          opacity: withTiming(progress, { duration: 300 + delay }),
+          opacity: withDelay(delay, withTiming(progress, { duration: 300 })),
           transform: [
-            { scale: withTiming(progress, { duration: 300 + delay }) }
+            { scale: withDelay(delay, withTiming(progress, { duration: 300 })) }
           ]
         }
       })
@@ -741,12 +778,38 @@ const AnalyticsScreen = ({ navigation }) => {
     return colors[index % colors.length]
   }
   
+  // Animated styles
+  const headerAnimatedStyle = useAnimatedStyle(() => {
+    const elevation = interpolate(
+      scrollY.value,
+      [0, 20],
+      [0, 8],
+      Extrapolation.CLAMP
+    )
+    
+    return {
+      elevation,
+      shadowOpacity: interpolate(
+        scrollY.value,
+        [0, 20],
+        [0, 0.2],
+        Extrapolation.CLAMP
+      )
+    }
+  })
+  
+  const cardAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ scale: cardScale.value }]
+    }
+  })
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="dark-content" backgroundColor={Colors.background.light} />
       
       {/* Header */}
-      <View style={styles.header}>
+      <Animated.View style={[styles.header, headerAnimatedStyle]}>
         <Text style={styles.title}>Analytics</Text>
         
         {/* Date range selector */}
@@ -775,7 +838,7 @@ const AnalyticsScreen = ({ navigation }) => {
             </TouchableOpacity>
           ))}
         </ScrollView>
-      </View>
+      </Animated.View>
       
       {/* Scrollable content */}
       <Animated.ScrollView
@@ -784,9 +847,19 @@ const AnalyticsScreen = ({ navigation }) => {
         showsVerticalScrollIndicator={false}
         onScroll={scrollHandler}
         scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={Colors.primary.blue}
+            colors={[Colors.primary.blue]}
+          />
+        }
       >
         {/* Overview Metrics */}
-        <View style={styles.overviewContainer}>
+        <Animated.View 
+          style={[styles.overviewContainer, cardAnimatedStyle]}
+        >
           {isLoading ? (
             // Loading state
             <View style={styles.overviewGrid}>
@@ -803,7 +876,7 @@ const AnalyticsScreen = ({ navigation }) => {
               {overviewMetrics.map((metric, index) => (
                 <Animated.View 
                   key={metric.label}
-                  entering={FadeIn.delay(index * 100).duration(500)}
+                  entering={FadeInDown.delay(index * 100).duration(500)}
                 >
                   <TouchableOpacity style={styles.metricCard} activeOpacity={0.8}>
                     <View 
@@ -840,7 +913,7 @@ const AnalyticsScreen = ({ navigation }) => {
               ))}
             </View>
           )}
-        </View>
+        </Animated.View>
         
         {/* Charts */}
         {isLoading ? (
@@ -866,11 +939,19 @@ const AnalyticsScreen = ({ navigation }) => {
         <View style={styles.exportContainer}>
           <Text style={styles.exportTitle}>Export Analytics</Text>
           <View style={styles.exportOptions}>
-            <TouchableOpacity style={styles.exportButton}>
+            <TouchableOpacity 
+              style={styles.exportButton}
+              activeOpacity={0.8}
+              onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+            >
               <Feather name="file-text" size={20} color={Colors.primary.blue} />
               <Text style={styles.exportButtonText}>PDF Report</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.exportButton}>
+            <TouchableOpacity 
+              style={styles.exportButton}
+              activeOpacity={0.8}
+              onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Light)}
+            >
               <Feather name="file" size={20} color={Colors.primary.blue} />
               <Text style={styles.exportButtonText}>CSV Data</Text>
             </TouchableOpacity>
@@ -880,6 +961,22 @@ const AnalyticsScreen = ({ navigation }) => {
         {/* Bottom padding */}
         <View style={{ height: 40 }} />
       </Animated.ScrollView>
+      
+      {/* Floating action button */}
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => triggerImpact(Haptics.ImpactFeedbackStyle.Medium)}
+        activeOpacity={0.9}
+      >
+        <LinearGradient
+          colors={[Colors.primary.blue, Colors.primary.darkBlue]}
+          style={StyleSheet.absoluteFill}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          borderRadius={28}
+        />
+        <Feather name="share" size={24} color={Colors.neutrals.white} />
+      </TouchableOpacity>
     </SafeAreaView>
   )
 }
@@ -893,7 +990,10 @@ const styles = StyleSheet.create({
     padding: 20,
     backgroundColor: Colors.background.light,
     borderBottomWidth: 1,
-    borderBottomColor: Colors.neutrals.gray200
+    borderBottomColor: Colors.neutrals.gray200,
+    shadowColor: Colors.neutrals.black,
+    shadowOffset: { width: 0, height: 2 },
+    shadowRadius: 8
   },
   title: {
     fontSize: Typography.sizes.title,
@@ -1146,6 +1246,21 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.primary.blue,
     marginLeft: 8
+  },
+  fab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: Colors.primary.blue,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8
   }
 })
 

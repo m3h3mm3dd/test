@@ -1,24 +1,48 @@
 import React, { useEffect } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   withSequence,
-  runOnJS
+  runOnJS,
+  withSpring,
+  Easing
 } from 'react-native-reanimated'
 import * as Haptics from 'expo-haptics'
-import { ToastProps } from '../../types/UITypes'
+import { Feather } from '@expo/vector-icons'
 import Colors from '../../theme/Colors'
 import Typography from '../../theme/Typography'
 
-interface ToastComponentProps extends ToastProps {
+interface ToastProps {
+  message: string
+  type?: 'success' | 'error' | 'info' | 'warning'
+  duration?: number
   onDismiss: () => void
+  action?: {
+    label: string
+    onPress: () => void
+  }
+  icon?: keyof typeof Feather.glyphMap
+  showProgress?: boolean
 }
 
-const Toast = ({ message, type, duration = 3000, onDismiss }: ToastComponentProps) => {
+const Toast = ({ 
+  message, 
+  type = 'info', 
+  duration = 3000, 
+  onDismiss,
+  action,
+  icon,
+  showProgress = true
+}: ToastProps) => {
   const translateY = useSharedValue(-100)
   const opacity = useSharedValue(0)
+  const scale = useSharedValue(0.9)
+  const progress = useSharedValue(1)
+  
+  // Auto-dismiss timer
+  let dismissTimer: NodeJS.Timeout
 
   useEffect(() => {
     // Trigger haptic feedback based on toast type
@@ -29,26 +53,44 @@ const Toast = ({ message, type, duration = 3000, onDismiss }: ToastComponentProp
       case 'error':
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
         break
+      case 'warning':
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
+        break
       case 'info':
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
         break
     }
 
     // Animate in
-    translateY.value = withTiming(0, { duration: 300 })
-    opacity.value = withTiming(1, { duration: 300 })
+    scale.value = withSpring(1, { damping: 12, stiffness: 200 })
+    translateY.value = withSpring(0, { damping: 20, stiffness: 200 })
+    opacity.value = withTiming(1, { duration: 200 })
+    
+    // Progress animation
+    if (showProgress) {
+      progress.value = withTiming(0, { 
+        duration,
+        easing: Easing.linear
+      })
+    }
 
     // Set dismiss timer
-    const dismissTimer = setTimeout(() => {
+    dismissTimer = setTimeout(() => {
       dismiss()
     }, duration)
 
     return () => {
-      clearTimeout(dismissTimer)
+      if (dismissTimer) {
+        clearTimeout(dismissTimer)
+      }
     }
   }, [])
 
   const dismiss = () => {
+    if (dismissTimer) {
+      clearTimeout(dismissTimer)
+    }
+    
     translateY.value = withTiming(-100, { duration: 300 })
     opacity.value = withTiming(0, { duration: 300 }, () => {
       runOnJS(onDismiss)()
@@ -57,20 +99,47 @@ const Toast = ({ message, type, duration = 3000, onDismiss }: ToastComponentProp
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateY: translateY.value }],
+      transform: [
+        { translateY: translateY.value },
+        { scale: scale.value }
+      ],
       opacity: opacity.value
+    }
+  })
+  
+  const progressAnimatedStyle = useAnimatedStyle(() => {
+    return {
+      width: `${progress.value * 100}%`
     }
   })
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return Colors.success
+        return Colors.secondary.green
       case 'error':
-        return Colors.error
+        return Colors.secondary.red
+      case 'warning':
+        return Colors.warning
       case 'info':
       default:
-        return Colors.info
+        return Colors.primary.blue
+    }
+  }
+  
+  const getIcon = () => {
+    if (icon) return icon
+    
+    switch (type) {
+      case 'success':
+        return 'check-circle'
+      case 'error':
+        return 'alert-circle'
+      case 'warning':
+        return 'alert-triangle'
+      case 'info':
+      default:
+        return 'info'
     }
   }
 
@@ -83,8 +152,40 @@ const Toast = ({ message, type, duration = 3000, onDismiss }: ToastComponentProp
       ]}
       accessible={true}
       accessibilityRole="alert"
+      accessibilityLiveRegion="assertive"
     >
-      <Text style={styles.message}>{message}</Text>
+      <View style={styles.content}>
+        <Feather name={getIcon()} size={20} color={Colors.neutrals.white} style={styles.icon} />
+        
+        <Text style={styles.message}>{message}</Text>
+        
+        {action && (
+          <TouchableOpacity 
+            style={styles.actionButton}
+            onPress={() => {
+              action.onPress()
+              dismiss()
+            }}
+          >
+            <Text style={styles.actionText}>{action.label}</Text>
+          </TouchableOpacity>
+        )}
+        
+        <TouchableOpacity onPress={dismiss} style={styles.closeButton}>
+          <Feather name="x" size={18} color={Colors.neutrals.white} />
+        </TouchableOpacity>
+      </View>
+      
+      {showProgress && (
+        <View style={styles.progressContainer}>
+          <Animated.View 
+            style={[
+              styles.progressBar,
+              progressAnimatedStyle
+            ]} 
+          />
+        </View>
+      )}
     </Animated.View>
   )
 }
@@ -95,22 +196,51 @@ const styles = StyleSheet.create({
     top: 50,
     left: 16,
     right: 16,
-    padding: 16,
-    borderRadius: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
+    borderRadius: 12,
+    overflow: 'hidden',
     shadowColor: Colors.neutrals.black,
     shadowOpacity: 0.15,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 8,
-    elevation: 4
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 12,
+    elevation: 6
+  },
+  content: {
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center'
+  },
+  icon: {
+    marginRight: 12
   },
   message: {
     flex: 1,
     color: Colors.neutrals.white,
     fontSize: Typography.sizes.body,
     fontWeight: Typography.weights.medium
+  },
+  actionButton: {
+    marginLeft: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4
+  },
+  actionText: {
+    color: Colors.neutrals.white,
+    fontWeight: Typography.weights.bold,
+    fontSize: Typography.sizes.body
+  },
+  closeButton: {
+    marginLeft: 8,
+    padding: 4
+  },
+  progressContainer: {
+    height: 4,
+    width: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.2)'
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.5)'
   }
 })
 
-export default Toast
+export default Toasta
