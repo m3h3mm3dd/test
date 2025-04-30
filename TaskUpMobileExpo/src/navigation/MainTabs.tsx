@@ -1,6 +1,5 @@
-
 import React, { useEffect } from 'react';
-import { Platform, TouchableOpacity, StyleSheet } from 'react-native';
+import { Platform, TouchableOpacity, StyleSheet, Dimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -11,20 +10,25 @@ import Animated, {
   withSpring,
   withTiming,
   Easing,
-  interpolateColor
+  interpolateColor,
+  withSequence
 } from 'react-native-reanimated';
-import { Box, Text, useColorModeValue } from 'native-base';
+import { Box, Text } from 'native-base';
 
 // Import screens
-import DashboardScreen from '@/screens/DashboardScreen';
-import ProjectsListScreen from '@/screens/ProjectsListScreen';
-import TasksListScreen from '@/screens/TasksListScreen';
-import ProfileScreen from '@/screens/ProfileScreen';
+import DashboardScreen from '../screens/DashboardScreen';
+import ProjectsListScreen from '../screens/ProjectsListScreen';
+import TasksListScreen from '../screens/TasksListScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
 // Import theme and hooks
-import { useTheme } from '@/hooks/useColorScheme';
+import { useTheme } from '../hooks/useColorScheme';
 import * as Haptics from 'expo-haptics';
-import Screens from '@/constants/Screens';
+import Screens from '../constants/Screens';
+import TabBarBackground from '../components/ui/TabBarBackground';
+import { triggerSelection, triggerImpact } from '../utils/HapticUtils';
+
+const { width } = Dimensions.get('window');
 
 // Define navigator types
 export type MainTabParamList = {
@@ -42,21 +46,30 @@ const TabIndicator = ({ state, descriptors, navigation }) => {
   const { routes, index: activeIndex } = state;
   const { colors } = useTheme();
   const translateX = useSharedValue(0);
+  const indicatorWidth = useSharedValue(20);
+  const indicatorOpacity = useSharedValue(0);
   const tabWidth = 100 / routes.length;
   
   // Update indicator position when active tab changes
   useEffect(() => {
-    translateX.value = withSpring(activeIndex * tabWidth, {
+    indicatorOpacity.value = withSequence(
+      withTiming(0, { duration: 50 }),
+      withTiming(1, { duration: 250 })
+    );
+    
+    translateX.value = withSpring(activeIndex * tabWidth + (tabWidth / 2) - 10, {
       damping: 15,
-      stiffness: 120
+      stiffness: 150,
+      mass: 0.5
     });
   }, [activeIndex, tabWidth]);
   
   // Animated style for indicator
   const indicatorStyle = useAnimatedStyle(() => {
     return {
-      transform: [{ translateX: `${translateX.value}%` }],
-      width: `${tabWidth}%`
+      transform: [{ translateX: translateX.value }],
+      opacity: indicatorOpacity.value,
+      width: indicatorWidth.value
     };
   });
   
@@ -67,20 +80,22 @@ const TabIndicator = ({ state, descriptors, navigation }) => {
           position: 'absolute',
           top: 0,
           left: 0,
-          height: 2,
+          right: 0,
           alignItems: 'center'
-        }, 
-        indicatorStyle
+        }
       ]}
     >
       <Animated.View 
         style={[
           {
+            position: 'absolute',
+            top: 4,
             width: 20,
-            height: 2,
+            height: 3,
             backgroundColor: colors.primary[500],
-            borderRadius: 1
-          }
+            borderRadius: 1.5
+          },
+          indicatorStyle
         ]}
       />
     </Animated.View>
@@ -91,22 +106,36 @@ const TabIndicator = ({ state, descriptors, navigation }) => {
 const CustomTabBar = ({ state, descriptors, navigation }) => {
   const insets = useSafeAreaInsets();
   const { colors, metrics } = useTheme();
-  const blurTint = useColorModeValue('light', 'dark');
+  const blurTint = 'light';
+  const tabBarOpacity = useSharedValue(0);
+  
+  useEffect(() => {
+    // Animate tab bar in
+    tabBarOpacity.value = withTiming(1, { duration: 500 });
+  }, []);
+  
+  const tabBarStyle = useAnimatedStyle(() => {
+    return {
+      opacity: tabBarOpacity.value
+    };
+  });
   
   return (
-    <Box 
+    <Animated.View 
       style={[
         styles.tabBarContainer,
         { 
           height: metrics.tabBarHeight + Math.max(insets.bottom, 10),
-          shadowColor: colors.neutrals.black,
-          shadowOffset: { width: 0, height: -4 },
-          shadowOpacity: 0.1,
-          shadowRadius: 8
-        }
+        },
+        tabBarStyle
       ]}
     >
-      <BlurView intensity={80} tint={blurTint} style={{ flex: 1 }} />
+      <TabBarBackground 
+        intensity={85}
+        tint={blurTint}
+        style={{ height: metrics.tabBarHeight + Math.max(insets.bottom, 10) }}
+      />
+      
       <Box 
         style={[
           styles.tabBarContent,
@@ -143,13 +172,13 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
             
             if (!isFocused && !event.defaultPrevented) {
               // Haptic feedback for tab press
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              triggerImpact(Haptics.ImpactFeedbackStyle.Light);
               navigation.navigate(route.name);
             }
           };
           
           const onLongPress = () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
             navigation.emit({
               type: 'tabLongPress',
               target: route.key,
@@ -174,7 +203,7 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
         descriptors={descriptors}
         navigation={navigation}
       />
-    </Box>
+    </Animated.View>
   );
 };
 
@@ -182,14 +211,20 @@ const CustomTabBar = ({ state, descriptors, navigation }) => {
 const TouchableTab = ({ label, icon, isFocused, onPress, onLongPress }) => {
   const { colors, typography } = useTheme();
   const scale = useSharedValue(1);
-  const opacity = useSharedValue(isFocused ? 1 : 0.5);
+  const opacity = useSharedValue(isFocused ? 1 : 0.6);
+  const iconColor = useSharedValue(isFocused ? colors.primary[500] : colors.neutrals[500]);
   
   // Update opacity when focus changes
   useEffect(() => {
-    opacity.value = withTiming(isFocused ? 1 : 0.5, { 
+    opacity.value = withTiming(isFocused ? 1 : 0.6, { 
       duration: 200,
       easing: Easing.bezier(0.25, 0.1, 0.25, 1) 
     });
+    
+    iconColor.value = withTiming(
+      isFocused ? colors.primary[500] : colors.neutrals[500],
+      { duration: 200 }
+    );
   }, [isFocused]);
   
   // Handle press animations
@@ -209,6 +244,12 @@ const TouchableTab = ({ label, icon, isFocused, onPress, onLongPress }) => {
     };
   });
   
+  const iconStyle = useAnimatedStyle(() => {
+    return {
+      color: iconColor.value
+    };
+  });
+  
   return (
     <Animated.View 
       style={[styles.tabContainer, containerStyle]}
@@ -220,12 +261,19 @@ const TouchableTab = ({ label, icon, isFocused, onPress, onLongPress }) => {
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={0.7}
+        accessible={true}
+        accessibilityRole="tab"
+        accessibilityState={{ selected: isFocused }}
+        accessibilityLabel={label}
       >
-        <Feather 
-          name={icon} 
-          size={22} 
-          color={isFocused ? colors.primary[500] : colors.neutrals[500]} 
-        />
+        <Animated.View style={iconStyle}>
+          <Feather 
+            name={icon} 
+            size={22} 
+            color={isFocused ? colors.primary[500] : colors.neutrals[500]} 
+          />
+        </Animated.View>
+        
         <Animated.Text 
           style={[
             styles.tabLabel,
@@ -252,9 +300,7 @@ const MainTabs = () => {
         headerShown: false,
         tabBarShowLabel: false,
         tabBarStyle: {
-          position: 'absolute',
-          height: 0,
-          opacity: 0,
+          display: 'none'
         }
       }}
       tabBar={props => <CustomTabBar {...props} />}
@@ -276,10 +322,16 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     overflow: 'hidden',
-    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 10,
+    zIndex: 100,
   },
   tabBarContent: {
     flexDirection: 'row',
+    paddingTop: 8,
   },
   tabContainer: {
     flex: 1,

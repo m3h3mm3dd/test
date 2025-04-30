@@ -1,11 +1,11 @@
-import React, { useEffect } from 'react'
+import React, { useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
   View, 
   TouchableOpacity, 
-  Dimensions 
-} from 'react-native'
+  Platform
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -15,140 +15,162 @@ import Animated, {
   Easing,
   Extrapolation,
   interpolate,
-  withSpring
-} from 'react-native-reanimated'
-import { Feather } from '@expo/vector-icons'
-import { PanGestureHandler } from 'react-native-gesture-handler'
-import * as Haptics from 'expo-haptics'
+  withSpring,
+  FadeIn,
+  Layout
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { PanGestureHandler } from 'react-native-gesture-handler';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Spacing from '../../theme/Spacing'
-import { formatDateString } from '../../utils/helpers'
-import AvatarStack from '../Avatar/AvatarStack'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import { formatDateString } from '../../utils/helpers';
+import AvatarStack from '../Avatar/AvatarStack';
+import { triggerImpact } from '../../utils/HapticUtils';
+import StatusPill from '../StatusPill';
+import { useTheme } from '../../hooks/useColorScheme';
 
 interface User {
-  id: string
-  name: string
-  imageUrl?: string | null
+  id: string;
+  name: string;
+  imageUrl?: string | null;
 }
 
 interface Task {
-  id: string
-  title: string
-  description: string
-  status: 'pending' | 'in-progress' | 'completed'
-  dueDate: string
-  priority: 'low' | 'medium' | 'high'
-  project: string
-  assignees: User[]
+  id: string;
+  title: string;
+  description: string;
+  status: 'pending' | 'in-progress' | 'completed' | 'blocked' | 'review';
+  dueDate: string;
+  priority: 'low' | 'medium' | 'high' | 'critical';
+  project: string;
+  assignees: User[];
 }
 
 interface TaskItemProps {
-  task: Task
-  onPress?: () => void
-  onStatusChange?: (id: string, status: string) => void
+  task: Task;
+  onPress?: () => void;
+  onStatusChange?: (id: string, status: string) => void;
+  index?: number;
+  disableSwipe?: boolean;
 }
 
-const { width } = Dimensions.get('window')
-
-const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
-  const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed'
-  const isPriorityHigh = task.priority === 'high'
+const TaskItem = ({ 
+  task, 
+  onPress, 
+  onStatusChange,
+  index = 0,
+  disableSwipe = false
+}: TaskItemProps) => {
+  const { colors, isDark } = useTheme();
+  const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'completed';
+  const isPriorityHigh = task.priority === 'high' || task.priority === 'critical';
   
   // Animation values
-  const cardScale = useSharedValue(1)
-  const cardOpacity = useSharedValue(1)
-  const priorityPulse = useSharedValue(1)
-  const translateX = useSharedValue(0)
-  const swipeLeftThreshold = width * -0.3
-  const swipeRightThreshold = width * 0.3
+  const cardScale = useSharedValue(1);
+  const cardOpacity = useSharedValue(0);
+  const priorityPulse = useSharedValue(1);
+  const translateX = useSharedValue(0);
+  const swipeProgress = useSharedValue(0);
+  const elevation = useSharedValue(isDark ? 2 : 3);
+  const shimmerPosition = useSharedValue(-300);
   
   useEffect(() => {
-    // Entrance animation
-    cardScale.value = withSpring(1, { damping: 12, stiffness: 100 })
+    // Entrance animation with staggered delay based on index
+    cardOpacity.value = withTiming(1, { 
+      duration: 500,
+      easing: Easing.out(Easing.quad)
+    });
     
     // Animate priority indicator for high priority overdue tasks
     if (isOverdue && isPriorityHigh) {
       priorityPulse.value = withRepeat(
         withSequence(
-          withTiming(1.4, { duration: 800, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: 800, easing: Easing.inOut(Easing.ease) })
+          withTiming(1.4, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) })
         ),
         -1, // Infinite repeat
         true // Reverse
-      )
+      );
     } else {
-      priorityPulse.value = 1
+      priorityPulse.value = 1;
     }
+    
+    // Subtle shimmer animation for cards
+    shimmerPosition.value = withRepeat(
+      withTiming(300, { duration: 2500, easing: Easing.inOut(Easing.quad) }),
+      -1,
+      false
+    );
     
     return () => {
       // Clean up animations
-      cardOpacity.value = withTiming(0, { duration: 200 })
-    }
-  }, [isOverdue, isPriorityHigh])
+      cardOpacity.value = withTiming(0, { duration: 200 });
+    };
+  }, [isOverdue, isPriorityHigh]);
   
   const handlePressIn = () => {
-    cardScale.value = withTiming(0.98, { duration: 100 })
-  }
+    cardScale.value = withTiming(0.98, { duration: 100 });
+    elevation.value = withTiming(isDark ? 4 : 6, { duration: 100 });
+  };
   
   const handlePressOut = () => {
-    cardScale.value = withSpring(1, { damping: 12, stiffness: 150 })
-  }
+    cardScale.value = withSpring(1, { damping: 12, stiffness: 150 });
+    elevation.value = withTiming(isDark ? 2 : 3, { duration: 200 });
+  };
   
   const handlePress = () => {
     if (onPress) {
-      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-      onPress()
+      triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+      onPress();
     }
-  }
+  };
   
   const onGestureEvent = ({ nativeEvent }) => {
-    // Limit the translation for visual cue but without resistance
-    translateX.value = nativeEvent.translationX
-  }
+    if (disableSwipe) return;
+    
+    // Update swipe progress
+    const maxSwipe = 80;
+    const clampedX = Math.min(Math.max(nativeEvent.translationX, -maxSwipe), maxSwipe);
+    translateX.value = clampedX;
+    
+    // Calculate progress for background actions
+    swipeProgress.value = Math.abs(clampedX) / maxSwipe;
+  };
   
   const onGestureEnd = ({ nativeEvent }) => {
-    // Check swipe distance and velocity
-    const hasSwiped = 
-      nativeEvent.translationX < swipeLeftThreshold || 
-      nativeEvent.translationX > swipeRightThreshold ||
-      Math.abs(nativeEvent.velocityX) > 800
+    if (disableSwipe) return;
     
-    if (hasSwiped) {
+    // Check if swipe should trigger action (more than 60% complete)
+    const triggerAction = Math.abs(nativeEvent.translationX) > 60;
+    
+    if (triggerAction) {
       if (nativeEvent.translationX < 0) {
         // Swiped left - mark as completed
-        triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-        translateX.value = withTiming(swipeLeftThreshold, { duration: 200 })
+        triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
         
         if (onStatusChange) {
-          const newStatus = task.status === 'completed' ? 'in-progress' : 'completed'
-          setTimeout(() => {
-            onStatusChange(task.id, newStatus)
-            translateX.value = withTiming(0, { duration: 300 })
-          }, 500)
-        } else {
-          // Reset position after animation
-          setTimeout(() => {
-            translateX.value = withTiming(0, { duration: 300 })
-          }, 500)
+          const newStatus = task.status === 'completed' ? 'in-progress' : 'completed';
+          onStatusChange(task.id, newStatus);
         }
       } else {
-        // Swiped right - archive or other action
-        triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
-        translateX.value = withTiming(swipeRightThreshold, { duration: 200 })
-        
-        // Reset position after animation
-        setTimeout(() => {
-          translateX.value = withTiming(0, { duration: 300 })
-        }, 500)
+        // Swiped right - other action like favorite
+        triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
       }
-    } else {
-      // Not swiped enough - reset position
-      translateX.value = withTiming(0, { duration: 300 })
     }
-  }
+    
+    // Reset position with spring animation
+    translateX.value = withSpring(0, { 
+      damping: 15, 
+      stiffness: 150,
+      mass: 0.6
+    });
+    
+    // Reset swipe progress
+    swipeProgress.value = withTiming(0, { duration: 300 });
+  };
   
   // Animated styles
   const cardAnimatedStyle = useAnimatedStyle(() => {
@@ -157,73 +179,96 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
         { scale: cardScale.value },
         { translateX: translateX.value }
       ],
-      opacity: cardOpacity.value
-    }
-  })
+      opacity: cardOpacity.value,
+      shadowOpacity: interpolate(
+        cardScale.value,
+        [0.98, 1],
+        [0.1, 0.15],
+        Extrapolation.CLAMP
+      ),
+      elevation: elevation.value
+    };
+  });
   
   const priorityAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: priorityPulse.value }]
-    }
-  })
+    };
+  });
   
   const leftActionStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      translateX.value,
-      [swipeLeftThreshold, 0],
-      [1, 0],
+      Math.max(0, -translateX.value),
+      [0, 60],
+      [0, 1],
       Extrapolation.CLAMP
-    )
+    );
     
-    return { opacity }
-  })
+    return { opacity };
+  });
   
   const rightActionStyle = useAnimatedStyle(() => {
     const opacity = interpolate(
-      translateX.value,
-      [0, swipeRightThreshold],
+      Math.max(0, translateX.value),
+      [0, 60],
       [0, 1],
       Extrapolation.CLAMP
-    )
+    );
     
-    return { opacity }
-  })
+    return { opacity };
+  });
+  
+  const shimmerStyle = useAnimatedStyle(() => {
+    return {
+      transform: [{ translateX: shimmerPosition.value }]
+    };
+  });
   
   const getPriorityColor = () => {
     switch (task.priority) {
+      case 'critical':
+        return Colors.error[500];
       case 'high':
-        return Colors.secondary.red
+        return Colors.warning[500];
       case 'medium':
-        return Colors.warning
+        return Colors.warning[300];
       case 'low':
       default:
-        return Colors.secondary.green
+        return Colors.success[500];
     }
-  }
+  };
   
-  const getStatusColor = () => {
+  const getStatusIcon = () => {
     switch (task.status) {
       case 'completed':
-        return Colors.secondary.green
+        return 'check-circle';
       case 'in-progress':
-        return Colors.primary.blue
+        return 'clock';
+      case 'blocked':
+        return 'alert-circle';
+      case 'review':
+        return 'eye';
       case 'pending':
       default:
-        return Colors.neutrals.gray400
+        return 'circle';
     }
-  }
+  };
   
   const getStatusLabel = () => {
     switch (task.status) {
       case 'completed':
-        return 'Completed'
+        return 'Completed';
       case 'in-progress':
-        return 'In Progress'
+        return 'In Progress';
+      case 'blocked':
+        return 'Blocked';
+      case 'review':
+        return 'In Review';
       case 'pending':
       default:
-        return 'To Do'
+        return 'To Do';
     }
-  }
+  };
 
   return (
     <View 
@@ -232,26 +277,35 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
       accessibilityLabel={`Task: ${task.title}, Status: ${getStatusLabel()}, Priority: ${task.priority}, Due: ${formatDateString(task.dueDate)}`}
     >
       <Animated.View style={[styles.leftActionContainer, leftActionStyle]}>
-        <View style={[styles.actionButton, styles.completeAction]}>
+        <View style={[styles.actionButton, { backgroundColor: Colors.success[500] }]}>
           <Feather name="check" size={20} color="#fff" />
           <Text style={styles.actionText}>
-            {task.status === 'completed' ? 'Uncomplete' : 'Complete'}
+            {task.status === 'completed' ? 'Reopen' : 'Complete'}
           </Text>
         </View>
       </Animated.View>
       
       <Animated.View style={[styles.rightActionContainer, rightActionStyle]}>
-        <View style={[styles.actionButton, styles.archiveAction]}>
-          <Feather name="archive" size={20} color="#fff" />
-          <Text style={styles.actionText}>Archive</Text>
+        <View style={[styles.actionButton, { backgroundColor: colors.primary[500] }]}>
+          <Feather name="star" size={20} color="#fff" />
+          <Text style={styles.actionText}>Prioritize</Text>
         </View>
       </Animated.View>
       
       <PanGestureHandler 
         onGestureEvent={onGestureEvent}
         onEnded={onGestureEnd}
+        enabled={!disableSwipe}
       >
-        <Animated.View style={[styles.card, cardAnimatedStyle]}>
+        <Animated.View 
+          style={[
+            styles.card, 
+            { backgroundColor: isDark ? colors.card.background : colors.neutrals.white },
+            cardAnimatedStyle
+          ]}
+          entering={FadeIn.delay(index * 80).duration(300)}
+          layout={Layout.springify().damping(14)}
+        >
           <TouchableOpacity
             activeOpacity={0.9}
             onPress={handlePress}
@@ -259,6 +313,11 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
             onPressOut={handlePressOut}
             style={styles.cardTouchable}
           >
+            {/* Shimmer effect */}
+            <Animated.View style={[styles.shimmer, shimmerStyle]}>
+              <View style={styles.shimmerContent} />
+            </Animated.View>
+            
             <View style={styles.header}>
               <View style={styles.titleContainer}>
                 <Animated.View 
@@ -268,22 +327,50 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
                     priorityAnimatedStyle
                   ]} 
                 />
-                <Text style={styles.title} numberOfLines={1}>{task.title}</Text>
+                <Text 
+                  style={[
+                    styles.title, 
+                    { color: isDark ? colors.text.primary : colors.neutrals.gray900 }
+                  ]} 
+                  numberOfLines={1}
+                >
+                  {task.title}
+                </Text>
               </View>
               
-              <View style={[styles.statusBadge, { backgroundColor: getStatusColor() }]}>
-                <Text style={styles.statusText}>{getStatusLabel()}</Text>
-              </View>
+              <StatusPill 
+                label={getStatusLabel()}
+                type={task.status}
+                icon={getStatusIcon()}
+                small
+              />
             </View>
             
-            <Text style={styles.description} numberOfLines={2}>
+            <Text 
+              style={[
+                styles.description,
+                { color: isDark ? colors.text.secondary : colors.neutrals.gray700 }
+              ]} 
+              numberOfLines={2}
+            >
               {task.description}
             </Text>
             
             <View style={styles.footer}>
               <View style={styles.projectContainer}>
-                <Feather name="folder" size={14} color={Colors.neutrals.gray600} />
-                <Text style={styles.projectText}>{task.project}</Text>
+                <Feather 
+                  name="folder" 
+                  size={14} 
+                  color={isDark ? colors.text.secondary : colors.neutrals.gray600} 
+                />
+                <Text 
+                  style={[
+                    styles.projectText,
+                    { color: isDark ? colors.text.secondary : colors.neutrals.gray600 }
+                  ]}
+                >
+                  {task.project}
+                </Text>
               </View>
               
               <View style={styles.metaContainer}>
@@ -297,11 +384,13 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
                   <Feather 
                     name="calendar" 
                     size={14} 
-                    color={isOverdue ? Colors.secondary.red : Colors.neutrals.gray600} 
+                    color={isOverdue ? Colors.error[500] : 
+                      isDark ? colors.text.secondary : colors.neutrals.gray600} 
                   />
                   <Text 
                     style={[
                       styles.dueDateText,
+                      { color: isDark ? colors.text.secondary : colors.neutrals.gray600 },
                       isOverdue && styles.overdueText
                     ]}
                   >
@@ -314,13 +403,14 @@ const TaskItem = ({ task, onPress, onStatusChange }: TaskItemProps) => {
         </Animated.View>
       </PanGestureHandler>
     </View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    height: 130
+    height: 130,
+    marginBottom: 12
   },
   leftActionContainer: {
     position: 'absolute',
@@ -342,31 +432,46 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8
   },
-  completeAction: {
-    backgroundColor: Colors.secondary.green
-  },
-  archiveAction: {
-    backgroundColor: Colors.neutrals.gray600
-  },
   actionText: {
     color: '#fff',
     fontWeight: Typography.weights.medium,
-    fontSize: Typography.sizes.bodySmall,
+    fontSize: Typography.sizes.sm,
     marginLeft: 8
   },
   card: {
     backgroundColor: Colors.neutrals.white,
-    borderRadius: 12,
-    shadowColor: Colors.neutrals.black,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderRadius: 16,
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.neutrals.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3
+      }
+    }),
     height: '100%'
   },
   cardTouchable: {
     padding: Spacing.md,
-    flex: 1
+    flex: 1,
+    overflow: 'hidden',
+    borderRadius: 16
+  },
+  shimmer: {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    width: 600,
+    height: '100%',
+  },
+  shimmerContent: {
+    width: '30%',
+    height: '100%',
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
+    transform: [{ skewX: '-15deg' }]
   },
   header: {
     flexDirection: 'row',
@@ -390,17 +495,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.semibold,
     color: Colors.neutrals.gray900,
     flex: 1
-  },
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginLeft: Spacing.sm
-  },
-  statusText: {
-    fontSize: Typography.sizes.caption,
-    fontWeight: Typography.weights.medium,
-    color: Colors.neutrals.white
   },
   description: {
     fontSize: Typography.sizes.bodySmall,
@@ -437,9 +531,9 @@ const styles = StyleSheet.create({
     marginLeft: 4
   },
   overdueText: {
-    color: Colors.secondary.red,
+    color: Colors.error[500],
     fontWeight: Typography.weights.medium
   }
-})
+});
 
-export default TaskItem
+export default TaskItem;

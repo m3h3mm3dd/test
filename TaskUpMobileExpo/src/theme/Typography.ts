@@ -1,11 +1,17 @@
-
+/**
+ * Typography styles for consistent text across the app
+ */
 const Typography = {
+  // Font families
   fontFamily: {
     base: 'System',
     heading: 'System',
     mono: 'System-Mono',
   },
+  
+  // Font sizes for different purposes
   sizes: {
+    // Basic sizes (in pixels)
     xs: 12,
     sm: 14,
     md: 16,
@@ -16,7 +22,20 @@ const Typography = {
     '4xl': 36,
     '5xl': 48,
     '6xl': 60,
+    
+    // Semantic aliases
+    caption: 12,
+    bodySmall: 14,
+    body: 16,
+    bodyLarge: 18,
+    title: 24,
+    titleLarge: 30,
+    heading: 36,
+    displaySmall: 48,
+    display: 60,
   },
+  
+  // Font weights
   weights: {
     thin: '100',
     extralight: '200',
@@ -28,6 +47,8 @@ const Typography = {
     extrabold: '800',
     black: '900',
   },
+  
+  // Line heights for different sizes
   lineHeights: {
     none: 1,
     tight: 1.25,
@@ -35,7 +56,13 @@ const Typography = {
     normal: 1.5,
     relaxed: 1.625,
     loose: 2,
+    
+    // Specific line heights for common text elements
+    body: 1.5,
+    heading: 1.2,
   },
+  
+  // Letter spacing options
   letterSpacings: {
     tighter: -0.05,
     tight: -0.025,
@@ -44,6 +71,8 @@ const Typography = {
     wider: 0.05,
     widest: 0.1,
   },
+  
+  // Predefined text styles
   variants: {
     h1: {
       fontSize: 36,

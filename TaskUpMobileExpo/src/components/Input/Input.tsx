@@ -1,63 +1,67 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
   TextInput, 
   View, 
-  TouchableOpacity,
+  TouchableOpacity, 
   ViewStyle,
   TextStyle,
   NativeSyntheticEvent,
   TextInputFocusEventData,
   KeyboardTypeOptions,
   Platform
-} from 'react-native'
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   interpolate,
   Extrapolation,
-  interpolateColor
-} from 'react-native-reanimated'
-import { Feather } from '@expo/vector-icons'
-import * as Haptics from 'expo-haptics'
+  interpolateColor,
+  withSequence,
+  FadeIn
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Metrics from '../../theme/Metrics'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Metrics from '../../theme/Metrics';
+import { triggerImpact } from '../../utils/HapticUtils';
+import { useTheme } from '../../hooks/useColorScheme';
 
 interface InputProps {
-  label: string
-  value: string
-  onChangeText: (text: string) => void
-  placeholder?: string
-  secureTextEntry?: boolean
-  disabled?: boolean
-  error?: string
-  helper?: string
-  rightIcon?: keyof typeof Feather.glyphMap
-  leftIcon?: keyof typeof Feather.glyphMap
-  onRightIconPress?: () => void
-  onLeftIconPress?: () => void
-  keyboardType?: KeyboardTypeOptions
-  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters'
-  autoCorrect?: boolean
-  style?: ViewStyle
-  inputStyle?: TextStyle
-  maxLength?: number
-  multiline?: boolean
-  numberOfLines?: number
-  onFocus?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void
-  onBlur?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void
-  animateSuccess?: boolean
-  returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send'
-  onSubmitEditing?: () => void
+  label: string;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder?: string;
+  secureTextEntry?: boolean;
+  disabled?: boolean;
+  error?: string;
+  helper?: string;
+  rightIcon?: keyof typeof Feather.glyphMap;
+  leftIcon?: keyof typeof Feather.glyphMap;
+  onRightIconPress?: () => void;
+  onLeftIconPress?: () => void;
+  keyboardType?: KeyboardTypeOptions;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
+  autoCorrect?: boolean;
+  style?: ViewStyle;
+  inputStyle?: TextStyle;
+  maxLength?: number;
+  multiline?: boolean;
+  numberOfLines?: number;
+  onFocus?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void;
+  onBlur?: (e: NativeSyntheticEvent<TextInputFocusEventData>) => void;
+  animateSuccess?: boolean;
+  returnKeyType?: 'done' | 'go' | 'next' | 'search' | 'send';
+  onSubmitEditing?: () => void;
+  required?: boolean;
 }
 
-const AnimatedTextInput = Animated.createAnimatedComponent(TextInput)
-const AnimatedText = Animated.createAnimatedComponent(Text)
+const AnimatedTextInput = Animated.createAnimatedComponent(TextInput);
+const AnimatedText = Animated.createAnimatedComponent(Text);
 
 const Input = ({
   label,
@@ -84,131 +88,147 @@ const Input = ({
   onBlur,
   animateSuccess = false,
   returnKeyType,
-  onSubmitEditing
+  onSubmitEditing,
+  required = false
 }: InputProps) => {
-  const [isFocused, setIsFocused] = useState(false)
-  const [isPasswordVisible, setIsPasswordVisible] = useState(false)
-  const [showSuccess, setShowSuccess] = useState(false)
+  const { colors, isDark } = useTheme();
+  const [isFocused, setIsFocused] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
   
   // Shared animation values
-  const focusAnimation = useSharedValue(0)
-  const labelPosition = useSharedValue(value ? 1 : 0)
-  const errorAnimScale = useSharedValue(0)
-  const successAnimScale = useSharedValue(0)
+  const focusAnimation = useSharedValue(0);
+  const labelPosition = useSharedValue(value ? 1 : 0);
+  const errorAnimScale = useSharedValue(0);
+  const successAnimScale = useSharedValue(0);
+  const inputOpacity = useSharedValue(0);
   
   useEffect(() => {
+    // Animate in
+    inputOpacity.value = withTiming(1, { duration: 300 });
+    
     // Animate label position when value changes
     if (value) {
-      labelPosition.value = withTiming(1, { duration: 200 })
+      labelPosition.value = withTiming(1, { duration: 200 });
     } else if (!isFocused) {
-      labelPosition.value = withTiming(0, { duration: 200 })
+      labelPosition.value = withTiming(0, { duration: 200 });
     }
     
     // Show success animation when value is valid and animateSuccess is true
     if (value && !error && animateSuccess) {
       setTimeout(() => {
-        setShowSuccess(true)
-        successAnimScale.value = withTiming(1, { duration: 300 })
+        setShowSuccess(true);
+        successAnimScale.value = withTiming(1, { duration: 300 });
         setTimeout(() => {
-          successAnimScale.value = withTiming(0, { duration: 300 })
+          successAnimScale.value = withTiming(0, { duration: 300 });
           setTimeout(() => {
-            setShowSuccess(false)
-          }, 300)
-        }, 1000)
-      }, 300)
+            setShowSuccess(false);
+          }, 300);
+        }, 1000);
+      }, 300);
     }
-  }, [value, error])
+  }, [value, error]);
   
   useEffect(() => {
     // Animate border when error changes
     if (error) {
-      errorAnimScale.value = withTiming(1, { duration: 300 })
-      triggerImpact(Haptics.ImpactFeedbackStyle.Light)
+      errorAnimScale.value = withTiming(1, { duration: 300 });
+      triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     } else {
-      errorAnimScale.value = withTiming(0, { duration: 200 })
+      errorAnimScale.value = withTiming(0, { duration: 200 });
     }
-  }, [error])
+  }, [error]);
   
   const handleFocus = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
-    setIsFocused(true)
-    focusAnimation.value = withTiming(1, { duration: 200 })
-    labelPosition.value = withTiming(1, { duration: 200 })
+    setIsFocused(true);
+    focusAnimation.value = withTiming(1, { duration: 200 });
+    labelPosition.value = withTiming(1, { duration: 200 });
+    
+    // Subtle haptic feedback
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
     
     if (onFocus) {
-      onFocus(e)
+      onFocus(e);
     }
-  }
+  };
   
   const handleBlur = (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
-    setIsFocused(false)
-    focusAnimation.value = withTiming(0, { duration: 200 })
+    setIsFocused(false);
+    focusAnimation.value = withTiming(0, { duration: 200 });
     
     if (!value) {
-      labelPosition.value = withTiming(0, { duration: 200 })
+      labelPosition.value = withTiming(0, { duration: 200 });
     }
     
     if (onBlur) {
-      onBlur(e)
+      onBlur(e);
     }
-  }
+  };
   
   const togglePasswordVisibility = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light)
-    setIsPasswordVisible(!isPasswordVisible)
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
+    setIsPasswordVisible(!isPasswordVisible);
+  };
   
   // Animated styles
   const containerAnimatedStyle = useAnimatedStyle(() => {
     const borderColor = interpolateColor(
       focusAnimation.value,
       [0, 1],
-      [Colors.neutrals.gray300, Colors.primary.blue]
-    )
+      [
+        isDark ? colors.input.border : Colors.neutrals.gray300, 
+        colors.primary[500]
+      ]
+    );
     
     return {
-      borderColor: error ? Colors.secondary.red : borderColor
-    }
-  })
+      borderColor: error ? Colors.error[500] : borderColor,
+      opacity: inputOpacity.value
+    };
+  });
   
   const labelAnimatedStyle = useAnimatedStyle(() => {
     const top = interpolate(
       labelPosition.value,
       [0, 1],
-      [multiline ? 16 : (Metrics.inputHeight - 20) / 2, -10],
+      [multiline ? 16 : (Metrics.inputHeight.md - 20) / 2, -10],
       Extrapolation.CLAMP
-    )
+    );
     
     const fontSize = interpolate(
       labelPosition.value,
       [0, 1],
-      [Typography.sizes.body, Typography.sizes.caption],
+      [Typography.sizes.md, Typography.sizes.xs],
       Extrapolation.CLAMP
-    )
+    );
     
     const backgroundColor = interpolateColor(
       labelPosition.value,
       [0, 1],
-      ['transparent', Colors.background.light]
-    )
+      ['transparent', isDark ? colors.background.light : Colors.background.light]
+    );
     
     const color = interpolateColor(
       focusAnimation.value,
       [0, 1],
-      [Colors.neutrals.gray600, Colors.primary.blue]
-    )
+      [
+        isDark ? colors.text.secondary : Colors.neutrals.gray600, 
+        colors.primary[500]
+      ]
+    );
     
     return {
       top,
       fontSize,
       backgroundColor,
-      color: error ? Colors.secondary.red : color,
+      color: error ? Colors.error[500] : color,
       transform: [
         { translateY: 0 },
         { translateX: 0 },
         { scale: labelPosition.value === 0 ? 1 : 0.9 }
       ]
-    }
-  })
+    };
+  });
   
   const inputAnimatedStyle = useAnimatedStyle(() => {
     const translateY = interpolate(
@@ -216,12 +236,12 @@ const Input = ({
       [0, 1],
       [0, 0],
       Extrapolation.CLAMP
-    )
+    );
     
     return {
       transform: [{ translateY }]
-    }
-  })
+    };
+  });
   
   const errorShakeStyle = useAnimatedStyle(() => {
     return {
@@ -236,40 +256,49 @@ const Input = ({
           )
         }
       ]
-    }
-  })
+    };
+  });
   
   const successAnimStyle = useAnimatedStyle(() => {
     return {
       opacity: successAnimScale.value,
       transform: [{ scale: successAnimScale.value }]
-    }
-  })
+    };
+  });
   
   // Default placeholder is empty when using a floating label
-  const dynamicPlaceholder = isFocused || labelPosition.value === 1 ? placeholder : ''
+  const dynamicPlaceholder = isFocused || labelPosition.value === 1 ? placeholder : '';
   
   // Password visibility icon
-  const getPasswordIcon = () => isPasswordVisible ? 'eye-off' : 'eye'
+  const getPasswordIcon = () => isPasswordVisible ? 'eye-off' : 'eye';
   
   const inputHeight = multiline 
-    ? Math.max(Metrics.inputHeight, numberOfLines * 24) 
-    : Metrics.inputHeight
+    ? Math.max(Metrics.inputHeight.md, numberOfLines * 24) 
+    : Metrics.inputHeight.md;
   
   return (
-    <View style={[styles.container, style]}>
+    <Animated.View 
+      style={[styles.container, style]}
+      entering={FadeIn.duration(300)}
+    >
       <Animated.View 
         style={[
           styles.inputContainer, 
           {
             height: inputHeight,
-            paddingTop: multiline ? 24 : 0
+            paddingTop: multiline ? 24 : 0,
+            backgroundColor: isDark ? colors.input.background : Colors.neutrals.white
           },
           containerAnimatedStyle
         ]}
       >
-        <AnimatedText style={[styles.label, labelAnimatedStyle]}>
-          {label}
+        <AnimatedText 
+          style={[
+            styles.label, 
+            labelAnimatedStyle
+          ]}
+        >
+          {label}{required && <Text style={styles.requiredAsterisk}>*</Text>}
         </AnimatedText>
         
         {leftIcon && (
@@ -284,11 +313,9 @@ const Input = ({
               name={leftIcon} 
               size={18} 
               color={
-                error 
-                  ? Colors.secondary.red 
-                  : isFocused 
-                    ? Colors.primary.blue 
-                    : Colors.neutrals.gray600
+                error ? Colors.error[500] : 
+                isFocused ? colors.primary[500] : 
+                isDark ? colors.text.secondary : Colors.neutrals.gray600
               } 
             />
           </TouchableOpacity>
@@ -303,20 +330,24 @@ const Input = ({
               paddingTop: multiline ? 8 : 0,
               paddingBottom: multiline ? 8 : 0,
               height: multiline ? '100%' : '100%',
-              textAlignVertical: multiline ? 'top' : 'center'
+              textAlignVertical: multiline ? 'top' : 'center',
+              color: isDark ? colors.text.primary : Colors.neutrals.gray900
             },
-            disabled && styles.disabledInput,
+            disabled && [
+              styles.disabledInput, 
+              { backgroundColor: isDark ? 'rgba(0,0,0,0.2)' : Colors.neutrals.gray100 }
+            ],
             inputStyle,
             inputAnimatedStyle
           ]}
           placeholder={dynamicPlaceholder}
+          placeholderTextColor={isDark ? colors.input.placeholderText : Colors.neutrals.gray500}
           value={value}
           onChangeText={onChangeText}
           secureTextEntry={secureTextEntry && !isPasswordVisible}
           editable={!disabled}
           onFocus={handleFocus}
           onBlur={handleBlur}
-          placeholderTextColor={Colors.neutrals.gray500}
           accessible={true}
           accessibilityLabel={label}
           accessibilityHint={placeholder}
@@ -342,7 +373,7 @@ const Input = ({
             <Feather 
               name={getPasswordIcon()} 
               size={18} 
-              color={Colors.neutrals.gray600} 
+              color={isDark ? colors.text.secondary : Colors.neutrals.gray600} 
             />
           </TouchableOpacity>
         )}
@@ -359,11 +390,9 @@ const Input = ({
               name={rightIcon} 
               size={18} 
               color={
-                error 
-                  ? Colors.secondary.red 
-                  : isFocused 
-                    ? Colors.primary.blue 
-                    : Colors.neutrals.gray600
+                error ? Colors.error[500] : 
+                isFocused ? colors.primary[500] : 
+                isDark ? colors.text.secondary : Colors.neutrals.gray600
               } 
             />
           </TouchableOpacity>
@@ -371,7 +400,11 @@ const Input = ({
         
         {showSuccess && (
           <Animated.View style={[styles.successIcon, successAnimStyle]}>
-            <Feather name="check-circle" size={18} color={Colors.secondary.green} />
+            <Feather 
+              name="check-circle" 
+              size={18} 
+              color={Colors.success[500]} 
+            />
           </Animated.View>
         )}
       </Animated.View>
@@ -381,11 +414,18 @@ const Input = ({
       </Animated.View>
       
       {helper && !error && (
-        <Text style={styles.helperText}>{helper}</Text>
+        <Text 
+          style={[
+            styles.helperText,
+            { color: isDark ? colors.text.secondary : Colors.neutrals.gray600 }
+          ]}
+        >
+          {helper}
+        </Text>
       )}
-    </View>
-  )
-}
+    </Animated.View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -407,10 +447,14 @@ const styles = StyleSheet.create({
     fontWeight: Typography.weights.medium,
     color: Colors.neutrals.gray600
   },
+  requiredAsterisk: {
+    color: Colors.error[500],
+    fontWeight: Typography.weights.bold
+  },
   input: {
     flex: 1,
     color: Colors.neutrals.gray900,
-    fontSize: Typography.sizes.body,
+    fontSize: Typography.sizes.md,
     paddingHorizontal: 12
   },
   disabledInput: {
@@ -432,14 +476,14 @@ const styles = StyleSheet.create({
     zIndex: 2
   },
   errorText: {
-    color: Colors.secondary.red,
-    fontSize: Typography.sizes.caption,
+    color: Colors.error[500],
+    fontSize: Typography.sizes.xs,
     marginTop: 4,
     marginLeft: 4
   },
   helperText: {
     color: Colors.neutrals.gray600,
-    fontSize: Typography.sizes.caption,
+    fontSize: Typography.sizes.xs,
     marginTop: 4,
     marginLeft: 4
   },
@@ -449,6 +493,6 @@ const styles = StyleSheet.create({
     top: '50%',
     transform: [{ translateY: -9 }]
   }
-})
+});
 
-export default Input
+export default Input;

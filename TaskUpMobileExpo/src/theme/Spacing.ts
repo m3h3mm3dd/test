@@ -1,9 +1,8 @@
-
 /**
  * Consistent spacing system for layout, padding, margin, and gap
  */
 const Spacing = {
-  // Base spacing units
+  // Base spacing units (multiples of 4)
   0: 0,
   0.5: 2,
   1: 4,
@@ -39,7 +38,8 @@ const Spacing = {
   80: 320,
   96: 384,
 
-  // Semantic spacing
+  // Semantic spacing aliases for better readability
+  xxs: 2,
   xs: 4,
   sm: 8,
   md: 16,
@@ -50,13 +50,50 @@ const Spacing = {
 
   // Layout specific
   screenPadding: 16,
+  screenPaddingLarge: 24,
   containerMargin: 16,
   sectionSpacing: 32,
+  cardPadding: 16,
+  listItemPadding: 16,
   itemSpacing: 16,
   inlineSpacing: 8,
-  cardPadding: 16,
+  buttonPadding: {
+    sm: { x: 12, y: 6 },
+    md: { x: 16, y: 10 },
+    lg: { x: 20, y: 12 },
+  },
+  
+  // Form elements
   inputPadding: 12,
-  buttonPadding: 14,
+  inputSpacing: 20,
+  formGroupSpacing: 24,
+  labelSpacing: 8,
+  helpTextSpacing: 4,
+  
+  // Component spacing
+  avatarGap: -8,  // Negative value for overlapping avatars
+  modalPadding: 16,
+  toastPadding: 16,
+  
+  // Tab & navigation
+  tabBarPadding: 16,
+  tabItemPadding: 12,
+  navBarHeight: 56,
+  bottomNavHeight: 64,
+  
+  // Grid system
+  gridGap: 16,
+  gridGapLarge: 24,
+  
+  // Z-index levels
+  zIndex: {
+    base: 0,
+    content: 10,
+    overlay: 20,
+    dropdown: 30,
+    modal: 40,
+    toast: 50,
+  },
 };
 
 export default Spacing;

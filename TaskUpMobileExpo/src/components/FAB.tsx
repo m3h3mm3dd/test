@@ -1,5 +1,4 @@
-
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState } from 'react';
 import { 
   StyleSheet, 
   TouchableOpacity, 
@@ -11,69 +10,69 @@ import {
   LayoutAnimation,
   Platform,
   UIManager
-} from 'react-native'
+} from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withTiming,
   withSpring,
-  withRepeat,
   withSequence,
   interpolate,
   Extrapolation,
   FadeOut,
-  FadeIn
-} from 'react-native-reanimated'
-import { Feather } from '@expo/vector-icons'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import Svg, { Circle } from 'react-native-svg'
-import { ActivityIndicator } from 'react-native'
+  FadeIn,
+  SlideInDown
+} from 'react-native-reanimated';
+import { Feather } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import Svg, { Circle } from 'react-native-svg';
+import { ActivityIndicator } from 'react-native';
 
-import Colors from '../theme/Colors'
-import Typography from '../theme/Typography'
-import { triggerImpact } from '../utils/HapticUtils'
+import Colors from '../theme/Colors';
+import Typography from '../theme/Typography';
+import { triggerImpact } from '../utils/HapticUtils';
 
 // Enable layout animation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
-  UIManager.setLayoutAnimationEnabledExperimental(true)
+  UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
-const { width, height } = Dimensions.get('window')
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity)
-const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient)
+const { width, height } = Dimensions.get('window');
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
+const AnimatedGradient = Animated.createAnimatedComponent(LinearGradient);
 
 // Fab positioning options
-type FabPosition = 'bottomRight' | 'bottomLeft' | 'topRight' | 'topLeft' | 'center'
+type FabPosition = 'bottomRight' | 'bottomLeft' | 'topRight' | 'topLeft' | 'center';
 
 // FAB size options
-type FabSize = 'small' | 'medium' | 'large'
+type FabSize = 'small' | 'medium' | 'large';
 
 // Props interface
 interface FABProps {
-  onPress: () => void
-  icon: keyof typeof Feather.glyphMap
-  secondaryIcon?: keyof typeof Feather.glyphMap
-  label?: string
-  position?: FabPosition
-  size?: FabSize
-  color?: string
-  gradientColors?: string[]
-  visible?: boolean
-  extended?: boolean
-  loading?: boolean
-  disabled?: boolean
-  style?: ViewStyle
-  labelStyle?: TextStyle
-  animationType?: 'scale' | 'bounce' | 'rotate' | 'pulse'
-  mini?: boolean
-  children?: React.ReactNode
-  onLongPress?: () => void
-  mainButtonStyle?: ViewStyle
-  shadow?: boolean
-  iconColor?: string
-  showProgress?: boolean
-  progress?: number
+  onPress: () => void;
+  icon: keyof typeof Feather.glyphMap;
+  secondaryIcon?: keyof typeof Feather.glyphMap;
+  label?: string;
+  position?: FabPosition;
+  size?: FabSize;
+  color?: string;
+  gradientColors?: string[];
+  visible?: boolean;
+  extended?: boolean;
+  loading?: boolean;
+  disabled?: boolean;
+  style?: ViewStyle;
+  labelStyle?: TextStyle;
+  animationType?: 'scale' | 'bounce' | 'rotate' | 'pulse';
+  mini?: boolean;
+  children?: React.ReactNode;
+  onLongPress?: () => void;
+  mainButtonStyle?: ViewStyle;
+  shadow?: boolean;
+  iconColor?: string;
+  showProgress?: boolean;
+  progress?: number;
 }
 
 const FAB = ({
@@ -83,7 +82,7 @@ const FAB = ({
   label,
   position = 'bottomRight',
   size = 'medium',
-  color = Colors.primary.blue,
+  color = Colors.primary[500],
   gradientColors,
   visible = true,
   extended = false,
@@ -101,100 +100,100 @@ const FAB = ({
   showProgress = false,
   progress = 0
 }: FABProps) => {
-  const [isExtended, setIsExtended] = useState(extended)
-  const [currentIcon, setCurrentIcon] = useState(icon)
+  const [isExtended, setIsExtended] = useState(extended);
+  const [currentIcon, setCurrentIcon] = useState(icon);
   
   // Animation shared values
-  const scale = useSharedValue(1)
-  const rotation = useSharedValue(0)
-  const opacity = useSharedValue(visible ? 1 : 0)
-  const translateY = useSharedValue(visible ? 0 : 30)
-  const progressValue = useSharedValue(progress)
+  const scale = useSharedValue(1);
+  const rotation = useSharedValue(0);
+  const opacity = useSharedValue(visible ? 1 : 0);
+  const translateY = useSharedValue(visible ? 0 : 30);
+  const progressValue = useSharedValue(progress);
   
   // Update animations when props change
   useEffect(() => {
-    opacity.value = withTiming(visible ? 1 : 0, { duration: 200 })
-    translateY.value = withTiming(visible ? 0 : 30, { duration: 200 })
+    opacity.value = withTiming(visible ? 1 : 0, { duration: 200 });
+    translateY.value = withTiming(visible ? 0 : 30, { duration: 200 });
     
-    progressValue.value = withTiming(progress, { duration: 300 })
-  }, [visible, progress])
+    progressValue.value = withTiming(progress, { duration: 300 });
+  }, [visible, progress]);
   
   // Update extended state
   useEffect(() => {
     if (extended !== isExtended) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      setIsExtended(extended)
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setIsExtended(extended);
     }
-  }, [extended])
+  }, [extended]);
   
   // Toggle icon if secondary is provided
   const toggleIcon = () => {
     if (secondaryIcon) {
-      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut)
-      setCurrentIcon(currentIcon === icon ? secondaryIcon : icon)
-      rotation.value = withTiming(rotation.value + 180, { duration: 300 })
+      LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+      setCurrentIcon(currentIcon === icon ? secondaryIcon : icon);
+      rotation.value = withTiming(rotation.value + 180, { duration: 300 });
     }
-  }
+  };
   
   // Calculate size values
   const getSizeValue = () => {
-    if (mini) return 40
+    if (mini) return 40;
     
     switch (size) {
-      case 'small': return 48
-      case 'large': return 64
+      case 'small': return 48;
+      case 'large': return 64;
       case 'medium':
-      default: return 56
+      default: return 56;
     }
-  }
+  };
   
   // Get position style
   const getPositionStyle = (): ViewStyle => {
-    const positionStyle: ViewStyle = { position: 'absolute' }
+    const positionStyle: ViewStyle = { position: 'absolute' };
     
     switch (position) {
       case 'bottomRight':
-        positionStyle.bottom = 16
-        positionStyle.right = 16
-        break
+        positionStyle.bottom = 26;
+        positionStyle.right = 16;
+        break;
       case 'bottomLeft':
-        positionStyle.bottom = 16
-        positionStyle.left = 16
-        break
+        positionStyle.bottom = 26;
+        positionStyle.left = 16;
+        break;
       case 'topRight':
-        positionStyle.top = 16
-        positionStyle.right = 16
-        break
+        positionStyle.top = 26;
+        positionStyle.right = 16;
+        break;
       case 'topLeft':
-        positionStyle.top = 16
-        positionStyle.left = 16
-        break
+        positionStyle.top = 26;
+        positionStyle.left = 16;
+        break;
       case 'center':
-        positionStyle.alignSelf = 'center'
-        positionStyle.bottom = 16
-        break
+        positionStyle.alignSelf = 'center';
+        positionStyle.bottom = 26;
+        break;
     }
     
-    return positionStyle
-  }
+    return positionStyle;
+  };
   
   // Calculate icon size based on FAB size
   const getIconSize = () => {
-    if (mini) return 16
+    if (mini) return 16;
     
     switch (size) {
-      case 'small': return 18
-      case 'large': return 28
+      case 'small': return 18;
+      case 'large': return 28;
       case 'medium':
-      default: return 24
+      default: return 24;
     }
-  }
+  };
   
   // Handle press events
   const handlePress = () => {
-    if (disabled || loading) return
+    if (disabled || loading) return;
     
-    triggerImpact(Haptics.ImpactFeedbackStyle.Medium)
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
     
     // Add animation based on type
     switch (animationType) {
@@ -202,55 +201,55 @@ const FAB = ({
         rotation.value = withSequence(
           withTiming(rotation.value + 45, { duration: 150 }),
           withTiming(rotation.value, { duration: 150 })
-        )
-        break
+        );
+        break;
       case 'bounce':
         scale.value = withSequence(
           withTiming(0.9, { duration: 100 }),
           withSpring(1.1, { damping: 10, stiffness: 200 }),
           withTiming(1, { duration: 100 })
-        )
-        break
+        );
+        break;
       case 'pulse':
         scale.value = withSequence(
           withTiming(0.9, { duration: 100 }),
           withTiming(1, { duration: 200 })
-        )
-        break
+        );
+        break;
       case 'scale':
       default:
         scale.value = withSequence(
           withTiming(0.9, { duration: 100 }),
           withTiming(1, { duration: 200 })
-        )
-        break
+        );
+        break;
     }
     
     // Toggle icon if secondary icon provided
-    toggleIcon()
+    toggleIcon();
     
     // Call press handler
-    onPress()
-  }
+    onPress();
+  };
   
   const handlePressIn = () => {
-    if (disabled || loading) return
+    if (disabled || loading) return;
     
-    scale.value = withTiming(0.95, { duration: 100 })
-  }
+    scale.value = withTiming(0.95, { duration: 100 });
+  };
   
   const handlePressOut = () => {
-    if (disabled || loading) return
+    if (disabled || loading) return;
     
-    scale.value = withTiming(1, { duration: 200 })
-  }
+    scale.value = withTiming(1, { duration: 200 });
+  };
   
   const handleLongPress = () => {
-    if (disabled || loading || !onLongPress) return
+    if (disabled || loading || !onLongPress) return;
     
-    triggerImpact(Haptics.ImpactFeedbackStyle.Heavy)
-    onLongPress()
-  }
+    triggerImpact(Haptics.ImpactFeedbackStyle.Heavy);
+    onLongPress();
+  };
   
   // Animated styles
   const containerStyle = useAnimatedStyle(() => {
@@ -260,14 +259,14 @@ const FAB = ({
         { translateY: translateY.value },
         { scale: scale.value }
       ]
-    }
-  })
+    };
+  });
   
   const iconStyle = useAnimatedStyle(() => {
     return {
       transform: [{ rotate: `${rotation.value}deg` }]
-    }
-  })
+    };
+  });
   
   const progressCircleStyle = useAnimatedStyle(() => {
     return {
@@ -280,35 +279,35 @@ const FAB = ({
           )}deg` 
         }
       ]
-    }
-  })
+    };
+  });
   
   // Default colors if none provided
-  const defaultGradient = gradientColors || [color, darkenColor(color, 15)]
+  const defaultGradient = gradientColors || [color, darkenColor(color, 15)];
   
   // Bubble buttons if provided as children
   const renderBubbleButtons = () => {
-    if (!children) return null
+    if (!children) return null;
     
     return (
       <Animated.View 
         style={styles.bubbleContainer}
-        entering={FadeIn.duration(300)}
+        entering={FadeIn.duration(300).delay(100)}
         exiting={FadeOut.duration(200)}
       >
         {children}
       </Animated.View>
-    )
-  }
+    );
+  };
   
   // Render progress indicator
   const renderProgress = () => {
-    if (!showProgress || progress === 0) return null
+    if (!showProgress || progress === 0) return null;
     
-    const sizeValue = getSizeValue()
-    const strokeWidth = sizeValue * 0.05
-    const radius = (sizeValue - strokeWidth) / 2
-    const circumference = 2 * Math.PI * radius
+    const sizeValue = getSizeValue();
+    const strokeWidth = sizeValue * 0.05;
+    const radius = (sizeValue - strokeWidth) / 2;
+    const circumference = 2 * Math.PI * radius;
     
     return (
       <Animated.View style={[StyleSheet.absoluteFill, styles.progressContainer]}>
@@ -340,11 +339,11 @@ const FAB = ({
           </Animated.View>
         </Svg>
       </Animated.View>
-    )
-  }
+    );
+  };
   
-  const fabSize = getSizeValue()
-  const iconSize = getIconSize()
+  const fabSize = getSizeValue();
+  const iconSize = getIconSize();
   
   return (
     <AnimatedTouchable
@@ -363,6 +362,7 @@ const FAB = ({
       accessibilityRole="button"
       accessibilityLabel={label || "Action button"}
       accessibilityState={{ disabled: disabled || loading }}
+      entering={SlideInDown.springify().damping(15).delay(300)}
     >
       {renderBubbleButtons()}
       
@@ -411,24 +411,24 @@ const FAB = ({
         {renderProgress()}
       </AnimatedGradient>
     </AnimatedTouchable>
-  )
-}
+  );
+};
 
 // Helper to darken color
 const darkenColor = (color: string, percent: number): string => {
   // Convert hex to RGB
-  let r = parseInt(color.substring(1, 3), 16)
-  let g = parseInt(color.substring(3, 5), 16)
-  let b = parseInt(color.substring(5, 7), 16)
+  let r = parseInt(color.substring(1, 3), 16);
+  let g = parseInt(color.substring(3, 5), 16);
+  let b = parseInt(color.substring(5, 7), 16);
   
   // Darken
-  r = Math.floor(r * (1 - percent / 100))
-  g = Math.floor(g * (1 - percent / 100))
-  b = Math.floor(b * (1 - percent / 100))
+  r = Math.floor(r * (1 - percent / 100));
+  g = Math.floor(g * (1 - percent / 100));
+  b = Math.floor(b * (1 - percent / 100));
   
   // Convert back to hex
-  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
-}
+  return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -447,13 +447,13 @@ const styles = StyleSheet.create({
   shadow: {
     shadowColor: Colors.neutrals.black,
     shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 8,
     elevation: 8
   },
   label: {
     color: Colors.neutrals.white,
-    fontSize: Typography.sizes.body,
+    fontSize: Typography.sizes.md,
     fontWeight: Typography.weights.medium
   },
   bubbleContainer: {
@@ -465,6 +465,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center'
   }
-})
+});
 
-export default FAB
+export default FAB;

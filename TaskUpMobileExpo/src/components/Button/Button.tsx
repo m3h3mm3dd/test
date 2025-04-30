@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -6,50 +6,46 @@ import {
   ActivityIndicator, 
   ViewStyle,
   TextStyle,
-  View,
-  Dimensions
-} from 'react-native'
+  Platform
+} from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withTiming,
   withSpring,
   withSequence,
-  withDelay,
-  Easing,
-  runOnJS
-} from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import * as Haptics from 'expo-haptics'
-import { Feather } from '@expo/vector-icons'
+  Easing
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import Metrics from '../../theme/Metrics'
-import { triggerImpact } from '../../utils/HapticUtils'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Metrics from '../../theme/Metrics';
+import { triggerImpact } from '../../utils/HapticUtils';
 
-const { width } = Dimensions.get('window')
-const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient)
-const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity)
+const AnimatedLinearGradient = Animated.createAnimatedComponent(LinearGradient);
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
-export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'success' | 'danger'
-export type ButtonSize = 'small' | 'medium' | 'large'
+export type ButtonVariant = 'primary' | 'secondary' | 'tertiary' | 'success' | 'danger';
+export type ButtonSize = 'small' | 'medium' | 'large';
 
 interface ButtonProps {
-  title: string
-  onPress: () => void
-  variant?: ButtonVariant
-  size?: ButtonSize
-  disabled?: boolean
-  loading?: boolean
-  icon?: keyof typeof Feather.glyphMap
-  iconPosition?: 'left' | 'right'
-  fullWidth?: boolean
-  round?: boolean
-  style?: ViewStyle
-  textStyle?: TextStyle
-  animationType?: 'spring' | 'bounce' | 'pulse' | 'ripple'
-  gradientColors?: string[]
+  title: string;
+  onPress: () => void;
+  variant?: ButtonVariant;
+  size?: ButtonSize;
+  disabled?: boolean;
+  loading?: boolean;
+  icon?: keyof typeof Feather.glyphMap;
+  iconPosition?: 'left' | 'right';
+  fullWidth?: boolean;
+  round?: boolean;
+  style?: ViewStyle;
+  textStyle?: TextStyle;
+  animationType?: 'spring' | 'bounce' | 'pulse' | 'ripple';
+  gradientColors?: string[];
 }
 
 const Button = ({
@@ -69,11 +65,11 @@ const Button = ({
   gradientColors
 }: ButtonProps) => {
   // Animation shared values
-  const scale = useSharedValue(1)
-  const rippleScale = useSharedValue(0)
-  const rippleOpacity = useSharedValue(0)
-  const contentOpacity = useSharedValue(1)
-  const loadingOpacity = useSharedValue(loading ? 1 : 0)
+  const scale = useSharedValue(1);
+  const rippleScale = useSharedValue(0);
+  const rippleOpacity = useSharedValue(0);
+  const contentOpacity = useSharedValue(1);
+  const loadingOpacity = useSharedValue(loading ? 1 : 0);
   
   // Compute variant-based styles
   const buttonConfig = useMemo(() => {
@@ -85,51 +81,51 @@ const Button = ({
       disabledTextColor: string,
       gradientColors: string[]
     } = {
-      backgroundColor: Colors.primary.blue,
+      backgroundColor: Colors.primary[500],
       borderColor: 'transparent',
       textColor: Colors.neutrals.white,
       disabledBackgroundColor: Colors.neutrals.gray300,
       disabledTextColor: Colors.neutrals.gray600,
       gradientColors: gradientColors || []
-    }
+    };
     
     switch (variant) {
       case 'primary':
-        config.backgroundColor = Colors.primary.blue
-        config.textColor = Colors.neutrals.white
-        config.gradientColors = gradientColors || [Colors.primary.blue, Colors.primary.darkBlue]
-        break
+        config.backgroundColor = Colors.primary[500];
+        config.textColor = Colors.neutrals.white;
+        config.gradientColors = gradientColors || [Colors.primary[400], Colors.primary[600]];
+        break;
       case 'secondary':
-        config.backgroundColor = 'transparent'
-        config.borderColor = Colors.primary.blue
-        config.textColor = Colors.primary.blue
-        config.disabledBackgroundColor = 'transparent'
-        config.disabledTextColor = Colors.neutrals.gray400
-        config.gradientColors = []
-        break
+        config.backgroundColor = 'transparent';
+        config.borderColor = Colors.primary[500];
+        config.textColor = Colors.primary[500];
+        config.disabledBackgroundColor = 'transparent';
+        config.disabledTextColor = Colors.neutrals.gray400;
+        config.gradientColors = [];
+        break;
       case 'tertiary':
-        config.backgroundColor = 'transparent'
-        config.textColor = Colors.primary.blue
-        config.disabledBackgroundColor = 'transparent'
-        config.disabledTextColor = Colors.neutrals.gray400
-        config.gradientColors = []
-        break
+        config.backgroundColor = 'transparent';
+        config.textColor = Colors.primary[500];
+        config.disabledBackgroundColor = 'transparent';
+        config.disabledTextColor = Colors.neutrals.gray400;
+        config.gradientColors = [];
+        break;
       case 'success':
-        config.backgroundColor = Colors.secondary.green
-        config.textColor = Colors.neutrals.white
-        config.disabledBackgroundColor = Colors.neutrals.gray300
-        config.gradientColors = gradientColors || ['#00C853', '#009688']
-        break
+        config.backgroundColor = Colors.success[500];
+        config.textColor = Colors.neutrals.white;
+        config.disabledBackgroundColor = Colors.neutrals.gray300;
+        config.gradientColors = gradientColors || [Colors.success[400], Colors.success[600]];
+        break;
       case 'danger':
-        config.backgroundColor = Colors.secondary.red
-        config.textColor = Colors.neutrals.white
-        config.disabledBackgroundColor = Colors.neutrals.gray300
-        config.gradientColors = gradientColors || [Colors.secondary.red, '#C62828']
-        break
+        config.backgroundColor = Colors.error[500];
+        config.textColor = Colors.neutrals.white;
+        config.disabledBackgroundColor = Colors.neutrals.gray300;
+        config.gradientColors = gradientColors || [Colors.error[400], Colors.error[600]];
+        break;
     }
     
-    return config
-  }, [variant, gradientColors])
+    return config;
+  }, [variant, gradientColors]);
   
   // Size configuration
   const sizeConfig = useMemo(() => {
@@ -140,120 +136,126 @@ const Button = ({
       fontSize: number,
       iconSize: number
     } = {
-      height: Metrics.buttonHeight,
+      height: Metrics.buttonHeight.md,
       paddingHorizontal: 20,
       borderRadius: 8,
-      fontSize: Typography.sizes.body,
+      fontSize: Typography.sizes.md,
       iconSize: 18
-    }
+    };
     
     switch (size) {
       case 'small':
-        config.height = 36
-        config.paddingHorizontal = 16
-        config.borderRadius = 6
-        config.fontSize = Typography.sizes.bodySmall
-        config.iconSize = 14
-        break
+        config.height = Metrics.buttonHeight.sm;
+        config.paddingHorizontal = 16;
+        config.borderRadius = 6;
+        config.fontSize = Typography.sizes.sm;
+        config.iconSize = 14;
+        break;
       case 'large':
-        config.height = 56
-        config.paddingHorizontal = 24
-        config.borderRadius = 10
-        config.fontSize = Typography.sizes.bodyLarge
-        config.iconSize = 22
-        break
+        config.height = Metrics.buttonHeight.lg;
+        config.paddingHorizontal = 24;
+        config.borderRadius = 10;
+        config.fontSize = Typography.sizes.lg;
+        config.iconSize = 22;
+        break;
     }
     
-    return config
-  }, [size])
+    return config;
+  }, [size]);
   
   // Handle animations
   const handlePressIn = () => {
+    if (!onPress || disabled) return;
+    
     switch (animationType) {
       case 'spring':
-        scale.value = withTiming(0.95, { duration: 100 })
-        break
+        scale.value = withTiming(0.95, { duration: 100 });
+        break;
       case 'bounce':
-        scale.value = withTiming(0.9, { duration: 100 })
-        break
+        scale.value = withTiming(0.9, { duration: 100 });
+        break;
       case 'pulse':
-        scale.value = withTiming(0.95, { duration: 100 })
-        break
+        scale.value = withTiming(0.95, { duration: 100 });
+        break;
       case 'ripple':
-        rippleScale.value = 0
-        rippleOpacity.value = 0.3
-        rippleScale.value = withTiming(1, { duration: 400 })
-        rippleOpacity.value = withTiming(0, { duration: 400 })
-        break
+        rippleScale.value = 0;
+        rippleOpacity.value = 0.3;
+        rippleScale.value = withTiming(1, { duration: 400 });
+        rippleOpacity.value = withTiming(0, { duration: 400 });
+        break;
     }
-  }
+  };
   
   const handlePressOut = () => {
+    if (!onPress || disabled) return;
+    
     switch (animationType) {
       case 'spring':
-        scale.value = withSpring(1, { damping: 12, stiffness: 150 })
-        break
+        scale.value = withSpring(1, { damping: 12, stiffness: 150 });
+        break;
       case 'bounce':
         scale.value = withSequence(
           withTiming(1.05, { duration: 150 }),
           withTiming(1, { duration: 150 })
-        )
-        break
+        );
+        break;
       case 'pulse':
-        scale.value = withTiming(1, { duration: 200 })
-        break
+        scale.value = withTiming(1, { duration: 200 });
+        break;
     }
-  }
+  };
   
   const handlePress = () => {
+    if (disabled || loading) return;
+    
     triggerImpact(variant === 'primary' 
       ? Haptics.ImpactFeedbackStyle.Medium 
-      : Haptics.ImpactFeedbackStyle.Light)
+      : Haptics.ImpactFeedbackStyle.Light);
       
     // If loading state changes, animate it
     if (loading) {
-      contentOpacity.value = withTiming(0, { duration: 150 })
-      loadingOpacity.value = withDelay(100, withTiming(1, { duration: 150 }))
+      contentOpacity.value = withTiming(0, { duration: 150 });
+      loadingOpacity.value = withTiming(1, { duration: 150 });
     } else {
-      loadingOpacity.value = withTiming(0, { duration: 150 })
-      contentOpacity.value = withDelay(100, withTiming(1, { duration: 150 }))
+      loadingOpacity.value = withTiming(0, { duration: 150 });
+      contentOpacity.value = withTiming(1, { duration: 150 });
     }
     
-    onPress()
-  }
+    onPress();
+  };
   
   // Animated styles
   const buttonAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: scale.value }],
       opacity: disabled ? 0.7 : 1
-    }
-  })
+    };
+  });
   
   const contentAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: contentOpacity.value
-    }
-  })
+    };
+  });
   
   const loadingAnimatedStyle = useAnimatedStyle(() => {
     return {
       opacity: loadingOpacity.value,
       position: 'absolute',
       alignSelf: 'center'
-    }
-  })
+    };
+  });
   
   const rippleAnimatedStyle = useAnimatedStyle(() => {
     return {
       transform: [{ scale: rippleScale.value }],
       opacity: rippleOpacity.value
-    }
-  })
+    };
+  });
   
   // Render icon if provided
   const renderIcon = () => {
-    if (!icon) return null
+    if (!icon) return null;
     
     return (
       <Feather 
@@ -265,8 +267,8 @@ const Button = ({
           iconPosition === 'right' && styles.iconRight
         ]} 
       />
-    )
-  }
+    );
+  };
   
   // Determine button content
   const ButtonContent = () => (
@@ -287,7 +289,7 @@ const Button = ({
       </Text>
       {iconPosition === 'right' && renderIcon()}
     </Animated.View>
-  )
+  );
   
   return (
     <AnimatedTouchable
@@ -297,7 +299,7 @@ const Button = ({
       disabled={disabled || loading}
       activeOpacity={0.9}
       style={[
-        styles.button,
+        styles.button, 
         {
           height: sizeConfig.height,
           paddingHorizontal: sizeConfig.paddingHorizontal,
@@ -362,15 +364,26 @@ const Button = ({
         />
       </Animated.View>
     </AnimatedTouchable>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: Colors.neutrals.black,
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.1,
+        shadowRadius: 8,
+      },
+      android: {
+        elevation: 3
+      }
+    })
   },
   contentContainer: {
     flexDirection: 'row',
@@ -389,11 +402,11 @@ const styles = StyleSheet.create({
   },
   ripple: {
     position: 'absolute',
-    width: width * 1.5,
-    height: width * 1.5,
-    borderRadius: width * 0.75,
+    width: '300%',
+    height: '300%',
+    borderRadius: 1000,
     opacity: 0
   }
-})
+});
 
-export default Button
+export default Button;

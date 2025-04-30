@@ -1,11 +1,13 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import NetInfo, { NetInfoState } from '@react-native-community/netinfo';
 import { Platform } from 'react-native';
+import * as Haptics from 'expo-haptics';
+import { triggerNotification } from '../utils/HapticUtils';
 
 interface NetworkStatusOptions {
   onConnected?: () => void;
   onDisconnected?: () => void;
+  enableHapticFeedback?: boolean;
 }
 
 interface NetworkStatusHook {
@@ -15,10 +17,12 @@ interface NetworkStatusHook {
   checkConnection: () => Promise<NetInfoState>;
   isConnecting: boolean;
   lastUpdated: Date | null;
+  isOfflineMode: boolean;
+  setOfflineMode: (offline: boolean) => void;
 }
 
 /**
- * Enhanced hook to monitor network connectivity status with callbacks
+ * Enhanced hook to monitor network connectivity status with callbacks and haptic feedback
  */
 export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusHook => {
   // Network state
@@ -27,26 +31,35 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
   const [connectionType, setConnectionType] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState<boolean>(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [isOfflineMode, setIsOfflineMode] = useState<boolean>(false);
+  
+  const enableHapticFeedback = options?.enableHapticFeedback !== false;
   
   // Update connection status from NetInfo state
   const updateConnectionStatus = useCallback((state: NetInfoState) => {
     const wasConnected = isConnected;
-    const nowConnected = !!state.isConnected;
+    const nowConnected = !!state.isConnected && !isOfflineMode;
     
     setIsConnected(nowConnected);
-    setIsInternetReachable(!!state.isInternetReachable);
+    setIsInternetReachable(state.isInternetReachable !== false && !isOfflineMode);
     setConnectionType(state.type);
     setLastUpdated(new Date());
     
-    // Fire callbacks for connection changes
+    // Fire callbacks and haptic feedback for connection changes
     if (!wasConnected && nowConnected) {
+      if (enableHapticFeedback) {
+        triggerNotification(Haptics.NotificationFeedbackType.Success);
+      }
       options?.onConnected?.();
     } else if (wasConnected && !nowConnected) {
+      if (enableHapticFeedback) {
+        triggerNotification(Haptics.NotificationFeedbackType.Warning);
+      }
       options?.onDisconnected?.();
     }
     
     setIsConnecting(false);
-  }, [isConnected, options]);
+  }, [isConnected, options, enableHapticFeedback, isOfflineMode]);
   
   // Function to manually check connection status
   const checkConnection = useCallback(async (): Promise<NetInfoState> => {
@@ -65,6 +78,21 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
       throw error;
     }
   }, [updateConnectionStatus, options]);
+  
+  // Handle offline mode changes
+  useEffect(() => {
+    if (isOfflineMode) {
+      setIsConnected(false);
+      setIsInternetReachable(false);
+      if (enableHapticFeedback) {
+        triggerNotification(Haptics.NotificationFeedbackType.Warning);
+      }
+      options?.onDisconnected?.();
+    } else {
+      // When coming out of offline mode, check connection status
+      checkConnection();
+    }
+  }, [isOfflineMode, checkConnection, options, enableHapticFeedback]);
   
   // Setup listeners on mount
   useEffect(() => {
@@ -91,7 +119,9 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
     connectionType,
     checkConnection,
     isConnecting,
-    lastUpdated
+    lastUpdated,
+    isOfflineMode,
+    setOfflineMode
   };
 };
 

@@ -1,21 +1,27 @@
-import React from 'react'
-import { StyleSheet, View, Text, Image } from 'react-native'
+import React, { useEffect } from 'react';
+import { StyleSheet, View, Text, Image, ViewStyle } from 'react-native';
 import Animated, { 
   useAnimatedStyle, 
   useSharedValue, 
-  withTiming 
-} from 'react-native-reanimated'
+  withTiming,
+  FadeIn
+} from 'react-native-reanimated';
+import { LinearGradient } from 'expo-linear-gradient';
 
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
-import { getInitials } from '../../utils/helpers'
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import { getInitials } from '../../utils/helpers';
+import { useTheme } from '../../hooks/useColorScheme';
+import StatusBadge from '../Badge/StatusBadge';
 
 interface AvatarProps {
-  imageUrl?: string | null
-  name: string
-  size?: number
-  status?: 'online' | 'offline' | 'busy' | 'away'
-  ringColor?: string
+  imageUrl?: string | null;
+  name: string;
+  size?: number;
+  status?: 'online' | 'offline' | 'busy' | 'away';
+  ringColor?: string;
+  style?: ViewStyle;
+  gradientColors?: string[];
 }
 
 const Avatar = ({
@@ -23,62 +29,75 @@ const Avatar = ({
   name,
   size = 40,
   status,
-  ringColor
+  ringColor,
+  style,
+  gradientColors
 }: AvatarProps) => {
-  const scale = useSharedValue(1)
-  const ringOpacity = useSharedValue(ringColor ? 1 : 0)
-  const statusOpacity = useSharedValue(status ? 1 : 0)
+  const { colors, isDark } = useTheme();
   
-  React.useEffect(() => {
-    if (ringColor) {
-      ringOpacity.value = withTiming(1, { duration: 300 })
-    } else {
-      ringOpacity.value = withTiming(0, { duration: 300 })
-    }
+  // Animation values
+  const scale = useSharedValue(1);
+  const ringOpacity = useSharedValue(ringColor ? 1 : 0);
+  const avatarOpacity = useSharedValue(0);
+  
+  // Default gradient colors
+  const defaultGradient = gradientColors || [
+    colors.primary[500],
+    colors.primary[700]
+  ];
+  
+  useEffect(() => {
+    // Fade in animation
+    avatarOpacity.value = withTiming(1, { duration: 300 });
     
-    if (status) {
-      statusOpacity.value = withTiming(1, { duration: 300 })
+    // Ring animation if ringColor changes
+    if (ringColor) {
+      ringOpacity.value = withTiming(1, { duration: 300 });
     } else {
-      statusOpacity.value = withTiming(0, { duration: 300 })
+      ringOpacity.value = withTiming(0, { duration: 300 });
     }
-  }, [ringColor, status])
+  }, [ringColor]);
   
   const getStatusColor = () => {
     switch (status) {
       case 'online':
-        return Colors.secondary.green
+        return Colors.status.online;
       case 'busy':
-        return Colors.secondary.red
+        return Colors.status.busy;
       case 'away':
-        return Colors.warning
+        return Colors.status.away;
       case 'offline':
       default:
-        return Colors.neutrals.gray400
+        return Colors.status.offline;
     }
-  }
+  };
   
-  const initials = getInitials(name || '')
-  const fontSize = size * 0.4
-  const borderWidth = size * 0.075
-  const statusSize = size * 0.3
-  const statusBorderWidth = size * 0.05
+  // Calculate proportional values based on size
+  const initials = getInitials(name || '');
+  const fontSize = size * 0.4;
+  const borderWidth = size * 0.075;
+  const statusSize = size * 0.3;
+  const statusBorderWidth = size * 0.05;
   
-  const animatedRingStyle = useAnimatedStyle(() => {
+  // Animated styles
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      opacity: avatarOpacity.value
+    };
+  });
+  
+  const ringStyle = useAnimatedStyle(() => {
     return {
       opacity: ringOpacity.value,
-      borderColor: ringColor || Colors.primary.blue
-    }
-  })
-  
-  const animatedStatusStyle = useAnimatedStyle(() => {
-    return {
-      opacity: statusOpacity.value,
-      backgroundColor: getStatusColor()
-    }
-  })
+      borderColor: ringColor || colors.primary[500]
+    };
+  });
 
   return (
-    <View style={styles.container}>
+    <Animated.View 
+      style={[styles.container, containerStyle, style]}
+      entering={FadeIn.duration(300)}
+    >
       <Animated.View 
         style={[
           styles.ring,
@@ -88,7 +107,7 @@ const Avatar = ({
             borderRadius: (size + borderWidth * 2) / 2,
             borderWidth
           },
-          animatedRingStyle
+          ringStyle
         ]}
       />
       
@@ -110,6 +129,12 @@ const Avatar = ({
             { width: size, height: size, borderRadius: size / 2 }
           ]}
         >
+          <LinearGradient
+            colors={defaultGradient}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          />
           <Text 
             style={[
               styles.initialsText,
@@ -122,27 +147,24 @@ const Avatar = ({
       )}
       
       {status && (
-        <Animated.View
+        <View
           style={[
-            styles.statusIndicator,
+            styles.statusIndicatorContainer,
             { 
-              width: statusSize, 
-              height: statusSize, 
-              borderRadius: statusSize / 2,
-              borderWidth: statusBorderWidth,
               right: 0,
               bottom: 0
-            },
-            animatedStatusStyle
+            }
           ]}
-          accessible={true}
-          accessibilityRole="image"
-          accessibilityLabel={`Status: ${status}`}
-        />
+        >
+          <StatusBadge 
+            status={status} 
+            size={statusSize} 
+          />
+        </View>
       )}
-    </View>
-  )
-}
+    </Animated.View>
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -152,25 +174,25 @@ const styles = StyleSheet.create({
   },
   ring: {
     position: 'absolute',
-    borderColor: Colors.primary.blue
+    borderColor: Colors.primary[500]
   },
   image: {
     width: '100%',
     height: '100%'
   },
   placeholder: {
-    backgroundColor: Colors.primary.blue,
+    backgroundColor: Colors.primary[500],
     alignItems: 'center',
-    justifyContent: 'center'
+    justifyContent: 'center',
+    overflow: 'hidden'
   },
   initialsText: {
     color: Colors.neutrals.white,
     fontWeight: Typography.weights.semibold
   },
-  statusIndicator: {
-    position: 'absolute',
-    borderColor: Colors.neutrals.white
+  statusIndicatorContainer: {
+    position: 'absolute'
   }
-})
+});
 
-export default Avatar
+export default Avatar;

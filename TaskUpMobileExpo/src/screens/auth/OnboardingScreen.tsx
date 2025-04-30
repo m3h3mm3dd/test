@@ -23,11 +23,11 @@ import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import Colors from '../theme/Colors';
-import Typography from '../theme/Typography';
-import Spacing from '../theme/Spacing';
-import Button from '../components/Button/Button';
-import { triggerImpact } from '../utils/HapticUtils';
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import Spacing from '../../theme/Spacing';
+import Button from '../../components/Button/Button';
+import { triggerImpact } from '../../utils/HapticUtils';
 
 const { width } = Dimensions.get('window');
 

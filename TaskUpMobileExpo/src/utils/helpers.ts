@@ -1,4 +1,3 @@
-
 /**
  * Format date string from ISO to readable format
  * @param {string} isoString - ISO date string
@@ -13,7 +12,35 @@ export const formatDateString = (
   
   try {
     const date = new Date(isoString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
     const defaultOptions: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric' };
+    
+    // Check if it's today
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return 'Today';
+    }
+    
+    // Check if it's tomorrow
+    const tomorrow = new Date();
+    tomorrow.setDate(today.getDate() + 1);
+    if (date.toDateString() === tomorrow.toDateString()) {
+      return 'Tomorrow';
+    }
+    
+    // Check if it's yesterday
+    const yesterday = new Date();
+    yesterday.setDate(today.getDate() - 1);
+    if (date.toDateString() === yesterday.toDateString()) {
+      return 'Yesterday';
+    }
+    
+    // For other dates, format with the options
     return date.toLocaleDateString('en-US', { ...defaultOptions, ...options });
   } catch (error) {
     console.error('Error formatting date:', error);
@@ -31,6 +58,21 @@ export const formatDateTime = (isoString: string): string => {
   
   try {
     const date = new Date(isoString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
+    // Check if it's today
+    const today = new Date();
+    if (date.toDateString() === today.toDateString()) {
+      return `Today at ${date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit'
+      })}`;
+    }
+    
     return date.toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -53,6 +95,12 @@ export const formatTime = (isoString: string): string => {
   
   try {
     const date = new Date(isoString);
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid time';
+    }
+    
     return date.toLocaleTimeString('en-US', {
       hour: 'numeric',
       minute: '2-digit'
@@ -74,10 +122,20 @@ export const timeAgo = (isoString: string): string => {
   try {
     const date = new Date(isoString);
     const now = new Date();
+    
+    // Check if the date is valid
+    if (isNaN(date.getTime())) {
+      return 'Invalid date';
+    }
+    
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
-    if (diffInSeconds < 60) {
+    if (diffInSeconds < 5) {
       return 'just now';
+    }
+    
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} ${diffInSeconds === 1 ? 'second' : 'seconds'} ago`;
     }
     
     const diffInMinutes = Math.floor(diffInSeconds / 60);
@@ -95,7 +153,18 @@ export const timeAgo = (isoString: string): string => {
       return `${diffInDays} ${diffInDays === 1 ? 'day' : 'days'} ago`;
     }
     
-    return formatDateString(isoString);
+    const diffInWeeks = Math.floor(diffInDays / 7);
+    if (diffInWeeks < 4) {
+      return `${diffInWeeks} ${diffInWeeks === 1 ? 'week' : 'weeks'} ago`;
+    }
+    
+    const diffInMonths = Math.floor(diffInDays / 30);
+    if (diffInMonths < 12) {
+      return `${diffInMonths} ${diffInMonths === 1 ? 'month' : 'months'} ago`;
+    }
+    
+    const diffInYears = Math.floor(diffInDays / 365);
+    return `${diffInYears} ${diffInYears === 1 ? 'year' : 'years'} ago`;
   } catch (error) {
     console.error('Error calculating time ago:', error);
     return '';
@@ -105,27 +174,55 @@ export const timeAgo = (isoString: string): string => {
 /**
  * Get initials from name
  * @param {string} name - Full name
+ * @param {number} count - Number of initials to return
  * @returns {string} Initials
  */
-export const getInitials = (name: string): string => {
+export const getInitials = (name: string, count: number = 2): string => {
   if (!name) return '';
   
-  return name
-    .split(' ')
+  // Remove extra whitespace and split the name
+  const parts = name.trim().split(/\s+/);
+  
+  if (parts.length === 0) return '';
+  
+  if (parts.length === 1) {
+    // For single words, take the first 1-2 characters
+    return parts[0].substring(0, Math.min(count, 2)).toUpperCase();
+  }
+  
+  // For multiple words, take the first letter of first and last parts
+  if (parts.length >= count) {
+    return parts
+      .slice(0, count)
+      .map(part => part.charAt(0))
+      .join('')
+      .toUpperCase();
+  }
+  
+  // If we have fewer parts than requested count
+  return parts
     .map(part => part.charAt(0))
     .join('')
-    .toUpperCase()
-    .slice(0, 2);
+    .toUpperCase();
 };
 
 /**
  * Format number with comma separator
  * @param {number} num - Number to format
+ * @param {number} decimals - Number of decimal places
  * @returns {string} Formatted number
  */
-export const formatNumber = (num: number | null | undefined): string => {
+export const formatNumber = (
+  num: number | null | undefined, 
+  decimals: number = 0
+): string => {
   if (num === null || num === undefined) return '0';
-  return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  
+  const fixedNum = Number.isInteger(num) && decimals === 0 
+    ? num 
+    : parseFloat(num.toFixed(decimals));
+    
+  return fixedNum.toLocaleString('en-US');
 };
 
 /**
@@ -140,6 +237,8 @@ export const formatCompactNumber = (
 ): string => {
   if (num === null || num === undefined) return '0';
   
+  const absNum = Math.abs(num);
+  
   const lookup = [
     { value: 1, symbol: '' },
     { value: 1e3, symbol: 'K' },
@@ -152,11 +251,13 @@ export const formatCompactNumber = (
   const item = lookup
     .slice()
     .reverse()
-    .find(item => num >= item.value);
+    .find(item => absNum >= item.value);
   
-  return item
-    ? (num / item.value).toFixed(digits).replace(rx, '$1') + item.symbol
+  const formattedNumber = item
+    ? (absNum / item.value).toFixed(digits).replace(rx, '$1') + item.symbol
     : '0';
+    
+  return num < 0 ? `-${formattedNumber}` : formattedNumber;
 };
 
 /**
@@ -174,6 +275,15 @@ export const truncateText = (
   if (!text) return '';
   if (text.length <= length) return text;
   
+  // Find the last space within the length limit
+  const lastSpace = text.substring(0, length).lastIndexOf(' ');
+  
+  // If there's a space in the text, truncate at word boundary
+  if (lastSpace > 0) {
+    return text.substring(0, lastSpace) + suffix;
+  }
+  
+  // Otherwise truncate at exact length
   return text.substring(0, length) + suffix;
 };
 
@@ -188,14 +298,35 @@ export const capitalize = (string: string): string => {
 };
 
 /**
+ * Capitalize first letter of each word
+ * @param {string} string - String to transform
+ * @returns {string} Transformed string
+ */
+export const titleCase = (string: string): string => {
+  if (!string) return '';
+  
+  return string
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
+
+/**
  * Generate random ID
  * @param {number} length - Length of ID
  * @returns {string} Random ID
  */
 export const generateId = (length: number = 12): string => {
-  return Math.random()
-    .toString(36)
-    .substring(2, 2 + length);
+  let result = '';
+  const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  const charactersLength = characters.length;
+  
+  for (let i = 0; i < length; i++) {
+    result += characters.charAt(Math.floor(Math.random() * charactersLength));
+  }
+  
+  return result;
 };
 
 /**
@@ -221,7 +352,8 @@ export const formatFileSize = (bytes: number): string => {
  */
 export const calculatePercentage = (current: number, total: number): number => {
   if (!total) return 0;
-  return Math.round((current / total) * 100);
+  const percentage = (current / total) * 100;
+  return Math.min(Math.max(Math.round(percentage), 0), 100); // Ensure between 0-100
 };
 
 /**
@@ -229,17 +361,28 @@ export const calculatePercentage = (current: number, total: number): number => {
  * @param {object} obj - Object to check
  * @returns {boolean} Is empty
  */
-export const isEmptyObject = (obj: Record<string, any>): boolean => {
-  return obj && Object.keys(obj).length === 0 && obj.constructor === Object;
+export const isEmptyObject = (obj: Record<string, any> | null | undefined): boolean => {
+  if (!obj) return true;
+  return Object.keys(obj).length === 0 && obj.constructor === Object;
 };
 
 /**
  * Deep clone object
- * @param {object} obj - Object to clone
- * @returns {object} Cloned object
+ * @param {T} obj - Object to clone
+ * @returns {T} Cloned object
  */
 export const deepClone = <T>(obj: T): T => {
-  return JSON.parse(JSON.stringify(obj));
+  if (obj === null || typeof obj !== 'object') {
+    return obj;
+  }
+  
+  try {
+    return JSON.parse(JSON.stringify(obj));
+  } catch (e) {
+    console.error('Deep clone failed:', e);
+    // Fallback to a less safe method
+    return { ...obj } as T;
+  }
 };
 
 /**
@@ -250,40 +393,23 @@ export const deepClone = <T>(obj: T): T => {
 export const getContrastColor = (hexcolor: string): string => {
   if (!hexcolor || typeof hexcolor !== 'string') return '#000000';
   
-  // Remove hash if present
-  hexcolor = hexcolor.replace('#', '');
+  // Remove hash if present and handle shorthand hex
+  let hex = hexcolor.replace('#', '');
+  
+  // Convert shorthand hex to full form
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
   
   // Convert to RGB
-  const r = parseInt(hexcolor.substr(0, 2), 16);
-  const g = parseInt(hexcolor.substr(2, 2), 16);
-  const b = parseInt(hexcolor.substr(4, 2), 16);
+  const r = parseInt(hex.substring(0, 2), 16) || 0;
+  const g = parseInt(hex.substring(2, 4), 16) || 0;
+  const b = parseInt(hex.substring(4, 6), 16) || 0;
   
-  // Calculate contrast
-  const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+  // Calculate luminance using perceptual weights
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   
-  return yiq >= 128 ? '#000000' : '#FFFFFF';
-};
-
-/**
- * Generate random color
- * @returns {string} Random hex color
- */
-export const randomColor = (): string => {
-  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
-};
-
-/**
- * Format duration in seconds to minutes and seconds
- * @param {number} seconds - Duration in seconds
- * @returns {string} Formatted duration
- */
-export const formatDuration = (seconds: number): string => {
-  if (!seconds) return '0:00';
-  
-  const minutes = Math.floor(seconds / 60);
-  const remainingSeconds = Math.floor(seconds % 60);
-  
-  return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`;
+  return luminance > 0.5 ? '#000000' : '#FFFFFF';
 };
 
 /**
@@ -296,6 +422,11 @@ export const getDaysLeft = (dateString: string): number => {
   
   const targetDate = new Date(dateString);
   const currentDate = new Date();
+  
+  // Check if the date is valid
+  if (isNaN(targetDate.getTime())) {
+    return 0;
+  }
   
   // Reset time part for accurate day calculation
   targetDate.setHours(0, 0, 0, 0);
@@ -319,108 +450,16 @@ export const isDateInPast = (dateString: string): boolean => {
   const date = new Date(dateString);
   const today = new Date();
   
+  // Check if the date is valid
+  if (isNaN(date.getTime())) {
+    return false;
+  }
+  
   // Reset time part for accurate comparison
   date.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
   
   return date < today;
-};
-
-/**
- * Get file extension from filename
- * @param {string} filename - File name
- * @returns {string} File extension
- */
-export const getFileExtension = (filename: string): string => {
-  if (!filename) return '';
-  return filename.split('.').pop()?.toLowerCase() || '';
-};
-
-/**
- * Parse URL parameters
- * @param {string} url - URL with parameters
- * @returns {Record<string, string>} Parameters object
- */
-export const parseURLParams = (url: string): Record<string, string> => {
-  if (!url || !url.includes('?')) return {};
-  
-  const params: Record<string, string> = {};
-  const queryString = url.split('?')[1];
-  
-  queryString.split('&').forEach(param => {
-    const [key, value] = param.split('=');
-    params[key] = decodeURIComponent(value);
-  });
-  
-  return params;
-};
-
-/**
- * Get device type based on screen width
- * @param {number} width - Screen width
- * @returns {string} Device type
- */
-export const getDeviceType = (width: number): 'mobile' | 'tablet' | 'desktop' => {
-  if (width < 576) return 'mobile';
-  if (width < 992) return 'tablet';
-  return 'desktop';
-};
-
-/**
- * Shorten long string from middle
- * @param {string} str - String to shorten
- * @param {number} maxLength - Maximum length
- * @returns {string} Shortened string
- */
-export const shortenFromMiddle = (str: string, maxLength: number = 20): string => {
-  if (!str || str.length <= maxLength) return str;
-  
-  const midPoint = Math.floor(str.length / 2);
-  const charsToRemove = str.length - maxLength + 3; // +3 for "..."
-  const firstHalfEnd = midPoint - Math.floor(charsToRemove / 2);
-  const secondHalfStart = midPoint + Math.ceil(charsToRemove / 2);
-  
-  return str.substring(0, firstHalfEnd) + '...' + str.substring(secondHalfStart);
-};
-
-/**
- * Get readable file type from mime type
- * @param {string} mimeType - MIME type
- * @returns {string} Readable file type
- */
-export const getFileTypeFromMime = (mimeType: string): string => {
-  if (!mimeType) return 'Unknown';
-  
-  if (mimeType.startsWith('image/')) return 'Image';
-  if (mimeType.startsWith('video/')) return 'Video';
-  if (mimeType.startsWith('audio/')) return 'Audio';
-  
-  const specificTypes: Record<string, string> = {
-    'application/pdf': 'PDF',
-    'application/msword': 'Word',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'Word',
-    'application/vnd.ms-excel': 'Excel',
-    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'Excel',
-    'application/vnd.ms-powerpoint': 'PowerPoint',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'PowerPoint',
-    'application/zip': 'ZIP Archive',
-    'application/x-zip-compressed': 'ZIP Archive',
-    'text/plain': 'Text',
-    'text/html': 'HTML',
-    'text/css': 'CSS',
-    'text/javascript': 'JavaScript'
-  };
-  
-  return specificTypes[mimeType] || 'Document';
-};
-
-/**
- * Create a delay/sleep function
- * @param {number} ms - Milliseconds to wait
- * @returns {Promise<void>} Promise that resolves after specified delay
- */
-export const delay = (ms: number): Promise<void> => {
-  return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 /**
@@ -439,13 +478,12 @@ export const groupBy = <T>(array: T[], key: keyof T): Record<string, T[]> => {
 };
 
 /**
- * Get random item from array
- * @param {Array<T>} array - Source array
- * @returns {T | null} Random item or null if array is empty
+ * Delay execution for specified time
+ * @param {number} ms - Milliseconds to delay
+ * @returns {Promise<void>} Promise that resolves after the delay
  */
-export const getRandomItem = <T>(array: T[]): T | null => {
-  if (!array || !array.length) return null;
-  return array[Math.floor(Math.random() * array.length)];
+export const delay = (ms: number): Promise<void> => {
+  return new Promise(resolve => setTimeout(resolve, ms));
 };
 
 export default {
@@ -458,22 +496,15 @@ export default {
   formatCompactNumber,
   truncateText,
   capitalize,
+  titleCase,
   generateId,
   formatFileSize,
   calculatePercentage,
   isEmptyObject,
   deepClone,
   getContrastColor,
-  randomColor,
-  formatDuration,
   getDaysLeft,
   isDateInPast,
-  getFileExtension,
-  parseURLParams,
-  getDeviceType,
-  shortenFromMiddle,
-  getFileTypeFromMime,
-  delay,
   groupBy,
-  getRandomItem
+  delay
 };

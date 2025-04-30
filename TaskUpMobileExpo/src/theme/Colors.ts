@@ -1,4 +1,3 @@
-
 const Colors = {
   primary: {
     50: '#EEF2FF',
@@ -25,19 +24,6 @@ const Colors = {
     800: '#075985',
     900: '#0C4A6E',
     950: '#082F49',
-  },
-  accent: {
-    50: '#FDF2F8',
-    100: '#FCE7F3',
-    200: '#FBCFE8',
-    300: '#F9A8D4',
-    400: '#F472B6',
-    500: '#EC4899', // Main accent color
-    600: '#DB2777',
-    700: '#BE185D',
-    800: '#9D174D',
-    900: '#831843',
-    950: '#500724',
   },
   success: {
     50: '#ECFDF5',
@@ -90,6 +76,8 @@ const Colors = {
     800: '#262626',
     900: '#171717',
     950: '#0A0A0A',
+    white: '#FFFFFF',
+    black: '#000000',
   },
   background: {
     light: '#FFFFFF',
@@ -112,11 +100,21 @@ const Colors = {
   gradient: {
     primary: ['#6366F1', '#4F46E5'],
     secondary: ['#0EA5E9', '#0369A1'],
-    accent: ['#EC4899', '#BE185D'],
     success: ['#10B981', '#047857'],
     warning: ['#F59E0B', '#B45309'],
     error: ['#EF4444', '#B91C1C'],
+    purple: ['#8B5CF6', '#6D28D9'],
+    pink: ['#EC4899', '#BE185D'],
+    cyan: ['#06B6D4', '#0891B2'],
+    lime: ['#84CC16', '#65A30D'],
+    gray: ['#9CA3AF', '#4B5563'],
   },
+  // Common UI elements
+  divider: 'rgba(0, 0, 0, 0.1)',
+  shadow: 'rgba(0, 0, 0, 0.12)',
+  overlay: 'rgba(0, 0, 0, 0.5)',
+  backdrop: 'rgba(0, 0, 0, 0.3)',
+  ripple: 'rgba(0, 0, 0, 0.08)',
 };
 
 export default Colors;

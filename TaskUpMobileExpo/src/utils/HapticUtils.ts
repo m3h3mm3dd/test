@@ -1,4 +1,3 @@
-
 import { Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 
@@ -47,18 +46,16 @@ export const triggerSelection = async (): Promise<void> => {
   }
 };
 
-interface HapticSequenceItem {
-  type: 'impact' | 'notification' | 'selection';
-  style?: Haptics.ImpactFeedbackStyle | Haptics.NotificationFeedbackType;
-  delay: number;
-}
-
 /**
  * Trigger a sequence of haptic feedbacks with delays
  * @param sequence - Array of {type, style, delay} objects
  */
 export const triggerSequence = async (
-  sequence: Array<HapticSequenceItem>
+  sequence: Array<{
+    type: 'impact' | 'notification' | 'selection';
+    style?: Haptics.ImpactFeedbackStyle | Haptics.NotificationFeedbackType;
+    delay: number;
+  }>
 ): Promise<void> => {
   if (Platform.OS === 'web') return;
 
@@ -115,7 +112,45 @@ export const triggerWarning = async (): Promise<void> => {
 };
 
 /**
- * Utility class for button interactions
+ * Use appropriate type of haptic based on platform and settings
+ * Platform-optimized for maximum performance
+ */
+export const triggerAppropriate = async (
+  type: 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection'
+): Promise<void> => {
+  if (Platform.OS === 'web') return;
+  
+  try {
+    switch (type) {
+      case 'light':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        break;
+      case 'medium':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        break;
+      case 'heavy':
+        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+        break;
+      case 'success':
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        break;
+      case 'warning':
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        break;
+      case 'error':
+        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        break;
+      case 'selection':
+        await Haptics.selectionAsync();
+        break;
+    }
+  } catch (error) {
+    console.warn('Haptic feedback unavailable', error);
+  }
+};
+
+/**
+ * Utility object for button interactions
  */
 export const buttonHaptics = {
   press: async (): Promise<void> => triggerImpact(Haptics.ImpactFeedbackStyle.Light),
@@ -132,5 +167,6 @@ export default {
   triggerSequence,
   triggerResult,
   triggerWarning,
+  triggerAppropriate,
   buttonHaptics
 };

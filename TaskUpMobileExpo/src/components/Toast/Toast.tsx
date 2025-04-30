@@ -1,5 +1,5 @@
-import React, { useEffect } from 'react'
-import { StyleSheet, Text, View, TouchableOpacity } from 'react-native'
+import React, { useEffect } from 'react';
+import { StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -7,24 +7,27 @@ import Animated, {
   withSequence,
   runOnJS,
   withSpring,
-  Easing
-} from 'react-native-reanimated'
-import * as Haptics from 'expo-haptics'
-import { Feather } from '@expo/vector-icons'
-import Colors from '../../theme/Colors'
-import Typography from '../../theme/Typography'
+  Easing,
+  FadeIn,
+  FadeOut
+} from 'react-native-reanimated';
+import * as Haptics from 'expo-haptics';
+import { Feather } from '@expo/vector-icons';
+import Colors from '../../theme/Colors';
+import Typography from '../../theme/Typography';
+import { useTheme } from '../../hooks/useColorScheme';
 
 interface ToastProps {
-  message: string
-  type?: 'success' | 'error' | 'info' | 'warning'
-  duration?: number
-  onDismiss: () => void
+  message: string;
+  type?: 'success' | 'error' | 'info' | 'warning';
+  duration?: number;
+  onDismiss: () => void;
   action?: {
-    label: string
-    onPress: () => void
-  }
-  icon?: keyof typeof Feather.glyphMap
-  showProgress?: boolean
+    label: string;
+    onPress: () => void;
+  };
+  icon?: keyof typeof Feather.glyphMap;
+  showProgress?: boolean;
 }
 
 const Toast = ({ 
@@ -36,66 +39,67 @@ const Toast = ({
   icon,
   showProgress = true
 }: ToastProps) => {
-  const translateY = useSharedValue(-100)
-  const opacity = useSharedValue(0)
-  const scale = useSharedValue(0.9)
-  const progress = useSharedValue(1)
+  const { colors, isDark } = useTheme();
+  const translateY = useSharedValue(-100);
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(0.9);
+  const progress = useSharedValue(1);
   
   // Auto-dismiss timer
-  let dismissTimer: NodeJS.Timeout
+  let dismissTimer: NodeJS.Timeout;
 
   useEffect(() => {
     // Trigger haptic feedback based on toast type
     switch (type) {
       case 'success':
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success)
-        break
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        break;
       case 'error':
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error)
-        break
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        break;
       case 'warning':
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning)
-        break
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+        break;
       case 'info':
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light)
-        break
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        break;
     }
 
     // Animate in
-    scale.value = withSpring(1, { damping: 12, stiffness: 200 })
-    translateY.value = withSpring(0, { damping: 20, stiffness: 200 })
-    opacity.value = withTiming(1, { duration: 200 })
+    scale.value = withSpring(1, { damping: 12, stiffness: 200 });
+    translateY.value = withSpring(0, { damping: 20, stiffness: 200 });
+    opacity.value = withTiming(1, { duration: 200 });
     
     // Progress animation
     if (showProgress) {
       progress.value = withTiming(0, { 
         duration,
         easing: Easing.linear
-      })
+      });
     }
 
     // Set dismiss timer
     dismissTimer = setTimeout(() => {
-      dismiss()
-    }, duration)
+      dismiss();
+    }, duration);
 
     return () => {
       if (dismissTimer) {
-        clearTimeout(dismissTimer)
+        clearTimeout(dismissTimer);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   const dismiss = () => {
     if (dismissTimer) {
-      clearTimeout(dismissTimer)
+      clearTimeout(dismissTimer);
     }
     
-    translateY.value = withTiming(-100, { duration: 300 })
+    translateY.value = withTiming(-100, { duration: 300 });
     opacity.value = withTiming(0, { duration: 300 }, () => {
-      runOnJS(onDismiss)()
-    })
-  }
+      runOnJS(onDismiss)();
+    });
+  };
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -104,44 +108,44 @@ const Toast = ({
         { scale: scale.value }
       ],
       opacity: opacity.value
-    }
-  })
+    };
+  });
   
   const progressAnimatedStyle = useAnimatedStyle(() => {
     return {
       width: `${progress.value * 100}%`
-    }
-  })
+    };
+  });
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'success':
-        return Colors.secondary.green
+        return Colors.success[500];
       case 'error':
-        return Colors.secondary.red
+        return Colors.error[500];
       case 'warning':
-        return Colors.warning
+        return Colors.warning[500];
       case 'info':
       default:
-        return Colors.primary.blue
+        return Colors.primary[500];
     }
-  }
+  };
   
   const getIcon = () => {
-    if (icon) return icon
+    if (icon) return icon;
     
     switch (type) {
       case 'success':
-        return 'check-circle'
+        return 'check-circle';
       case 'error':
-        return 'alert-circle'
+        return 'alert-circle';
       case 'warning':
-        return 'alert-triangle'
+        return 'alert-triangle';
       case 'info':
       default:
-        return 'info'
+        return 'info';
     }
-  }
+  };
 
   return (
     <Animated.View
@@ -153,6 +157,8 @@ const Toast = ({
       accessible={true}
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
+      entering={FadeIn.springify().mass(0.8)}
+      exiting={FadeOut.duration(200)}
     >
       <View style={styles.content}>
         <Feather name={getIcon()} size={20} color={Colors.neutrals.white} style={styles.icon} />
@@ -163,8 +169,8 @@ const Toast = ({
           <TouchableOpacity 
             style={styles.actionButton}
             onPress={() => {
-              action.onPress()
-              dismiss()
+              action.onPress();
+              dismiss();
             }}
           >
             <Text style={styles.actionText}>{action.label}</Text>
@@ -187,8 +193,8 @@ const Toast = ({
         </View>
       )}
     </Animated.View>
-  )
-}
+  );
+};
 
 const styles = StyleSheet.create({
   container: {
@@ -241,6 +247,6 @@ const styles = StyleSheet.create({
     height: '100%',
     backgroundColor: 'rgba(255, 255, 255, 0.5)'
   }
-})
+});
 
-export default Toasta
+export default Toast;

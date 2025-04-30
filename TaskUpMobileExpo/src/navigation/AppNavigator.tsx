@@ -1,26 +1,29 @@
-
-import React from 'react';
-import { Platform } from 'react-native';
+import React, { useEffect } from 'react';
+import { Platform, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useTheme } from '@/hooks/useColorScheme';
-import { Box, Spinner, Center, Text } from '@chakra-ui/react';
-import { motion } from 'framer-motion';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Animated, { 
+  useSharedValue, 
+  useAnimatedStyle, 
+  withTiming,
+  withSequence 
+} from 'react-native-reanimated';
 
 // Import screens
-import TaskDetailsScreen from '@/screens/TaskDetailsScreen';
-import SettingsScreen from '@/screens/SettingsScreen';
-import OfflineNotice from '@/screens/OfflineNotice';
-import SplashScreen from '@/screens/SplashScreen';
+import TaskDetailsScreen from '../screens/TaskDetailsScreen';
+import SettingsScreen from '../screens/SettingsScreen';
+import OfflineNotice from '../components/OfflineNotice';
 
 // Import navigation stacks and tabs
 import AuthStack from './AuthStack';
 import MainTabs from './MainTabs';
 
 // Import hooks, context, and types
-import { useNetworkStatus } from '@/hooks/useNetworkStatus';
-import { useAuth } from '@/context/AuthContext';
-import Screens from '@/constants/Screens';
+import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { useAuth } from '../context/AuthProvider';
+import { useTheme } from '../hooks/useColorScheme';
+import Screens from '../constants/Screens';
 
 // Define navigator types
 export type RootStackParamList = {
@@ -33,105 +36,116 @@ export type RootStackParamList = {
 // Create stack navigator
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// Loading component with animation
-const LoadingScreen = () => (
-  <Center flex={1} bg="background.light">
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-    >
-      <Box alignItems="center">
-        <Spinner size="xl" color="primary.500" mb={4} />
-        <Text color="text.secondary" fontSize="md">Loading...</Text>
-      </Box>
-    </motion.div>
-  </Center>
-);
-
 /**
  * Root Navigation Container
  * Handles authentication state and main/auth navigation flow
  */
 const AppNavigator = () => {
   const { colors } = useTheme();
-  const { isConnected } = useNetworkStatus();
+  const { isConnected, connectionType } = useNetworkStatus();
   const { isLoading, userToken } = useAuth();
+  const insets = useSafeAreaInsets();
   
-  // Show loading screen while checking auth state
+  // Animation for smooth transitions
+  const navigationOpacity = useSharedValue(0);
+  
+  useEffect(() => {
+    // Animate in the navigator
+    navigationOpacity.value = withSequence(
+      withTiming(0, { duration: 100 }),
+      withTiming(1, { duration: 400 })
+    );
+    
+    // Update status bar based on theme
+    StatusBar.setBarStyle('dark-content');
+    if (Platform.OS === 'android') {
+      StatusBar.setBackgroundColor('transparent');
+      StatusBar.setTranslucent(true);
+    }
+  }, []);
+  
+  const containerStyle = useAnimatedStyle(() => {
+    return {
+      flex: 1,
+      opacity: navigationOpacity.value
+    };
+  });
+
   if (isLoading) {
-    return <SplashScreen />;
+    return null; // Handled by App.tsx with AnimatedSplash
   }
   
   return (
-    <NavigationContainer
-      theme={{
-        dark: false,
-        colors: {
-          primary: colors.primary[500],
-          background: colors.background.light,
-          card: colors.background.light,
-          text: colors.text.primary,
-          border: colors.neutrals[200],
-          notification: colors.error[500],
-        },
-      }}
-    >
-      {/* Offline notice banner */}
-      {!isConnected && <OfflineNotice />}
-      
-      <Stack.Navigator 
-        screenOptions={{
-          headerShown: false,
-          contentStyle: {
-            backgroundColor: colors.background.light
+    <Animated.View style={containerStyle}>
+      <NavigationContainer
+        theme={{
+          dark: false,
+          colors: {
+            primary: colors.primary[500],
+            background: colors.background.light,
+            card: colors.background.light,
+            text: colors.text.primary,
+            border: colors.neutrals[200],
+            notification: colors.error[500],
           },
-          animation: Platform.OS === 'ios' ? 'default' : 'fade_from_bottom',
-          animationDuration: 250,
         }}
       >
-        {userToken == null ? (
-          // Auth screens
-          <Stack.Screen 
-            name="Auth" 
-            component={AuthStack} 
-            options={{ animation: 'fade' }}
-          />
-        ) : (
-          // Main app screens
-          <>
+        {/* Offline notice banner */}
+        {!isConnected && <OfflineNotice />}
+        
+        <Stack.Navigator 
+          screenOptions={{
+            headerShown: false,
+            contentStyle: {
+              backgroundColor: colors.background.light
+            },
+            animation: Platform.OS === 'ios' ? 'default' : 'fade_from_bottom',
+            animationDuration: 300,
+            fullScreenGestureEnabled: true,
+          }}
+        >
+          {userToken == null ? (
+            // Auth screens
             <Stack.Screen 
-              name={Screens.MAIN_TABS} 
-              component={MainTabs} 
+              name="Auth" 
+              component={AuthStack} 
               options={{ animation: 'fade' }}
             />
-            <Stack.Screen 
-              name={Screens.TASK_DETAILS} 
-              component={TaskDetailsScreen}
-              options={{
-                animation: 'slide_from_right',
-                presentation: 'card',
-                contentStyle: {
-                  backgroundColor: colors.background.paper
-                }
-              }}
-            />
-            <Stack.Screen 
-              name={Screens.SETTINGS} 
-              component={SettingsScreen}
-              options={{
-                animation: 'slide_from_right',
-                presentation: 'card',
-                contentStyle: {
-                  backgroundColor: colors.background.paper
-                }
-              }}
-            />
-          </>
-        )}
-      </Stack.Navigator>
-    </NavigationContainer>
+          ) : (
+            // Main app screens
+            <>
+              <Stack.Screen 
+                name={Screens.MAIN_TABS} 
+                component={MainTabs} 
+                options={{ animation: 'fade' }}
+              />
+              <Stack.Screen 
+                name={Screens.TASK_DETAILS} 
+                component={TaskDetailsScreen}
+                options={{
+                  animation: 'slide_from_right',
+                  presentation: 'card',
+                  contentStyle: {
+                    backgroundColor: colors.background.paper
+                  }
+                }}
+              />
+              <Stack.Screen 
+                name={Screens.SETTINGS} 
+                component={SettingsScreen}
+                options={{
+                  animation: 'slide_from_right',
+                  presentation: 'card',
+                  contentStyle: {
+                    backgroundColor: colors.background.paper
+                  }
+                }}
+              />
+            </>
+          )}
+        </Stack.Navigator>
+      </NavigationContainer>
+    </Animated.View>
   );
 };
 
