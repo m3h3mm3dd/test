@@ -10,7 +10,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 
 // Import components
 import AppNavigator from './src/navigation/AppNavigator';
-import CustomSplashScreen from './src/screens/SplashScreen';
+import AnimatedSplash from './src/components/AnimatedSplash';
 import { ThemeProvider } from './src/theme/ThemeProvider';
 import { AuthProvider } from './src/context/AuthProvider';
 import { NotificationProvider } from './src/context/NotificationProvider';
@@ -82,7 +82,6 @@ const App = () => {
     setShowSplash(false);
   };
 
-  // Important: SafeAreaProvider must be the outermost wrapper
   return (
     <SafeAreaProvider>
       <ThemeProvider>
@@ -91,7 +90,7 @@ const App = () => {
             <GestureHandlerRootView style={{ flex: 1 }}>
               {!isReady ? null : (
                 showSplash ? (
-                  <CustomSplashScreen onAnimationComplete={handleSplashComplete} />
+                  <AnimatedSplash onAnimationComplete={handleSplashComplete} />
                 ) : (
                   <AppNavigator />
                 )

@@ -71,8 +71,9 @@ const AppNavigator = () => {
     };
   });
 
+  // Don't render anything while loading
   if (isLoading) {
-    return null; // Handled by App.tsx with SplashScreen
+    return null;
   }
   
   return (
@@ -105,14 +106,14 @@ const AppNavigator = () => {
           }}
         >
           {userToken == null ? (
-            // Auth screens
+            // Auth screens - default to Auth stack when not logged in
             <Stack.Screen 
               name="Auth" 
               component={AuthStack} 
               options={{ animation: 'fade' }}
             />
           ) : (
-            // Main app screens
+            // Main app screens - when logged in
             <>
               <Stack.Screen 
                 name={Screens.MAIN_TABS} 

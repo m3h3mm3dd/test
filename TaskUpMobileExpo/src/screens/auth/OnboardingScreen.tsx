@@ -1,33 +1,17 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState } from 'react';
 import { 
   StyleSheet, 
   View, 
   Text, 
-  Dimensions, 
   TouchableOpacity, 
   StatusBar,
-  FlatList
+  Dimensions,
+  SafeAreaView
 } from 'react-native';
-import Animated, { 
-  useSharedValue, 
-  useAnimatedStyle, 
-  withTiming, 
-  withSpring, 
-  withSequence, 
-  interpolate, 
-  useAnimatedScrollHandler,
-  Extrapolation,
-  FadeIn,
-  FadeInRight,
-  FadeInLeft,
-  FadeOut,
-  SlideInRight,
-  runOnJS
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useNavigation } from '@react-navigation/native';
 import { Feather } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Haptics from 'expo-haptics';
 
 import Colors from '../../theme/Colors';
 import Typography from '../../theme/Typography';
@@ -37,430 +21,161 @@ import { triggerImpact } from '../../utils/HapticUtils';
 
 const { width, height } = Dimensions.get('window');
 
-// Onboarding screens data
-const ONBOARDING_DATA = [
-  {
-    id: '1',
-    title: 'Manage Tasks Effectively',
-    description: 'Keep track of all your tasks in one place. Organize, prioritize, and never miss a deadline again.',
-    icon: 'check-square',
-    colors: [Colors.primary[700], Colors.primary[600], Colors.primary.blue]
-  },
-  {
-    id: '2',
-    title: 'Collaborate with Your Team',
-    description: 'Share projects, assign tasks, and communicate with team members seamlessly.',
-    icon: 'users',
-    colors: [Colors.primary[800], Colors.primary[600], Colors.primary[400]]
-  },
-  {
-    id: '3',
-    title: 'Track Your Progress',
-    description: 'Monitor your productivity with detailed analytics and reports to improve your workflow.',
-    icon: 'bar-chart-2',
-    colors: [Colors.primary[700], Colors.primary[500], Colors.primary[300]]
-  }
-];
-
-// Extract this into a separate component
-const SlideItem = React.memo(({ item, index, translationX }) => {
-  const inputRange = [
-    (index - 1) * width,
-    index * width,
-    (index + 1) * width
-  ];
-  
-  const slideAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      translationX.value,
-      inputRange,
-      [0.8, 1, 0.8],
-      Extrapolation.CLAMP
-    );
-    
-    const opacity = interpolate(
-      translationX.value,
-      inputRange,
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    
-    return {
-      transform: [{ scale }],
-      opacity
-    };
-  });
-  
-  return (
-    <Animated.View 
-      style={[styles.slide, { width }, slideAnimatedStyle]}
-    >
-      <View style={styles.iconContainer}>
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          borderRadius={60}
-        />
-        <Feather name={item.icon} size={60} color="#fff" />
-      </View>
-      
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.description}>{item.description}</Text>
-    </Animated.View>
-  );
-});
-
-// Extract background gradient into a separate component
-const BackgroundGradient = ({ slide, index, translationX }) => {
-  const bgAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translationX.value,
-      [(index - 0.5) * width, index * width, (index + 0.5) * width],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    
-    return { opacity };
-  });
-  
-  return (
-    <Animated.View 
-      style={[StyleSheet.absoluteFill, bgAnimatedStyle]}
-    >
-      <LinearGradient
-        colors={slide.colors}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-    </Animated.View>
-  );
-};
-
-const OnboardingScreen = ({ navigation }) => {
-  const insets = useSafeAreaInsets();
-  const flatListRef = useRef(null);
-  const [activeIndex, setActiveIndex] = useState(0);
-  
-  // Animation values
-  const translationX = useSharedValue(0);
-  const buttonScale = useSharedValue(1);
-  const skipOpacity = useSharedValue(1);
-  const progressValue = useSharedValue(0);
+const OnboardingScreen = () => {
+  const navigation = useNavigation();
   
   // Setup status bar
-  useEffect(() => {
-    StatusBar.setBarStyle('light-content');
-    return () => {
-      StatusBar.setBarStyle('dark-content');
-    };
-  }, []);
+  StatusBar.setBarStyle('light-content');
   
-  // Update progress animation when active index changes
-  useEffect(() => {
-    const progress = activeIndex / (ONBOARDING_DATA.length - 1);
-    progressValue.value = withTiming(progress, { duration: 300 });
-    
-    // Hide skip button on last slide
-    if (activeIndex === ONBOARDING_DATA.length - 1) {
-      skipOpacity.value = withTiming(0, { duration: 200 });
-    } else {
-      skipOpacity.value = withTiming(1, { duration: 200 });
-    }
-  }, [activeIndex]);
-  
-  // Scroll handler for slide transitions
-  const scrollHandler = useAnimatedScrollHandler({
-    onScroll: (event) => {
-      translationX.value = event.contentOffset.x;
-    },
-    onEndDrag: (event) => {
-      const newIndex = Math.round(event.contentOffset.x / width);
-      if (newIndex !== activeIndex) {
-        runOnJS(setActiveIndex)(newIndex);
-      }
-    },
-  });
-  
-  // Handle next slide
-  const handleNext = () => {
+  const handleLogin = () => {
     triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
-    
-    // Animate button
-    buttonScale.value = withSequence(
-      withTiming(0.95, { duration: 100 }),
-      withSpring(1, { damping: 12, stiffness: 200 })
-    );
-    
-    if (activeIndex < ONBOARDING_DATA.length - 1) {
-      // Go to next slide
-      const nextIndex = activeIndex + 1;
-      flatListRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setActiveIndex(nextIndex);
-    } else {
-      // Complete onboarding with animation
-      navigation.replace('LoginScreen');
-    }
+    navigation.navigate('LoginScreen');
   };
   
-  // Handle skip
-  const handleSkip = () => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    navigation.replace('LoginScreen');
-  };
-  
-  // Go to specific slide
-  const goToSlide = (index) => {
-    triggerImpact(Haptics.ImpactFeedbackStyle.Light);
-    flatListRef.current?.scrollToIndex({ index, animated: true });
-    setActiveIndex(index);
-  };
-  
-  // Button animated style
-  const buttonStyle = useAnimatedStyle(() => {
-    return {
-      transform: [{ scale: buttonScale.value }]
-    };
-  });
-  
-  // Skip button style
-  const skipButtonStyle = useAnimatedStyle(() => {
-    return {
-      opacity: skipOpacity.value
-    };
-  });
-  
-  // Progress bar animation
-  const progressBarStyle = useAnimatedStyle(() => {
-    return {
-      width: `${progressValue.value * 100}%`
-    };
-  });
-  
-  // Use a renderItem function that passes necessary props to the SlideItem component
-  const renderSlideItem = ({ item, index }) => {
-    return (
-      <SlideItem 
-        item={item} 
-        index={index} 
-        translationX={translationX} 
-      />
-    );
+  const handleRegister = () => {
+    triggerImpact(Haptics.ImpactFeedbackStyle.Medium);
+    navigation.navigate('SignUpStep1');
   };
   
   return (
-    <View style={styles.container}>
-      {/* Background gradient that changes with slides */}
-      <Animated.View style={StyleSheet.absoluteFill}>
-        {ONBOARDING_DATA.map((slide, index) => (
-          <BackgroundGradient
-            key={`bg-${index}`}
-            slide={slide}
-            index={index}
-            translationX={translationX}
-          />
-        ))}
-      </Animated.View>
-      
-      {/* Background decoration */}
-      <View style={styles.decorationCircle1} />
-      <View style={styles.decorationCircle2} />
-      <View style={styles.decorationCircle3} />
-      
-      {/* Skip button */}
-      <Animated.View 
-        style={[
-          styles.skipButtonContainer, 
-          { top: insets.top + 16 }, 
-          skipButtonStyle
-        ]}
-      >
-        <TouchableOpacity 
-          style={styles.skipButton}
-          onPress={handleSkip}
-          activeOpacity={0.8}
-        >
-          <Text style={styles.skipText}>Skip</Text>
-        </TouchableOpacity>
-      </Animated.View>
-      
-      {/* Slides */}
-      <Animated.FlatList
-        ref={flatListRef}
-        data={ONBOARDING_DATA}
-        keyExtractor={(item) => item.id}
-        renderItem={renderSlideItem}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        onScroll={scrollHandler}
-        scrollEventThrottle={16}
-        style={styles.slideList}
-        contentContainerStyle={{ alignItems: 'center' }}
-      />
-      
-      {/* Custom pagination dots */}
-      <View style={[
-        styles.paginationOuterContainer,
-        { paddingBottom: insets.bottom > 0 ? insets.bottom : 20 }
-      ]}>
-        <View style={styles.paginationContainer}>
-          {ONBOARDING_DATA.map((_, index) => (
-            <TouchableOpacity
-              key={index} 
-              style={[
-                styles.paginationDotContainer,
-                activeIndex === index && styles.activeDotContainer
-              ]}
-              onPress={() => goToSlide(index)}
-              activeOpacity={0.8}
+    <LinearGradient
+      colors={[Colors.primary[700], Colors.primary[500]]}
+      style={styles.container}
+      start={{ x: 0, y: 0 }}
+      end={{ x: 1, y: 1 }}
+    >
+      <SafeAreaView style={styles.safeArea}>
+        <View style={styles.content}>
+          {/* Logo/Icon */}
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <Feather name="check-square" size={60} color="#fff" />
+            </View>
+            <Text style={styles.appName}>TaskUp</Text>
+          </View>
+          
+          {/* Welcome Text */}
+          <View style={styles.welcomeContainer}>
+            <Text style={styles.welcomeTitle}>Welcome to TaskUp</Text>
+            <Text style={styles.welcomeSubtitle}>
+              Your ultimate task management solution to organize, track, and accomplish your goals.
+            </Text>
+          </View>
+          
+          {/* Action Buttons */}
+          <View style={styles.buttonContainer}>
+            <Button
+              title="Sign In"
+              onPress={handleLogin}
+              style={styles.signInButton}
+              variant="secondary"
+              fullWidth
+              icon="log-in"
+              iconPosition="right"
+            />
+            
+            <Button
+              title="Create Account"
+              onPress={handleRegister}
+              style={styles.registerButton}
+              variant="primary"
+              fullWidth
+              icon="user-plus"
+              iconPosition="right"
+              gradientColors={['rgba(255, 255, 255, 0.3)', 'rgba(255, 255, 255, 0.1)']}
+            />
+            
+            <TouchableOpacity 
+              style={styles.skipButton}
+              onPress={() => navigation.navigate('DashboardScreen')}
             >
-              <View 
-                style={[
-                  styles.paginationDot,
-                  activeIndex === index && styles.paginationDotActive
-                ]}
-              />
+              <Text style={styles.skipText}>Skip for now</Text>
             </TouchableOpacity>
-          ))}
+          </View>
         </View>
         
-        {/* Progress bar */}
-        <View style={styles.progressBarContainer}>
-          <Animated.View style={[styles.progressBar, progressBarStyle]} />
-        </View>
-        
-        {/* Next button */}
-        <Animated.View style={[styles.buttonContainer, buttonStyle]}>
-          <Button
-            title={activeIndex === ONBOARDING_DATA.length - 1 ? "Get Started" : "Next"}
-            onPress={handleNext}
-            style={styles.button}
-            animationType="bounce"
-            icon={activeIndex === ONBOARDING_DATA.length - 1 ? "arrow-right" : "arrow-right"}
-            iconPosition="right"
-            gradientColors={[
-              'rgba(255, 255, 255, 0.3)',
-              'rgba(255, 255, 255, 0.1)'
-            ]}
-            round
-          />
-        </Animated.View>
-      </View>
-    </View>
+        {/* Decorative Elements */}
+        <View style={styles.decorationCircle1} />
+        <View style={styles.decorationCircle2} />
+        <View style={styles.decorationCircle3} />
+      </SafeAreaView>
+    </LinearGradient>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1
+    flex: 1,
   },
-  skipButtonContainer: {
-    position: 'absolute',
-    right: 16,
-    zIndex: 10
+  safeArea: {
+    flex: 1,
   },
-  skipButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)'
+  content: {
+    flex: 1,
+    paddingHorizontal: Spacing.xl,
+    justifyContent: 'space-between',
+    paddingTop: Spacing.xl * 2,
+    paddingBottom: Spacing.xl * 1.5,
   },
-  skipText: {
-    fontSize: Typography.sizes.bodySmall,
-    color: Colors.neutrals.white,
-    fontWeight: Typography.weights.medium
-  },
-  slideList: {
-    flex: 1
-  },
-  slide: {
-    justifyContent: 'center',
+  logoContainer: {
     alignItems: 'center',
-    padding: Spacing.xl
+    marginTop: Spacing.xl,
   },
-  iconContainer: {
+  logoCircle: {
     width: 120,
     height: 120,
     borderRadius: 60,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: Spacing.xl,
+    marginBottom: Spacing.md,
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.1)'
+    borderColor: 'rgba(255, 255, 255, 0.3)'
   },
-  title: {
+  appName: {
+    fontSize: 36,
+    fontWeight: Typography.weights.bold,
+    color: Colors.neutrals.white,
+    marginTop: Spacing.md,
+  },
+  welcomeContainer: {
+    alignItems: 'center',
+    marginVertical: Spacing.xl * 2,
+  },
+  welcomeTitle: {
     fontSize: 28,
     fontWeight: Typography.weights.bold,
     color: Colors.neutrals.white,
     marginBottom: Spacing.md,
-    textAlign: 'center'
+    textAlign: 'center',
   },
-  description: {
+  welcomeSubtitle: {
     fontSize: Typography.sizes.body,
     color: 'rgba(255, 255, 255, 0.8)',
     textAlign: 'center',
     lineHeight: 24,
-    maxWidth: width * 0.8
-  },
-  paginationOuterContainer: {
-    width: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingBottom: 40,
-    paddingTop: 20
-  },
-  paginationContainer: {
-    flexDirection: 'row',
-    marginBottom: Spacing.md
-  },
-  paginationDotContainer: {
-    width: 30,
-    height: 30,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginHorizontal: 4
-  },
-  activeDotContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
-    borderRadius: 15
-  },
-  paginationDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.3)'
-  },
-  paginationDotActive: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: Colors.neutrals.white
-  },
-  progressBarContainer: {
-    width: '60%',
-    height: 4,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 2,
-    marginBottom: Spacing.lg,
-    overflow: 'hidden'
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: Colors.neutrals.white,
-    borderRadius: 2
+    maxWidth: width * 0.8,
   },
   buttonContainer: {
     width: '100%',
-    paddingHorizontal: Spacing.xl
+    marginTop: Spacing.xl,
   },
-  button: {
-    minWidth: 200,
-    alignSelf: 'center'
+  signInButton: {
+    marginBottom: Spacing.lg,
+    backgroundColor: 'transparent',
+    borderColor: Colors.neutrals.white,
+    borderWidth: 1,
+  },
+  registerButton: {
+    marginBottom: Spacing.xl,
+  },
+  skipButton: {
+    alignSelf: 'center',
+    padding: Spacing.md,
+  },
+  skipText: {
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: Typography.sizes.body,
   },
   // Decorative elements
   decorationCircle1: {
