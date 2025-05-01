@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, StyleSheet, Text, Dimensions, StatusBar, Platform } from 'react-native';
+import { View, StyleSheet, Text, Dimensions, StatusBar } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -24,7 +24,6 @@ interface SplashScreenProps {
 }
 
 const SplashScreen = ({ onAnimationComplete }: SplashScreenProps) => {
-  // Get safe area insets for proper positioning
   const insets = useSafeAreaInsets();
   
   // Animation values

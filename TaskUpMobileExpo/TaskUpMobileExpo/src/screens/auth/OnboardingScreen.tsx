@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
@@ -13,7 +14,6 @@ import Animated, {
   useAnimatedStyle, 
   withTiming, 
   withSpring, 
-  withSequence, 
   interpolate, 
   useAnimatedScrollHandler,
   Extrapolation,
@@ -21,8 +21,7 @@ import Animated, {
   FadeInRight,
   FadeInLeft,
   FadeOut,
-  SlideInRight,
-  runOnJS
+  SlideInRight
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -61,83 +60,6 @@ const ONBOARDING_DATA = [
     colors: [Colors.primary[700], Colors.primary[500], Colors.primary[300]]
   }
 ];
-
-// Extract this into a separate component
-const SlideItem = React.memo(({ item, index, translationX }) => {
-  const inputRange = [
-    (index - 1) * width,
-    index * width,
-    (index + 1) * width
-  ];
-  
-  const slideAnimatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(
-      translationX.value,
-      inputRange,
-      [0.8, 1, 0.8],
-      Extrapolation.CLAMP
-    );
-    
-    const opacity = interpolate(
-      translationX.value,
-      inputRange,
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    
-    return {
-      transform: [{ scale }],
-      opacity
-    };
-  });
-  
-  return (
-    <Animated.View 
-      style={[styles.slide, { width }, slideAnimatedStyle]}
-    >
-      <View style={styles.iconContainer}>
-        <LinearGradient
-          colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)']}
-          style={StyleSheet.absoluteFill}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          borderRadius={60}
-        />
-        <Feather name={item.icon} size={60} color="#fff" />
-      </View>
-      
-      <Text style={styles.title}>{item.title}</Text>
-      <Text style={styles.description}>{item.description}</Text>
-    </Animated.View>
-  );
-});
-
-// Extract background gradient into a separate component
-const BackgroundGradient = ({ slide, index, translationX }) => {
-  const bgAnimatedStyle = useAnimatedStyle(() => {
-    const opacity = interpolate(
-      translationX.value,
-      [(index - 0.5) * width, index * width, (index + 0.5) * width],
-      [0, 1, 0],
-      Extrapolation.CLAMP
-    );
-    
-    return { opacity };
-  });
-  
-  return (
-    <Animated.View 
-      style={[StyleSheet.absoluteFill, bgAnimatedStyle]}
-    >
-      <LinearGradient
-        colors={slide.colors}
-        style={StyleSheet.absoluteFill}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      />
-    </Animated.View>
-  );
-};
 
 const OnboardingScreen = ({ navigation }) => {
   const insets = useSafeAreaInsets();
@@ -239,14 +161,53 @@ const OnboardingScreen = ({ navigation }) => {
     };
   });
   
-  // Use a renderItem function that passes necessary props to the SlideItem component
+  // Render slide item
   const renderSlideItem = ({ item, index }) => {
+    const inputRange = [
+      (index - 1) * width,
+      index * width,
+      (index + 1) * width
+    ];
+    
+    const slideAnimatedStyle = useAnimatedStyle(() => {
+      const scale = interpolate(
+        translationX.value,
+        inputRange,
+        [0.8, 1, 0.8],
+        Extrapolation.CLAMP
+      );
+      
+      const opacity = interpolate(
+        translationX.value,
+        inputRange,
+        [0, 1, 0],
+        Extrapolation.CLAMP
+      );
+      
+      return {
+        transform: [{ scale }],
+        opacity
+      };
+    });
+    
     return (
-      <SlideItem 
-        item={item} 
-        index={index} 
-        translationX={translationX} 
-      />
+      <Animated.View 
+        style={[styles.slide, { width }, slideAnimatedStyle]}
+      >
+        <View style={styles.iconContainer}>
+          <LinearGradient
+            colors={['rgba(255, 255, 255, 0.2)', 'rgba(255, 255, 255, 0.05)']}
+            style={StyleSheet.absoluteFill}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            borderRadius={60}
+          />
+          <Feather name={item.icon} size={60} color="#fff" />
+        </View>
+        
+        <Text style={styles.title}>{item.title}</Text>
+        <Text style={styles.description}>{item.description}</Text>
+      </Animated.View>
     );
   };
   
@@ -254,14 +215,33 @@ const OnboardingScreen = ({ navigation }) => {
     <View style={styles.container}>
       {/* Background gradient that changes with slides */}
       <Animated.View style={StyleSheet.absoluteFill}>
-        {ONBOARDING_DATA.map((slide, index) => (
-          <BackgroundGradient
-            key={`bg-${index}`}
-            slide={slide}
-            index={index}
-            translationX={translationX}
-          />
-        ))}
+        {ONBOARDING_DATA.map((slide, index) => {
+          // Calculate when to show this background
+          const bgAnimatedStyle = useAnimatedStyle(() => {
+            const opacity = interpolate(
+              translationX.value,
+              [(index - 0.5) * width, index * width, (index + 0.5) * width],
+              [0, 1, 0],
+              Extrapolation.CLAMP
+            );
+            
+            return { opacity };
+          });
+          
+          return (
+            <Animated.View 
+              key={`bg-${index}`} 
+              style={[StyleSheet.absoluteFill, bgAnimatedStyle]}
+            >
+              <LinearGradient
+                colors={slide.colors}
+                style={StyleSheet.absoluteFill}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+              />
+            </Animated.View>
+          );
+        })}
       </Animated.View>
       
       {/* Background decoration */}

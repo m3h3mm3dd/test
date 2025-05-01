@@ -1,6 +1,5 @@
-// App.js
-import React, { useEffect, useState } from 'react';
-import { LogBox, Platform } from 'react-native';
+import React, { useEffect, useState, Suspense } from 'react';
+import { StatusBar, LogBox, Platform } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,23 +7,19 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { enableScreens } from 'react-native-screens';
 import * as NavigationBar from 'expo-navigation-bar';
 
-// Import components
-import AppNavigator from './src/navigation/AppNavigator';
-import CustomSplashScreen from './src/screens/SplashScreen';
-import { ThemeProvider } from './src/theme/ThemeProvider';
-import { AuthProvider } from './src/context/AuthProvider';
-import { NotificationProvider } from './src/context/NotificationProvider';
-import Colors from './src/theme/Colors';
-import { triggerImpact } from './src/utils/HapticUtils';
+import AnimatedSplash from './components/AnimatedSplash';
+import AppNavigator from './navigation/AppNavigator';
+import { ThemeProvider } from './theme/ThemeProvider';
+import { AuthProvider } from './context/AuthProvider';
+import { NotificationProvider } from './context/NotificationProvider';
+import Colors from './theme/Colors';
+import { triggerImpact } from './utils/HapticUtils';
 
 // Enable native screens for better performance
 enableScreens(true);
 
 // Keep splash screen visible while loading app
-SplashScreen.preventAutoHideAsync()
-  .catch(error => {
-    console.warn('Error preventing splash screen from hiding:', error);
-  });
+SplashScreen.preventAutoHideAsync();
 
 // Ignore specific warnings
 LogBox.ignoreLogs([
@@ -32,24 +27,18 @@ LogBox.ignoreLogs([
   'ColorPropType will be removed',
   'Failed prop type',
   'Non-serializable values were found in the navigation state',
-  'Animated: `useNativeDriver`',
-  'In React 18, SSRProvider is not necessary',
-  '"shadow*" style props are deprecated',
-  '"textShadow*" style props are deprecated'
+  'Animated: `useNativeDriver`'
 ]);
 
 const App = () => {
   const [isReady, setIsReady] = useState(false);
-  const [showSplash, setShowSplash] = useState(true);
+  const [showAnimatedSplash, setShowAnimatedSplash] = useState(true);
 
   useEffect(() => {
     // Setup Android navigation bar (bottom bar)
     if (Platform.OS === 'android') {
-      NavigationBar.setBackgroundColorAsync(Colors.background.light)
-        .catch(error => console.log('NavigationBar error:', error));
-        
-      NavigationBar.setButtonStyleAsync('dark')
-        .catch(error => console.log('NavigationBar error:', error));
+      NavigationBar.setBackgroundColorAsync(Colors.background.light);
+      NavigationBar.setButtonStyleAsync('dark');
     }
     
     // App initialization
@@ -64,43 +53,47 @@ const App = () => {
           new Promise(resolve => setTimeout(resolve, 500))
         ]);
         
-        // Set app as ready and hide system splash screen
+        // Set app as ready, then show animated splash
         await SplashScreen.hideAsync();
         setIsReady(true);
+        
+        // Hide animated splash after animation completes
+        setTimeout(() => {
+          setShowAnimatedSplash(false);
+        }, 2000);
       } catch (error) {
         console.log('Error initializing app:', error);
         await SplashScreen.hideAsync();
         setIsReady(true);
+        setShowAnimatedSplash(false);
       }
     };
 
     initApp();
   }, []);
 
-  // Handle our custom splash screen completion
-  const handleSplashComplete = () => {
-    setShowSplash(false);
-  };
-
-  // Important: SafeAreaProvider must be the outermost wrapper
   return (
-    <SafeAreaProvider>
-      <ThemeProvider>
+    <ThemeProvider>
+      <SafeAreaProvider>
         <AuthProvider>
           <NotificationProvider>
             <GestureHandlerRootView style={{ flex: 1 }}>
-              {!isReady ? null : (
-                showSplash ? (
-                  <CustomSplashScreen onAnimationComplete={handleSplashComplete} />
-                ) : (
-                  <AppNavigator />
-                )
+              <StatusBar 
+                barStyle="dark-content" 
+                backgroundColor="transparent" 
+                translucent 
+              />
+              
+              {showAnimatedSplash && isReady ? (
+                <AnimatedSplash onAnimationComplete={() => setShowAnimatedSplash(false)} />
+              ) : (
+                isReady && <AppNavigator />
               )}
             </GestureHandlerRootView>
           </NotificationProvider>
         </AuthProvider>
-      </ThemeProvider>
-    </SafeAreaProvider>
+      </SafeAreaProvider>
+    </ThemeProvider>
   );
 };
 

@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { Platform, StatusBar } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { 
   useSharedValue, 
   useAnimatedStyle, 
@@ -41,10 +42,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 const AppNavigator = () => {
   const { colors } = useTheme();
-  
-  // Use the modified useNetworkStatus hook that doesn't use setOfflineMode
-  const { isConnected } = useNetworkStatus();
+  const { isConnected, connectionType } = useNetworkStatus();
   const { isLoading, userToken } = useAuth();
+  const insets = useSafeAreaInsets();
   
   // Animation for smooth transitions
   const navigationOpacity = useSharedValue(0);
@@ -72,7 +72,7 @@ const AppNavigator = () => {
   });
 
   if (isLoading) {
-    return null; // Handled by App.tsx with SplashScreen
+    return null; // Handled by App.tsx with AnimatedSplash
   }
   
   return (

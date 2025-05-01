@@ -18,6 +18,7 @@ interface NetworkStatusHook {
   isConnecting: boolean;
   lastUpdated: Date | null;
   isOfflineMode: boolean;
+  setOfflineMode: (offline: boolean) => void;
 }
 
 /**
@@ -46,12 +47,12 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
     
     // Fire callbacks and haptic feedback for connection changes
     if (!wasConnected && nowConnected) {
-      if (enableHapticFeedback && Platform.OS !== 'web') {
+      if (enableHapticFeedback) {
         triggerNotification(Haptics.NotificationFeedbackType.Success);
       }
       options?.onConnected?.();
     } else if (wasConnected && !nowConnected) {
-      if (enableHapticFeedback && Platform.OS !== 'web') {
+      if (enableHapticFeedback) {
         triggerNotification(Haptics.NotificationFeedbackType.Warning);
       }
       options?.onDisconnected?.();
@@ -64,14 +65,6 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
   const checkConnection = useCallback(async (): Promise<NetInfoState> => {
     try {
       setIsConnecting(true);
-      
-      // Handle web platform differently
-      if (Platform.OS === 'web') {
-        const state = { isConnected: navigator.onLine, isInternetReachable: navigator.onLine, type: 'unknown' };
-        updateConnectionStatus(state as NetInfoState);
-        return state as NetInfoState;
-      }
-      
       const state = await NetInfo.fetch();
       updateConnectionStatus(state);
       return state;
@@ -91,7 +84,7 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
     if (isOfflineMode) {
       setIsConnected(false);
       setIsInternetReachable(false);
-      if (enableHapticFeedback && Platform.OS !== 'web') {
+      if (enableHapticFeedback) {
         triggerNotification(Haptics.NotificationFeedbackType.Warning);
       }
       options?.onDisconnected?.();
@@ -103,50 +96,21 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
   
   // Setup listeners on mount
   useEffect(() => {
-    // Don't use NetInfo on web as it has limited support
+    // Don't run on web as NetInfo has limited support
     if (Platform.OS === 'web') {
-      const handleOnline = () => {
-        updateConnectionStatus({ 
-          isConnected: true, 
-          isInternetReachable: true, 
-          type: 'unknown' 
-        } as NetInfoState);
-      };
-      
-      const handleOffline = () => {
-        updateConnectionStatus({ 
-          isConnected: false, 
-          isInternetReachable: false, 
-          type: 'unknown' 
-        } as NetInfoState);
-      };
-      
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
-      
-      // Initial check
-      updateConnectionStatus({ 
-        isConnected: navigator.onLine, 
-        isInternetReachable: navigator.onLine, 
-        type: 'unknown' 
-      } as NetInfoState);
-      
-      return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-      };
-    } else {
-      // Initial check for mobile
-      checkConnection();
-      
-      // Subscribe to network info updates
-      const unsubscribe = NetInfo.addEventListener(updateConnectionStatus);
-      
-      // Cleanup subscription on unmount
-      return () => {
-        unsubscribe();
-      };
+      return;
     }
+    
+    // Initial check
+    checkConnection();
+    
+    // Subscribe to network info updates
+    const unsubscribe = NetInfo.addEventListener(updateConnectionStatus);
+    
+    // Cleanup subscription on unmount
+    return () => {
+      unsubscribe();
+    };
   }, [checkConnection, updateConnectionStatus]);
   
   return {
@@ -156,7 +120,8 @@ export const useNetworkStatus = (options?: NetworkStatusOptions): NetworkStatusH
     checkConnection,
     isConnecting,
     lastUpdated,
-    isOfflineMode
+    isOfflineMode,
+    setOfflineMode
   };
 };
 
