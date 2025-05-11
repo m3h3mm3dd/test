@@ -14,10 +14,11 @@ interface TaskCardProps {
     AssignedToTeamId?: string | null
     Status?: string
   }
-  userRole: string
+  userRole?: string 
+  onClick: () => void
 }
 
-export function TaskCard({ task, userRole }: TaskCardProps) {
+export function TaskCard({ task, userRole = 'member', onClick }: TaskCardProps) {
   const isTeamTask = !!task.AssignedToTeamId
   const canEdit = userRole === 'Project Owner' || userRole === 'Team Lead'
 
@@ -27,6 +28,7 @@ export function TaskCard({ task, userRole }: TaskCardProps) {
         'p-4 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 shadow-sm space-y-2 transition-all hover:scale-[1.01]',
         'dark:bg-white/10 dark:border-white/20'
       )}
+      onClick={onClick}
     >
       <div className="flex justify-between items-center">
         <h3 className="text-base font-medium">{task.Title}</h3>

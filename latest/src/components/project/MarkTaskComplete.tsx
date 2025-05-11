@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { markTaskComplete } from '@/api/task'
+import { markTaskComplete } from '@/api/TaskAPI'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/lib/toast'
 

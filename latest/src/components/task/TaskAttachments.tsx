@@ -1,7 +1,7 @@
 "use client"
 
 import { FC, useEffect, useState } from 'react'
-import { getTaskAttachments, uploadTaskAttachment, deleteAttachment } from '@/api/task'
+import { getTaskAttachments, uploadTaskAttachment, deleteAttachment } from '@/api/TaskAPI'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 

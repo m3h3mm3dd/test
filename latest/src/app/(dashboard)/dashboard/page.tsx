@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { getProjects } from '@/api/project'
-import { getProjectTasks } from '@/api/task'
+import { getProjectTasks } from '@/api/TaskAPI'
 import { getProjectTeams } from '@/api/team'
 import { getCurrentUser } from '@/api/user'
 import { TaskCard } from '@/components/project/TaskCard'
@@ -16,12 +16,15 @@ import { RoleWelcome } from '@/components/dashboard/RoleWelcome'
 import { ProjectSummaryGrid } from '@/components/dashboard/ProjectSummaryGrid'
 import { TaskStats } from '@/components/dashboard/TaskStats'
 
+
 export default function DashboardPage() {
+
   const [user, setUser] = useState<any>(null)
   const [projects, setProjects] = useState<any[]>([])
   const [tasks, setTasks] = useState<any[]>([])
   const [teams, setTeams] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [userRole, setUserRole] = useState('member') // Default role
 
   const router = useRouter()
 
@@ -29,15 +32,21 @@ export default function DashboardPage() {
     async function fetchData() {
       try {
         const userData = await getCurrentUser()
+        
         const [projectData, taskData, teamData] = await Promise.all([
           getProjects(),
           getProjectTasks('all'),
           getProjectTeams('all')
         ])
+        
         setUser(userData)
         setProjects(projectData)
-        setTasks(taskData.filter((t: any) => t.UserId === userData.Id))
-        setTeams(teamData.filter((t: any) => t.LeaderId === userData.Id))
+        setTasks(taskData.filter((t: any) => t.UserId === userData?.Id))
+        setTeams(teamData.filter((t: any) => t.LeaderId === userData?.Id))
+        
+        if (userData?.Role) {
+          setUserRole(userData.Role)
+        }
       } catch (err) {
         console.error('Failed to load dashboard:', err)
       } finally {
@@ -59,7 +68,7 @@ export default function DashboardPage() {
 
   const completed = tasks.filter(t => t.Status === 'DONE').length
   const urgent = tasks.filter(t => t.Priority === 'HIGH' || t.Priority === 'URGENT').length
-
+  
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -86,6 +95,7 @@ export default function DashboardPage() {
               <TaskCard
                 key={task.Id}
                 task={task}
+                userRole={userRole}
                 onClick={() => router.push(`/dashboard/projects/${task.ProjectId}`)}
               />
             ))}
@@ -100,7 +110,11 @@ export default function DashboardPage() {
           <h2 className="text-xl font-semibold mb-2">Teams You Lead</h2>
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {teams.map(team => (
-              <TeamCard key={team.Id} team={team} />
+              <TeamCard 
+                key={team.Id} 
+                team={team}
+                userRole={userRole}
+              />
             ))}
           </div>
         </section>

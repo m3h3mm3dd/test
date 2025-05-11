@@ -1,3 +1,4 @@
+// src/components/task/TaskCard.tsx
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -21,12 +22,22 @@ interface TaskCardProps {
     Completed: boolean;
   };
   onClick: () => void;
-  onComplete: () => void;
+  onComplete?: () => void;
   userRole: string | null;
   currentUserId?: string;
+  project?: any; // Optional project info for global view
+  showProjectInfo?: boolean; // Whether to show project context (for global view)
 }
 
-export function TaskCard({ task, onClick, onComplete, userRole, currentUserId }: TaskCardProps) {
+export function TaskCard({ 
+  task, 
+  onClick, 
+  onComplete, 
+  userRole, 
+  currentUserId,
+  project,
+  showProjectInfo = false
+}: TaskCardProps) {
   const isTeamTask = !!task.TeamId;
   const isAssigned = task.UserId === currentUserId;
   const isCreator = task.CreatedBy === currentUserId;
@@ -90,6 +101,13 @@ export function TaskCard({ task, onClick, onComplete, userRole, currentUserId }:
         </p>
       )}
 
+      {/* Only show project info in global view */}
+      {showProjectInfo && project && (
+        <p className="text-xs text-muted-foreground">
+          Project: {project.Name || project.Title}
+        </p>
+      )}
+
       <div className="flex flex-wrap gap-2 pt-1 text-xs text-muted-foreground">
         {task.Deadline && (
           <div className={cn(
@@ -120,7 +138,7 @@ export function TaskCard({ task, onClick, onComplete, userRole, currentUserId }:
           Details
         </Button>
 
-        {!task.Completed && canComplete && (
+        {!task.Completed && canComplete && onComplete && (
           <Button 
             size="sm" 
             variant="outline"

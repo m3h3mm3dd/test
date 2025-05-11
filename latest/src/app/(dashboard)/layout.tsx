@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { ReactNode, useState } from "react";
+import { AuthProvider } from "@/contexts/AuthContext";
 
 export default function DashboardLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
@@ -20,5 +21,10 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
   }, [router]);
 
   if (!authChecked) return null; 
-  return <AppShell>{children}</AppShell>;
+  
+  return (
+    <AuthProvider>
+      <AppShell>{children}</AppShell>
+    </AuthProvider>
+  );
 }

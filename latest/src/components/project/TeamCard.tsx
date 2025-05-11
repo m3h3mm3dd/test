@@ -13,10 +13,10 @@ interface TeamCardProps {
     ColorIndex?: number
     CreatedBy: string
   }
-  userRole: string
+  userRole?: string  
 }
 
-export function TeamCard({ team, userRole }: TeamCardProps) {
+export function TeamCard({ team, userRole = 'member' }: TeamCardProps) {
   const canEdit = userRole === 'owner' || userRole === 'leader'
 
   return (

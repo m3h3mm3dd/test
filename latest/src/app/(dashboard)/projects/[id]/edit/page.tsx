@@ -4,7 +4,7 @@
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { getProjectById, updateProject } from '@/api/project'
-import { getProjectTasks } from '@/api/task'
+import { getProjectTasks } from '@/api/TaskAPI'
 import { Tabs } from '@/components/ui/tabs'
 import { ProjectScope } from '@/components/project/ProjectScope'
 import { ProjectTeam } from '@/components/project/ProjectTeam'

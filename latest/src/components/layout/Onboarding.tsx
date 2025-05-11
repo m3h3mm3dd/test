@@ -14,29 +14,31 @@ const messages = [
 
 export default function Onboarding() {
   const router = useRouter()
-  const [index, setIndex] = useState(0)
-  const [leaving, setLeaving] = useState(false)
+  const [index, setIndex] = useState(-1)
+  const [isPaused, setIsPaused] = useState(false)
 
   useEffect(() => {
     const onboarded = localStorage.getItem("taskup_onboarded")
     const userId = localStorage.getItem("userId")
-    if (onboarded === "true" && userId) {
-      router.push("/dashboard")
-    } else if (onboarded === "true") {
-      router.push("/login")
-    }
+    if (onboarded === "true" && userId) router.push("/dashboard")
+    else if (onboarded === "true") router.push("/login")
   }, [router])
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setLeaving(true)
-      setTimeout(() => {
-        setIndex((i) => (i + 1) % messages.length)
-        setLeaving(false)
-      }, 300)
-    }, 4000)
-    return () => clearInterval(interval)
-  }, [])
+    let interval: NodeJS.Timeout
+    const timeout = setTimeout(() => {
+      setIndex(0)
+      interval = setInterval(() => {
+        if (!isPaused) {
+          setIndex((prev) => (prev + 1) % messages.length)
+        }
+      }, 5000)
+    }, 300)
+    return () => {
+      clearTimeout(timeout)
+      clearInterval(interval)
+    }
+  }, [isPaused])
 
   const go = (path: string) => {
     try {
@@ -46,42 +48,61 @@ export default function Onboarding() {
   }
 
   return (
-    <main className="relative min-h-screen w-full bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] overflow-hidden text-white font-sans">
-      {/* 🫧 Glowing Background Blobs */}
-      <div className="absolute inset-0 z-0 overflow-hidden">
-        <div className="absolute top-[-30vh] left-1/2 -translate-x-1/2 w-[80vw] h-[80vw] bg-indigo-500 opacity-20 rounded-full blur-[200px]" />
-        <div className="absolute bottom-[-20vh] right-[-10vw] w-[60vw] h-[60vw] bg-purple-500 opacity-10 rounded-full blur-[180px]" />
-      </div>
+    <main
+      className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white font-sans"
+      onMouseEnter={() => setIsPaused(true)}
+      onMouseLeave={() => setIsPaused(false)}
+    >
+      {/* Ambient animated background */}
+      <motion.div className="absolute inset-0 z-0">
+        <motion.div
+          className="absolute top-[-30vh] left-1/2 -translate-x-1/2 w-[80vw] h-[80vw] bg-indigo-500 opacity-20 rounded-full blur-[200px]"
+          animate={{
+            scale: [1, 1.1, 1],
+            rotate: [0, 5, -5, 0],
+          }}
+          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+        />
+        <motion.div
+          className="absolute bottom-[-20vh] right-[-10vw] w-[60vw] h-[60vw] bg-purple-500 opacity-10 rounded-full blur-[180px]"
+          animate={{
+            scale: [1, 1.15, 1],
+            rotate: [0, -4, 4, 0],
+          }}
+          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+        />
+      </motion.div>
 
+      {/* Main content */}
       <div className="relative z-10 flex flex-col justify-center items-center min-h-screen px-6 text-center">
         <motion.h1
-          initial={{ opacity: 0, y: -20 }}
+          initial={{ opacity: 0, y: -16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 0.7 }}
           className="text-3xl font-extrabold tracking-wide text-indigo-400 mb-1"
         >
           TaskUp
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.2 }}
+          transition={{ duration: 0.7, delay: 0.15 }}
           className="text-md text-zinc-300 mb-8"
         >
           Focused work. Beautifully managed.
         </motion.p>
 
-        <div className="relative mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-[1.25] pb-[2px]">
+        <div className="mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center">
           <AnimatePresence mode="wait">
-            {!leaving && (
+            {index >= 0 && (
               <motion.span
-                key={index}
-                initial={{ opacity: 0, y: 10 }}
+                key={messages[index]}
+                initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.5 }}
-                className="inline-block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.6 }}
+                className="block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
               >
                 {messages[index]}
               </motion.span>
@@ -89,11 +110,13 @@ export default function Onboarding() {
           </AnimatePresence>
         </div>
 
+        {/* Task Card */}
         <motion.div
-          initial={{ opacity: 0, y: 20, scale: 0.95 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ delay: 0.6, duration: 0.6 }}
-          className="mb-10 w-[90%] max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-lg"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileHover={{ scale: 1.02 }}
+          transition={{ duration: 0.7, delay: 0.5 }}
+          className="mb-10 w-[90%] max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl transition-all cursor-pointer"
         >
           <div className="flex justify-between items-center text-left">
             <div>
@@ -101,21 +124,22 @@ export default function Onboarding() {
               <p className="text-lg font-medium text-white">Redefine Authentication</p>
               <p className="text-xs text-zinc-400 mt-1">Due: May 22 • Priority: Critical</p>
             </div>
-            <div className="bg-indigo-500 text-white text-xs px-3 py-1 rounded-full font-semibold">
+            <div className="bg-indigo-500 text-white text-xs px-3 py-1 rounded-full font-semibold shrink-0">
               In Progress
             </div>
           </div>
         </motion.div>
 
+        {/* CTA buttons */}
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.8 }}
+          transition={{ duration: 0.6, delay: 0.9 }}
           className="flex flex-col sm:flex-row gap-4"
         >
           <motion.button
             whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => go("/register")}
             className="bg-white text-black font-semibold px-6 py-3 rounded-full shadow-xl hover:ring-2 hover:ring-white/30 transition-all backdrop-blur-md"
           >
@@ -123,7 +147,7 @@ export default function Onboarding() {
           </motion.button>
           <motion.button
             whileHover={{ scale: 1.06 }}
-            whileTap={{ scale: 0.94 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => go("/login")}
             className="border border-white/30 text-white px-6 py-3 rounded-full hover:bg-white/10 backdrop-blur-md transition-all"
           >
@@ -132,7 +156,8 @@ export default function Onboarding() {
         </motion.div>
       </div>
 
-      <footer className="relative z-10 text-sm text-white/40 px-6 py-6 flex justify-between items-center border-t border-white/10 backdrop-blur-sm">
+      {/* Footer */}
+      <footer className="relative z-10 text-sm text-white/40 px-6 py-6 flex flex-col sm:flex-row justify-between items-center border-t border-white/10 backdrop-blur-sm gap-2 sm:gap-0">
         <p>&copy; {new Date().getFullYear()} TaskUp. All rights reserved.</p>
         <div className="flex gap-6">
           <a href="#" className="hover:text-white transition hover:underline underline-offset-2">Changelog</a>
