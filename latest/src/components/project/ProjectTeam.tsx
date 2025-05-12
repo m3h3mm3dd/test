@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getProjectTeams } from '@/api/team'
+import { getProjectTeams } from '@/api/TeamAPI'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { TeamCard } from './TeamCard'

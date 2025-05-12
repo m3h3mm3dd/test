@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { createTeam } from '@/api/team'
+import { createTeam } from '@/api/TeamAPI'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { toast } from '@/lib/toast'

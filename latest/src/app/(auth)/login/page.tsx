@@ -6,7 +6,7 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff } from "lucide-react"
 import { FormInput } from "@/components/ui/FormInput"
 import { Button } from "@/components/ui/button"
-import { api } from "@/lib/api"
+import { api } from "@/lib/axios"
 import { toast } from "@/lib/toast"
 
 export default function LoginPage() {
@@ -29,8 +29,8 @@ export default function LoginPage() {
     setLoading(true)
     try {
       const res = await api.post("/auth/login", {
-        Email: form.email,
-        Password: form.password,
+        Email: form.email,       // ✅ exact casing for backend
+        Password: form.password  // ✅ exact casing for backend
       })
 
       localStorage.setItem("taskup_token", res.data.access_token || res.data.token)
@@ -40,7 +40,9 @@ export default function LoginPage() {
 
       router.push("/dashboard")
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Invalid credentials.")
+      setTimeout(() => {
+        toast.error(err?.response?.data?.message || "Invalid credentials.")
+      }, 0)
     } finally {
       setLoading(false)
     }

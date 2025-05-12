@@ -1,3 +1,5 @@
+// src/components/layout/AppShell.tsx
+
 "use client";
 
 import { ReactNode, useState, useEffect } from "react";
@@ -5,6 +7,8 @@ import { motion } from "framer-motion";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Topbar } from "@/components/layout/Topbar";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+// Add this import for cn
+import { cn } from "@/lib/utils";
 
 export function AppShell({ children }: { children: ReactNode }) {
   const [collapsed, setCollapsed] = useLocalStorage('sidebar-collapsed', false);

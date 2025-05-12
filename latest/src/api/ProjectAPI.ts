@@ -6,11 +6,9 @@ export interface Project {
   Description: string;
   Deadline: string;
   TotalBudget: number;
-  Progress: number;
-  OwnerId: string;
   CreatedAt: string;
-  UpdatedAt: string;
   IsDeleted: boolean;
+  OwnerId: string;
 }
 
 export interface ProjectCreateData {
@@ -18,6 +16,8 @@ export interface ProjectCreateData {
   Description?: string;
   Deadline?: string;
   Budget?: number;
+  StatusId?: string;
+  IsDeleted?: boolean;
 }
 
 export interface ProjectUpdateData {
@@ -25,48 +25,78 @@ export interface ProjectUpdateData {
   Description?: string;
   Deadline?: string;
   Budget?: number;
-  Progress?: number;
+  StatusId?: string;
+  IsDeleted?: boolean;
 }
 
+/**
+ * Get all projects for the current user
+ */
 export async function getProjects(): Promise<Project[]> {
-  const response = await api.get('/projects');
+  const response = await api.get('/users/projects');
   return response.data;
 }
 
+/**
+ * Get a project by ID
+ */
 export async function getProjectById(projectId: string): Promise<Project> {
   const response = await api.get(`/projects/${projectId}`);
   return response.data;
 }
 
+/**
+ * Create a new project
+ */
 export async function createProject(data: ProjectCreateData): Promise<Project> {
   const response = await api.post('/projects/create', data);
   return response.data;
 }
 
-export async function updateProject(projectId: string, data: ProjectUpdateData): Promise<Project> {
-  const response = await api.put(`/projects/${projectId}`, data);
+/**
+ * Delete a project
+ */
+export async function deleteProject(projectId: string): Promise<string> {
+  const response = await api.delete(`/projects/${projectId}/delete`);
   return response.data;
 }
 
-export async function deleteProject(projectId: string): Promise<void> {
-  await api.delete(`/projects/${projectId}/delete`);
-}
-
+/**
+ * Get all members of a project
+ */
 export async function getProjectMembers(projectId: string): Promise<any[]> {
   const response = await api.get(`/projects/${projectId}/members`);
   return response.data;
 }
 
-export async function addProjectMember(projectId: string, userId: string): Promise<any> {
-  const response = await api.post(`/projects/${projectId}/add-member`, { memberId: userId });
+/**
+ * Add a member to a project
+ */
+export async function addProjectMember(projectId: string, memberId: string): Promise<any> {
+  const response = await api.post(`/projects/${project_id}/add-member?projectId=${projectId}&memberId=${memberId}`);
   return response.data;
 }
 
-export async function removeProjectMember(projectId: string, userId: string): Promise<void> {
-  await api.delete(`/projects/${projectId}/remove-member/${userId}`);
+/**
+ * Remove a member from a project
+ */
+export async function removeProjectMember(projectId: string, memberId: string): Promise<any> {
+  const response = await api.delete(`/projects/${projectId}/remove-member/${memberId}`);
+  return response.data;
 }
 
+/**
+ * Get all teams of a project
+ */
 export async function getProjectTeams(projectId: string): Promise<any[]> {
   const response = await api.get(`/projects/${projectId}/teams`);
+  return response.data;
+}
+
+/**
+ * Get all tasks of a project
+ */
+export async function getProjectTasks(projectId: string): Promise<any[]> {
+  const response = await api.get(`/projects/${projectId}/tasks`);
   return response.data;
 }

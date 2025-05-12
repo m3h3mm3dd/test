@@ -9,8 +9,8 @@ import {
   updateTask
 } from '@/api/TaskAPI'
 import { getProjects } from '@/api/ProjectAPI'
-import { getProjectTeams } from '@/api/team'
-import { getCurrentUser } from '@/api/user'
+import { getProjectTeams } from '@/api/TeamAPI'
+import { getCurrentUser } from '@/api/UserAPI'
 import { TaskCard } from '@/components/task/TaskCard'
 import { TaskDialog } from '@/components/task/TaskDialog'
 import { Button } from '@/components/ui/button'

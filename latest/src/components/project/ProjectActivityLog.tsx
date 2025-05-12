@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getProjectActivityLog } from '@/api/activity'
+import { getProjectActivityLog } from '@/api/ActivityAPI'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/lib/toast'
 
