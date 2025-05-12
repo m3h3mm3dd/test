@@ -2,245 +2,642 @@
 
 import { useEffect, useState } from 'react'
 import {
-  ProjectScope,
-  editProjectScope,
+  ProjectScope as ScopeType,
   addProjectScope,
+  editProjectScope,
+  ScopeManagementPlan,
+  RequirementManagementPlan,
+  RequirementDocumentation,
+  ProjectScopeStatement,
+  WorkBreakdownStructure,
+  WorkPackage
 } from '@/api/ScopeAPI'
-import { useSession } from 'next-auth/react'
-import { useUserProjectRole } from '@/hooks/useUserProjectRole'
-import { Input } from '@/components/ui/input'
+import { useUser } from '@/hooks/useUser'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
+import { GlassPanel } from '@/components/ui/GlassPanel'
+import { EmptyState } from '@/components/ui/EmptyState'
+import { Skeleton } from '@/components/ui/skeleton'
+import { toast } from '@/lib/toast'
+import { ClipboardList, Edit, FileText, Plus, Save, Trash2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { cn } from '@/lib/utils'
 
 export function ProjectScope({ projectId }: { projectId: string }) {
-  const { data: session } = useSession()
-  const [scope, setScope] = useState<ProjectScope | null>(null)
-  const [editing, setEditing] = useState(false)
+  const { user } = useUser()
+  const [scope, setScope] = useState<ScopeType | null>(null)
   const [loading, setLoading] = useState(true)
-
-  const role = useUserProjectRole({ owner: { id: '' } }, session?.user?.id)
-  const isOwner = role.isOwner
-
-  // 🚧 Simulate fetch
+  const [editing, setEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [scopeExists, setScopeExists] = useState(false)
+  
+  // Determine if user can edit scope (project owner or team leader)
+  const canEditScope = user?.Id === scope?.ownerId || user?.Role === 'project_owner' || user?.Role === 'team_leader'
+  
   useEffect(() => {
-    // Replace this with actual GET if available later
-    setScope({
-      scopeManagementPlan: {
-        ScopeDefinitionMethod: '',
-        WBSDevelopmentMethod: '',
-        ScopeBaselineApproval: '',
-        DeliverablesImpactHandling: '',
-      },
-      requirementManagementPlan: {
-        ReqPlanningApproach: '',
-        ReqChangeControl: '',
-        ReqPrioritization: '',
-        ReqMetrics: '',
-      },
-      requirementDocumentation: {
-        StakeholderNeeds: [''],
-        QuantifiedExpectations: [''],
-        Traceability: '',
-      },
-      projectScopeStatement: {
-        EndProductScope: '',
-        Deliverables: [''],
-        AcceptanceCriteria: '',
-        Exclusions: '',
-        OptionalSOW: '',
-      },
-      workBreakdownStructure: {
-        WorkPackages: [],
-        ScopeBaselineReference: '',
-      },
-    })
-    setLoading(false)
-  }, [projectId])
-
-  const handleChange = (section: string, field: string, value: any) => {
-    setScope(prev =>
-      prev
-        ? {
-            ...prev,
-            [section]: {
-              ...prev[section],
-              [field]: value,
-            },
+    const fetchScope = async () => {
+      setLoading(true)
+      try {
+        // Try to fetch existing scope
+        const response = await fetch(`/api/projects/${projectId}/scope`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('taskup_token')}`
           }
-        : prev,
-    )
-  }
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          setScope(data);
+          setScopeExists(true);
+        } else if (response.status === 404) {
+          // Create empty scope structure
+          const emptyScope: ScopeType = {
+            scopeManagementPlan: {
+              ScopeDefinitionMethod: '',
+              WBSDevelopmentMethod: '',
+              ScopeBaselineApproval: '',
+              DeliverablesImpactHandling: '',
+            },
+            requirementManagementPlan: {
+              ReqPlanningApproach: '',
+              ReqChangeControl: '',
+              ReqPrioritization: '',
+              ReqMetrics: '',
+            },
+            requirementDocumentation: {
+              StakeholderNeeds: [''],
+              QuantifiedExpectations: [''],
+              Traceability: '',
+            },
+            projectScopeStatement: {
+              EndProductScope: '',
+              Deliverables: [''],
+              AcceptanceCriteria: '',
+              Exclusions: '',
+              OptionalSOW: '',
+            },
+            workBreakdownStructure: {
+              WorkPackages: [],
+              ScopeBaselineReference: '',
+            },
+          };
+          setScope(emptyScope);
+          setScopeExists(false);
+        } else {
+          throw new Error('Failed to fetch scope data');
+        }
+      } catch (error) {
+        console.error('Error fetching project scope:', error);
+        toast.error('Failed to load project scope');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  const handleListChange = (section: string, field: string, index: number, value: string) => {
-    const list = [...(scope?.[section][field] || [])]
-    list[index] = value
-    handleChange(section, field, list)
-  }
-
-  const handleAddListItem = (section: string, field: string) => {
-    const list = [...(scope?.[section][field] || [])]
-    list.push('')
-    handleChange(section, field, list)
-  }
-
-  const handleRemoveListItem = (section: string, field: string, index: number) => {
-    const list = [...(scope?.[section][field] || [])]
-    list.splice(index, 1)
-    handleChange(section, field, list)
-  }
-
-  const handleSubmit = async () => {
-    if (!scope) return
+    fetchScope();
+  }, [projectId]);
+  
+  const handleChange = (section: keyof ScopeType, field: string, value: any) => {
+    if (!scope) return;
+    
+    setScope(prev => {
+      if (!prev) return prev;
+      
+      return {
+        ...prev,
+        [section]: {
+          ...prev[section],
+          [field]: value,
+        },
+      };
+    });
+  };
+  
+  const handleListChange = (section: keyof ScopeType, field: string, index: number, value: string) => {
+    if (!scope) return;
+    
+    const list = [...(scope[section][field] as string[])];
+    list[index] = value;
+    
+    handleChange(section, field, list);
+  };
+  
+  const handleAddListItem = (section: keyof ScopeType, field: string) => {
+    if (!scope) return;
+    
+    const list = [...(scope[section][field] as string[]), ''];
+    handleChange(section, field, list);
+  };
+  
+  const handleRemoveListItem = (section: keyof ScopeType, field: string, index: number) => {
+    if (!scope) return;
+    
+    const list = [...(scope[section][field] as string[])];
+    if (list.length <= 1) return; // Keep at least one item
+    
+    list.splice(index, 1);
+    handleChange(section, field, list);
+  };
+  
+  const handleAddWorkPackage = () => {
+    if (!scope) return;
+    
+    const newWorkPackage: WorkPackage = {
+      Name: '',
+      Description: '',
+      EstimatedDuration: 0,
+      EstimatedCost: 0,
+    };
+    
+    setScope(prev => {
+      if (!prev) return prev;
+      
+      return {
+        ...prev,
+        workBreakdownStructure: {
+          ...prev.workBreakdownStructure,
+          WorkPackages: [
+            ...prev.workBreakdownStructure.WorkPackages,
+            newWorkPackage,
+          ],
+        },
+      };
+    });
+  };
+  
+  const handleWorkPackageChange = (index: number, field: keyof WorkPackage, value: any) => {
+    if (!scope) return;
+    
+    setScope(prev => {
+      if (!prev) return prev;
+      
+      const updatedPackages = [...prev.workBreakdownStructure.WorkPackages];
+      updatedPackages[index] = {
+        ...updatedPackages[index],
+        [field]: value,
+      };
+      
+      return {
+        ...prev,
+        workBreakdownStructure: {
+          ...prev.workBreakdownStructure,
+          WorkPackages: updatedPackages,
+        },
+      };
+    });
+  };
+  
+  const handleRemoveWorkPackage = (index: number) => {
+    if (!scope) return;
+    
+    setScope(prev => {
+      if (!prev) return prev;
+      
+      const updatedPackages = [...prev.workBreakdownStructure.WorkPackages];
+      updatedPackages.splice(index, 1);
+      
+      return {
+        ...prev,
+        workBreakdownStructure: {
+          ...prev.workBreakdownStructure,
+          WorkPackages: updatedPackages,
+        },
+      };
+    });
+  };
+  
+  const handleSave = async () => {
+    if (!scope) return;
+    
+    setSaving(true);
     try {
-      await editProjectScope(projectId, scope)
-      setEditing(false)
-    } catch (e) {
-      console.error('Failed to save scope:', e)
+      if (scopeExists) {
+        await editProjectScope(projectId, scope);
+      } else {
+        await addProjectScope(projectId, scope);
+        setScopeExists(true);
+      }
+      
+      setEditing(false);
+      toast.success('Project scope saved successfully');
+    } catch (error) {
+      console.error('Failed to save project scope:', error);
+      toast.error('Failed to save project scope');
+    } finally {
+      setSaving(false);
     }
-  }
-
-  if (loading || !scope) return <div className="text-sm text-muted-foreground">Loading scope...</div>
-
-  return (
-    <div className="space-y-8 text-sm mt-4">
-      <header className="flex items-center justify-between">
-        <h2 className="text-xl font-semibold">Scope Overview</h2>
-        {isOwner && (
-          <Button onClick={() => (editing ? handleSubmit() : setEditing(true))}>
-            {editing ? 'Save Scope' : 'Edit Scope'}
-          </Button>
-        )}
-      </header>
-
-      {/* 🔹 Scope Management Plan */}
-      <Section title="Scope Management Plan">
-        <Field label="Scope Definition Method" value={scope.scopeManagementPlan.ScopeDefinitionMethod} editable={editing} onChange={(v) => handleChange('scopeManagementPlan', 'ScopeDefinitionMethod', v)} />
-        <Field label="WBS Development Method" value={scope.scopeManagementPlan.WBSDevelopmentMethod} editable={editing} onChange={(v) => handleChange('scopeManagementPlan', 'WBSDevelopmentMethod', v)} />
-        <Field label="Scope Baseline Approval" value={scope.scopeManagementPlan.ScopeBaselineApproval} editable={editing} onChange={(v) => handleChange('scopeManagementPlan', 'ScopeBaselineApproval', v)} />
-        <Field label="Deliverables Impact Handling" value={scope.scopeManagementPlan.DeliverablesImpactHandling} editable={editing} onChange={(v) => handleChange('scopeManagementPlan', 'DeliverablesImpactHandling', v)} />
-      </Section>
-
-      {/* 🔹 Requirement Management Plan */}
-      <Section title="Requirement Management Plan">
-        <Field label="Planning Approach" value={scope.requirementManagementPlan.ReqPlanningApproach} editable={editing} onChange={(v) => handleChange('requirementManagementPlan', 'ReqPlanningApproach', v)} />
-        <Field label="Change Control" value={scope.requirementManagementPlan.ReqChangeControl} editable={editing} onChange={(v) => handleChange('requirementManagementPlan', 'ReqChangeControl', v)} />
-        <Field label="Prioritization" value={scope.requirementManagementPlan.ReqPrioritization} editable={editing} onChange={(v) => handleChange('requirementManagementPlan', 'ReqPrioritization', v)} />
-        <Field label="Metrics" value={scope.requirementManagementPlan.ReqMetrics} editable={editing} onChange={(v) => handleChange('requirementManagementPlan', 'ReqMetrics', v)} />
-      </Section>
-
-      {/* 🔹 Requirement Documentation */}
-      <Section title="Requirement Documentation">
-        <ListField label="Stakeholder Needs" items={scope.requirementDocumentation.StakeholderNeeds} editable={editing} onChange={(i, v) => handleListChange('requirementDocumentation', 'StakeholderNeeds', i, v)} onAdd={() => handleAddListItem('requirementDocumentation', 'StakeholderNeeds')} onRemove={(i) => handleRemoveListItem('requirementDocumentation', 'StakeholderNeeds', i)} />
-        <ListField label="Quantified Expectations" items={scope.requirementDocumentation.QuantifiedExpectations} editable={editing} onChange={(i, v) => handleListChange('requirementDocumentation', 'QuantifiedExpectations', i, v)} onAdd={() => handleAddListItem('requirementDocumentation', 'QuantifiedExpectations')} onRemove={(i) => handleRemoveListItem('requirementDocumentation', 'QuantifiedExpectations', i)} />
-        <Field label="Traceability" value={scope.requirementDocumentation.Traceability} editable={editing} onChange={(v) => handleChange('requirementDocumentation', 'Traceability', v)} />
-      </Section>
-
-      {/* 🔹 Scope Statement */}
-      <Section title="Scope Statement">
-        <Field label="End Product Scope" value={scope.projectScopeStatement.EndProductScope} editable={editing} onChange={(v) => handleChange('projectScopeStatement', 'EndProductScope', v)} />
-        <ListField label="Deliverables" items={scope.projectScopeStatement.Deliverables} editable={editing} onChange={(i, v) => handleListChange('projectScopeStatement', 'Deliverables', i, v)} onAdd={() => handleAddListItem('projectScopeStatement', 'Deliverables')} onRemove={(i) => handleRemoveListItem('projectScopeStatement', 'Deliverables', i)} />
-        <Field label="Acceptance Criteria" value={scope.projectScopeStatement.AcceptanceCriteria} editable={editing} onChange={(v) => handleChange('projectScopeStatement', 'AcceptanceCriteria', v)} />
-        <Field label="Exclusions" value={scope.projectScopeStatement.Exclusions} editable={editing} onChange={(v) => handleChange('projectScopeStatement', 'Exclusions', v)} />
-        <Field label="Optional SOW" value={scope.projectScopeStatement.OptionalSOW} editable={editing} onChange={(v) => handleChange('projectScopeStatement', 'OptionalSOW', v)} />
-      </Section>
-
-      {/* 🔹 Work Breakdown Structure */}
-      <Section title="Work Breakdown Structure">
-        <Field label="Scope Baseline Reference" value={scope.workBreakdownStructure.ScopeBaselineReference} editable={editing} onChange={(v) => handleChange('workBreakdownStructure', 'ScopeBaselineReference', v)} />
-        <div className="mt-2 space-y-2">
-          {scope.workBreakdownStructure.WorkPackages.map((pkg, i) => (
-            <div key={i} className="border p-2 rounded-md space-y-1">
-              <Field label="Name" value={pkg.Name} editable={editing} onChange={(v) => {
-                const updated = [...scope.workBreakdownStructure.WorkPackages]
-                updated[i].Name = v
-                setScope({ ...scope, workBreakdownStructure: { ...scope.workBreakdownStructure, WorkPackages: updated } })
-              }} />
-              <Field label="Description" value={pkg.Description} editable={editing} onChange={(v) => {
-                const updated = [...scope.workBreakdownStructure.WorkPackages]
-                updated[i].Description = v
-                setScope({ ...scope, workBreakdownStructure: { ...scope.workBreakdownStructure, WorkPackages: updated } })
-              }} />
-              <Field label="Duration" value={pkg.EstimatedDuration.toString()} editable={editing} onChange={(v) => {
-                const updated = [...scope.workBreakdownStructure.WorkPackages]
-                updated[i].EstimatedDuration = Number(v)
-                setScope({ ...scope, workBreakdownStructure: { ...scope.workBreakdownStructure, WorkPackages: updated } })
-              }} />
-              <Field label="Cost" value={pkg.EstimatedCost.toString()} editable={editing} onChange={(v) => {
-                const updated = [...scope.workBreakdownStructure.WorkPackages]
-                updated[i].EstimatedCost = Number(v)
-                setScope({ ...scope, workBreakdownStructure: { ...scope.workBreakdownStructure, WorkPackages: updated } })
-              }} />
+  };
+  
+  if (loading) {
+    return (
+      <GlassPanel className="p-6">
+        <Skeleton className="h-8 w-40 mb-4" />
+        <div className="space-y-4">
+          {[1, 2, 3, 4].map(i => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-6 w-32" />
+              <Skeleton className="h-24 w-full" />
             </div>
           ))}
-
-          {editing && (
-            <Button variant="outline" size="sm" onClick={() =>
-              setScope(prev => prev
-                ? {
-                    ...prev,
-                    workBreakdownStructure: {
-                      ...prev.workBreakdownStructure,
-                      WorkPackages: [...prev.workBreakdownStructure.WorkPackages, {
-                        Name: '',
-                        Description: '',
-                        EstimatedDuration: 0,
-                        EstimatedCost: 0,
-                      }],
-                    },
-                  }
-                : prev
-            )}>
-              + Add Work Package
-            </Button>
-          )}
         </div>
-      </Section>
-    </div>
-  )
-}
-
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+      </GlassPanel>
+    );
+  }
+  
+  if (!scope) {
+    return (
+      <GlassPanel className="p-6">
+        <EmptyState
+          title="No Scope Defined"
+          description="Define the project's scope to clarify what is included and excluded."
+          icon={<FileText className="h-12 w-12" />}
+          action={
+            canEditScope && (
+              <Button onClick={() => {
+                setEditing(true);
+              }}>
+                Define Scope
+              </Button>
+            )
+          }
+        />
+      </GlassPanel>
+    );
+  }
+  
   return (
-    <section className="space-y-2">
-      <h3 className="text-lg font-semibold">{title}</h3>
-      <div className="space-y-2">{children}</div>
-    </section>
-  )
+    <GlassPanel className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-xl font-semibold">Project Scope</h2>
+        
+        {canEditScope && !editing && (
+          <Button onClick={() => setEditing(true)}>
+            <Edit className="h-4 w-4 mr-2" /> Edit Scope
+          </Button>
+        )}
+        
+        {canEditScope && editing && (
+          <div className="flex space-x-2">
+            <Button variant="outline" onClick={() => setEditing(false)} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={handleSave} disabled={saving}>
+              <Save className="h-4 w-4 mr-2" /> {saving ? 'Saving...' : 'Save Scope'}
+            </Button>
+          </div>
+        )}
+      </div>
+      
+      <div className="space-y-8">
+        {/* Scope Management Plan */}
+        <Section title="Scope Management Plan" editing={editing}>
+          <Field
+            label="Scope Definition Method"
+            value={scope.scopeManagementPlan.ScopeDefinitionMethod}
+            editable={editing}
+            onChange={(value) => handleChange('scopeManagementPlan', 'ScopeDefinitionMethod', value)}
+          />
+          <Field
+            label="WBS Development Method"
+            value={scope.scopeManagementPlan.WBSDevelopmentMethod}
+            editable={editing}
+            onChange={(value) => handleChange('scopeManagementPlan', 'WBSDevelopmentMethod', value)}
+          />
+          <Field
+            label="Scope Baseline Approval Process"
+            value={scope.scopeManagementPlan.ScopeBaselineApproval}
+            editable={editing}
+            onChange={(value) => handleChange('scopeManagementPlan', 'ScopeBaselineApproval', value)}
+          />
+          <Field
+            label="Deliverables Impact Handling"
+            value={scope.scopeManagementPlan.DeliverablesImpactHandling}
+            editable={editing}
+            onChange={(value) => handleChange('scopeManagementPlan', 'DeliverablesImpactHandling', value)}
+          />
+        </Section>
+        
+        {/* Requirement Management Plan */}
+        <Section title="Requirement Management Plan" editing={editing}>
+          <Field
+            label="Requirements Planning Approach"
+            value={scope.requirementManagementPlan.ReqPlanningApproach}
+            editable={editing}
+            onChange={(value) => handleChange('requirementManagementPlan', 'ReqPlanningApproach', value)}
+          />
+          <Field
+            label="Requirements Change Control"
+            value={scope.requirementManagementPlan.ReqChangeControl}
+            editable={editing}
+            onChange={(value) => handleChange('requirementManagementPlan', 'ReqChangeControl', value)}
+          />
+          <Field
+            label="Requirements Prioritization"
+            value={scope.requirementManagementPlan.ReqPrioritization}
+            editable={editing}
+            onChange={(value) => handleChange('requirementManagementPlan', 'ReqPrioritization', value)}
+          />
+          <Field
+            label="Requirements Metrics"
+            value={scope.requirementManagementPlan.ReqMetrics}
+            editable={editing}
+            onChange={(value) => handleChange('requirementManagementPlan', 'ReqMetrics', value)}
+          />
+        </Section>
+        
+        {/* Requirement Documentation */}
+        <Section title="Requirement Documentation" editing={editing}>
+          <ListField
+            label="Stakeholder Needs"
+            items={scope.requirementDocumentation.StakeholderNeeds}
+            editable={editing}
+            onChange={(index, value) => handleListChange('requirementDocumentation', 'StakeholderNeeds', index, value)}
+            onAdd={() => handleAddListItem('requirementDocumentation', 'StakeholderNeeds')}
+            onRemove={(index) => handleRemoveListItem('requirementDocumentation', 'StakeholderNeeds', index)}
+          />
+          <ListField
+            label="Quantified Expectations"
+            items={scope.requirementDocumentation.QuantifiedExpectations}
+            editable={editing}
+            onChange={(index, value) => handleListChange('requirementDocumentation', 'QuantifiedExpectations', index, value)}
+            onAdd={() => handleAddListItem('requirementDocumentation', 'QuantifiedExpectations')}
+            onRemove={(index) => handleRemoveListItem('requirementDocumentation', 'QuantifiedExpectations', index)}
+          />
+          <Field
+            label="Traceability"
+            value={scope.requirementDocumentation.Traceability}
+            editable={editing}
+            onChange={(value) => handleChange('requirementDocumentation', 'Traceability', value)}
+          />
+        </Section>
+        
+        {/* Project Scope Statement */}
+        <Section title="Project Scope Statement" editing={editing}>
+          <Field
+            label="End Product Scope Description"
+            value={scope.projectScopeStatement.EndProductScope}
+            editable={editing}
+            onChange={(value) => handleChange('projectScopeStatement', 'EndProductScope', value)}
+            textarea
+          />
+          <ListField
+            label="Deliverables"
+            items={scope.projectScopeStatement.Deliverables}
+            editable={editing}
+            onChange={(index, value) => handleListChange('projectScopeStatement', 'Deliverables', index, value)}
+            onAdd={() => handleAddListItem('projectScopeStatement', 'Deliverables')}
+            onRemove={(index) => handleRemoveListItem('projectScopeStatement', 'Deliverables', index)}
+          />
+          <Field
+            label="Acceptance Criteria"
+            value={scope.projectScopeStatement.AcceptanceCriteria}
+            editable={editing}
+            onChange={(value) => handleChange('projectScopeStatement', 'AcceptanceCriteria', value)}
+            textarea
+          />
+          <Field
+            label="Exclusions"
+            value={scope.projectScopeStatement.Exclusions}
+            editable={editing}
+            onChange={(value) => handleChange('projectScopeStatement', 'Exclusions', value)}
+            textarea
+          />
+          <Field
+            label="Optional Statement of Work"
+            value={scope.projectScopeStatement.OptionalSOW}
+            editable={editing}
+            onChange={(value) => handleChange('projectScopeStatement', 'OptionalSOW', value)}
+            textarea
+          />
+        </Section>
+        
+        {/* Work Breakdown Structure */}
+        <Section title="Work Breakdown Structure" editing={editing}>
+          <Field
+            label="Scope Baseline Reference"
+            value={scope.workBreakdownStructure.ScopeBaselineReference}
+            editable={editing}
+            onChange={(value) => handleChange('workBreakdownStructure', 'ScopeBaselineReference', value)}
+          />
+          
+          <div className="mt-4">
+            <div className="flex justify-between items-center mb-2">
+              <h4 className="text-sm font-medium">Work Packages</h4>
+              {editing && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={handleAddWorkPackage}
+                >
+                  <Plus className="h-3.5 w-3.5 mr-1.5" /> Add Package
+                </Button>
+              )}
+            </div>
+            
+            {scope.workBreakdownStructure.WorkPackages.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-2">
+                No work packages defined yet.
+                {editing && " Use the button above to add packages."}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {scope.workBreakdownStructure.WorkPackages.map((pkg, index) => (
+                  <div 
+                    key={index}
+                    className="border border-white/10 rounded-md p-3 space-y-3 bg-white/5"
+                  >
+                    <div className="flex justify-between items-start">
+                      <h5 className="text-sm font-medium">Package #{index + 1}</h5>
+                      {editing && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-destructive hover:bg-destructive/10"
+                          onClick={() => handleRemoveWorkPackage(index)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <Field
+                      label="Name"
+                      value={pkg.Name}
+                      editable={editing}
+                      onChange={(value) => handleWorkPackageChange(index, 'Name', value)}
+                    />
+                    <Field
+                      label="Description"
+                      value={pkg.Description}
+                      editable={editing}
+                      onChange={(value) => handleWorkPackageChange(index, 'Description', value)}
+                      textarea
+                    />
+                    <div className="grid grid-cols-2 gap-3">
+                      <Field
+                        label="Estimated Duration (days)"
+                        value={pkg.EstimatedDuration.toString()}
+                        editable={editing}
+                        onChange={(value) => handleWorkPackageChange(index, 'EstimatedDuration', Number(value) || 0)}
+                        type="number"
+                      />
+                      <Field
+                        label="Estimated Cost ($)"
+                        value={pkg.EstimatedCost.toString()}
+                        editable={editing}
+                        onChange={(value) => handleWorkPackageChange(index, 'EstimatedCost', Number(value) || 0)}
+                        type="number"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </Section>
+      </div>
+    </GlassPanel>
+  );
 }
 
-function Field({ label, value, onChange, editable }: { label: string; value: string; onChange: (v: string) => void; editable: boolean }) {
-  return (
-    <div>
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      {editable
-        ? <Input value={value} onChange={(e) => onChange(e.target.value)} />
-        : <p className="text-sm">{value}</p>}
-    </div>
-  )
-}
+// Helper Components
 
-function ListField({ label, items, onChange, onAdd, onRemove, editable }: {
-  label: string
-  items: string[]
-  onChange: (index: number, value: string) => void
-  onAdd: () => void
-  onRemove: (index: number) => void
-  editable: boolean
+function Section({ 
+  title, 
+  children, 
+  editing 
+}: { 
+  title: string;
+  children: React.ReactNode;
+  editing: boolean;
 }) {
   return (
-    <div>
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <div className="space-y-1 mt-1">
-        {items.map((item, i) => (
-          <div key={i} className="flex items-center gap-2">
-            {editable
-              ? <Input value={item} onChange={(e) => onChange(i, e.target.value)} />
-              : <p className="text-sm">{item}</p>}
-            {editable && <Button variant="ghost" size="sm" onClick={() => onRemove(i)}>Remove</Button>}
+    <section className="space-y-4">
+      <div className={cn(
+        "border-b pb-1",
+        editing ? "border-primary/30" : "border-white/10"
+      )}>
+        <h3 className="text-lg font-semibold">{title}</h3>
+      </div>
+      <div className={cn(
+        "space-y-4 transition-all",
+        editing ? "pl-0" : "pl-0"
+      )}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Field({ 
+  label, 
+  value, 
+  editable, 
+  onChange,
+  textarea = false,
+  type = "text"
+}: { 
+  label: string; 
+  value: string; 
+  editable: boolean; 
+  onChange: (value: string) => void;
+  textarea?: boolean;
+  type?: string;
+}) {
+  return (
+    <div className="space-y-1">
+      <label className="text-sm font-medium text-muted-foreground">
+        {label}
+      </label>
+      
+      {editable ? (
+        textarea ? (
+          <Textarea
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="min-h-[100px]"
+            placeholder={`Enter ${label.toLowerCase()}...`}
+          />
+        ) : (
+          <Input
+            type={type}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={`Enter ${label.toLowerCase()}...`}
+          />
+        )
+      ) : (
+        <div className="text-sm">
+          {value || <span className="text-muted-foreground italic">Not specified</span>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ListField({ 
+  label, 
+  items, 
+  editable, 
+  onChange, 
+  onAdd, 
+  onRemove 
+}: { 
+  label: string; 
+  items: string[]; 
+  editable: boolean; 
+  onChange: (index: number, value: string) => void; 
+  onAdd: () => void; 
+  onRemove: (index: number) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex justify-between items-center">
+        <label className="text-sm font-medium text-muted-foreground">
+          {label}
+        </label>
+        
+        {editable && (
+          <Button variant="ghost" size="sm" onClick={onAdd}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add
+          </Button>
+        )}
+      </div>
+      
+      <div className="space-y-2">
+        {items.map((item, index) => (
+          <div key={index} className="flex items-center gap-2">
+            {editable ? (
+              <>
+                <Input
+                  value={item}
+                  onChange={(e) => onChange(index, e.target.value)}
+                  placeholder={`${label} item ${index + 1}`}
+                />
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:bg-destructive/10"
+                  onClick={() => onRemove(index)}
+                  disabled={items.length <= 1}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </>
+            ) : (
+              <div className="text-sm flex items-center">
+                <span className="mr-2">•</span>
+                {item || <span className="text-muted-foreground italic">Not specified</span>}
+              </div>
+            )}
           </div>
         ))}
-        {editable && <Button variant="outline" size="sm" onClick={onAdd}>+ Add</Button>}
+        
+        {items.length === 0 && !editable && (
+          <div className="text-sm text-muted-foreground italic">No items specified</div>
+        )}
       </div>
     </div>
-  )
+  );
 }

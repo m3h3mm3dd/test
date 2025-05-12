@@ -1,4 +1,12 @@
+// src/api/ScopeAPI.ts
 import { api } from '@/lib/axios';
+
+export interface WorkPackage {
+  Name: string;
+  Description: string;
+  EstimatedDuration: number;
+  EstimatedCost: number;
+}
 
 export interface ScopeManagementPlan {
   ScopeDefinitionMethod: string;
@@ -28,13 +36,6 @@ export interface ProjectScopeStatement {
   OptionalSOW: string;
 }
 
-export interface WorkPackage {
-  Name: string;
-  Description: string;
-  EstimatedDuration: number;
-  EstimatedCost: number;
-}
-
 export interface WorkBreakdownStructure {
   WorkPackages: WorkPackage[];
   ScopeBaselineReference: string;
@@ -61,5 +62,13 @@ export async function addProjectScope(projectId: string, data: ProjectScope): Pr
  */
 export async function editProjectScope(projectId: string, data: ProjectScope): Promise<string> {
   const response = await api.put(`/scope/edit/${projectId}`, data);
+  return response.data;
+}
+
+/**
+ * Get project scope
+ */
+export async function getProjectScope(projectId: string): Promise<ProjectScope> {
+  const response = await api.get(`/scope/${projectId}`);
   return response.data;
 }

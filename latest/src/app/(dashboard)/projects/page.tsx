@@ -1,5 +1,4 @@
 // src/app/(dashboard)/projects/page.tsx
-
 'use client'
 
 import { useEffect, useState } from 'react'
@@ -10,25 +9,32 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Button } from '@/components/ui/button'
 import { motion } from 'framer-motion'
-import { useAuth } from '@/hooks/useUser'
+import { useAuth } from '@/contexts/AuthContext'
+import { Plus, FolderKanban } from 'lucide-react'
+import { GlassPanel } from '@/components/ui/GlassPanel'
+import { toast } from '@/lib/toast'
 
-export default function ProjectIndexPage() {
+export default function ProjectsPage() {
   const [projects, setProjects] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  // Change this from useUser() to useAuth()
   const { user } = useAuth()
 
   useEffect(() => {
-    async function load() {
+    async function loadProjects() {
+      setLoading(true)
       try {
         const data = await getProjects()
         setProjects(data)
+      } catch (error) {
+        console.error('Failed to load projects:', error)
+        toast.error('Failed to load projects')
       } finally {
         setLoading(false)
       }
     }
-    load()
+    
+    loadProjects()
   }, [])
 
   return (
@@ -38,14 +44,20 @@ export default function ProjectIndexPage() {
       transition={{ duration: 0.3 }}
       className="p-6 space-y-8"
     >
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">All Projects</h1>
-        {user?.Role === 'project_owner' && (
-          <Button onClick={() => router.push('/dashboard/projects/create')}>
-            Create Project
+      <GlassPanel className="p-6">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">Projects</h1>
+            <p className="text-muted-foreground mt-1">
+              Manage and organize all your ongoing projects
+            </p>
+          </div>
+          
+          <Button onClick={() => router.push('/projects/create')}>
+            <Plus className="h-4 w-4 mr-2" /> New Project
           </Button>
-        )}
-      </div>
+        </div>
+      </GlassPanel>
 
       {loading ? (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
@@ -54,14 +66,23 @@ export default function ProjectIndexPage() {
           ))}
         </div>
       ) : projects.length === 0 ? (
-        <EmptyState title="No projects yet" subtitle="Start by creating your first project." />
+        <EmptyState 
+          title="No projects yet" 
+          description="Start by creating your first project." 
+          icon={<FolderKanban className="h-12 w-12" />}
+          action={
+            <Button onClick={() => router.push('/projects/create')}>
+              Create Project
+            </Button>
+          }
+        />
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {projects.map((project) => (
             <ProjectCard
               key={project.Id}
               project={project}
-              onClick={() => router.push(`/dashboard/projects/${project.Id}`)}
+              onClick={() => router.push(`/projects/${project.Id}`)}
             />
           ))}
         </div>

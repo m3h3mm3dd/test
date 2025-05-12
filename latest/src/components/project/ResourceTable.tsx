@@ -9,7 +9,7 @@ import {
   ResourceCreateData,
 } from '@/api/ResourceAPI'
 import { useSession } from 'next-auth/react'
-import { useUserProjectRole } from '@/hooks/useUserProjectRole'
+import { useUserProjectRole } from '@/hooks/useProjectRole'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Plus, Trash2 } from 'lucide-react'
