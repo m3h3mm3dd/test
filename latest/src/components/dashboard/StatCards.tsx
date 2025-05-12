@@ -1,29 +1,24 @@
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 import {
   FolderKanban,
   CheckSquare,
-  Clock,
-  BarChart2,
-  ArrowRight,
-  CheckCheck,
   Calendar,
-  AlertCircle,
+  BarChart2,
+  ChevronRight
 } from 'lucide-react';
-import { getProjects } from '@/api/ProjectAPI';
-import { getCurrentUserTasks } from '@/api/TaskAPI';
 import { cn } from '@/lib/utils';
+import { useRouter } from 'next/navigation';
 
-// Animations
+// Animation variants
 const container = {
   hidden: { opacity: 0 },
   show: {
     opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
+    transition: { staggerChildren: 0.1 }
+  }
 };
 
 const item = {
@@ -31,136 +26,85 @@ const item = {
   show: {
     opacity: 1,
     y: 0,
-    transition: { type: 'spring', stiffness: 260, damping: 20 },
-  },
+    transition: {
+      type: 'spring',
+      stiffness: 260,
+      damping: 20
+    }
+  }
 };
 
-interface StatCardProps {
-  title: string;
-  icon: React.ReactNode;
-  stats: {
-    label: string;
-    value: number;
-    icon?: React.ReactNode;
-    color?: string;
-  }[];
-  link: string;
-  bgGradient?: string;
-}
-
-function StatCard({ title, icon, stats, link, bgGradient }: StatCardProps) {
+// Simplified card without stats
+function SimpleCard({ 
+  title, 
+  icon, 
+  link,
+  description,
+  color = 'primary'
+}) {
   const router = useRouter();
+  const [isHovered, setIsHovered] = useState(false);
+
+  const iconColors = {
+    primary: 'text-blue-500',
+    green: 'text-green-500',
+    amber: 'text-amber-500',
+    purple: 'text-purple-500'
+  };
+
+  const iconBgColors = {
+    primary: 'bg-blue-500/10',
+    green: 'bg-green-500/10',
+    amber: 'bg-amber-500/10',
+    purple: 'bg-purple-500/10'
+  };
 
   return (
     <motion.div
       variants={item}
       className={cn(
-        'relative overflow-hidden rounded-xl border border-white/10 backdrop-blur-md shadow-sm hover:shadow-md transition-all duration-300 p-5',
-        'hover:scale-[1.02] cursor-pointer',
-        bgGradient || 'bg-gradient-to-br from-white/5 to-white/[0.02]'
+        'relative overflow-hidden rounded-xl border border-white/10 backdrop-blur-md shadow-sm p-5 cursor-pointer',
+        'transition-all duration-300',
+        isHovered ? 'shadow-lg shadow-primary/5 border-white/20 bg-white/[0.03]' : 'bg-white/5'
       )}
       onClick={() => router.push(link)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="flex justify-between items-start mb-4">
+      <div className="flex justify-between items-start">
         <div className="flex items-center gap-2">
-          <div className="bg-primary/10 rounded-full p-2 text-primary">{icon}</div>
+          <div className={cn(
+            "rounded-full p-2 transition-all duration-300",
+            iconBgColors[color],
+            isHovered ? `${iconBgColors[color].replace('/10', '/20')}` : ''
+          )}>
+            {icon}
+          </div>
           <h3 className="font-semibold">{title}</h3>
         </div>
-        <div className="text-primary/80 hover:text-primary transition-colors">
-          <ArrowRight className="h-5 w-5" />
-        </div>
+        <motion.div 
+          animate={{ 
+            x: isHovered ? 0 : 5,
+            opacity: isHovered ? 1 : 0.7
+          }}
+          transition={{ duration: 0.2 }}
+          className="text-muted-foreground/70"
+        >
+          <ChevronRight className="h-5 w-5" />
+        </motion.div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        {stats.map((stat, index) => (
-          <div key={index} className="flex flex-col">
-            <div className="flex items-center gap-1.5">
-              <div className={cn('h-4 w-4', stat.color || 'text-primary/80')}>
-                {stat.icon}
-              </div>
-              <span className="text-sm text-muted-foreground">{stat.label}</span>
-            </div>
-            <p className="text-2xl font-bold mt-1">{stat.value}</p>
-          </div>
-        ))}
-      </div>
+      {description && (
+        <p className="text-sm text-muted-foreground mt-2">{description}</p>
+      )}
+      
+      {/* Decorative gradient overlay */}
+      <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-white/[0.03] to-transparent rounded-full -mr-20 -mt-20 pointer-events-none"></div>
     </motion.div>
   );
 }
 
 export function StatCards() {
-  const [projects, setProjects] = useState<any[]>([]);
-  const [tasks, setTasks] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [projectsData, tasksData] = await Promise.all([
-          getProjects(),
-          getCurrentUserTasks(),
-        ]);
-
-        setProjects(projectsData);
-        setTasks(tasksData);
-      } catch (error) {
-        console.error('Failed to load stats:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadData();
-  }, []);
-
-  const today = new Date();
-  const nextWeek = new Date(today);
-  nextWeek.setDate(today.getDate() + 7);
-
-  const projectStats = {
-    total: projects.length,
-    inProgress: projects.filter((p) => p.Progress > 0 && p.Progress < 100).length,
-    completed: projects.filter((p) => p.Progress === 100).length,
-  };
-
-  const taskStats = {
-    total: tasks.length,
-    assigned: tasks.length, // since tasks are from current user
-    overdue: tasks.filter((t) => t.Deadline && new Date(t.Deadline) < today && !t.Completed).length,
-    completed: tasks.filter((t) => t.Completed).length,
-  };
-
-  const deadlineStats = {
-    thisWeek: tasks.filter((t) => {
-      if (!t.Deadline) return false;
-      const d = new Date(t.Deadline);
-      return d >= today && d <= nextWeek && !t.Completed;
-    }).length,
-    nextMilestone: 1, // Placeholder
-    tightestTimeline: tasks.filter((t) => t.Priority === 'HIGH' || t.Priority === 'URGENT').length,
-  };
-
-  const analyticsStats = {
-    taskProgress: Math.round((taskStats.completed / (taskStats.total || 1)) * 100),
-    weeklyCompletion: tasks.filter((t) => {
-      if (!t.UpdatedAt) return false;
-      const d = new Date(t.UpdatedAt);
-      const weekAgo = new Date(today);
-      weekAgo.setDate(today.getDate() - 7);
-      return t.Completed && d >= weekAgo;
-    }).length,
-  };
-
-  if (loading) {
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-36 animate-pulse bg-white/5 rounded-xl" />
-        ))}
-      </div>
-    );
-  }
-
   return (
     <motion.div
       variants={container}
@@ -168,52 +112,36 @@ export function StatCards() {
       animate="show"
       className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4"
     >
-      <StatCard
+      <SimpleCard
         title="Projects"
-        icon={<FolderKanban className="h-5 w-5" />}
-        stats={[
-          { label: 'Total', value: projectStats.total },
-          { label: 'In Progress', value: projectStats.inProgress, icon: <Clock className="h-4 w-4" />, color: 'text-amber-500' },
-          { label: 'Completed', value: projectStats.completed, icon: <CheckCheck className="h-4 w-4" />, color: 'text-green-500' },
-        ]}
+        icon={<FolderKanban className="h-5 w-5 text-blue-500" />}
+        description="Manage your projects"
         link="/projects"
-        bgGradient="bg-gradient-to-br from-blue-500/5 to-indigo-500/5"
+        color="primary"
       />
 
-      <StatCard
+      <SimpleCard
         title="Tasks"
-        icon={<CheckSquare className="h-5 w-5" />}
-        stats={[
-          { label: 'Total', value: taskStats.total },
-          { label: 'Assigned', value: taskStats.assigned, icon: <CheckSquare className="h-4 w-4" />, color: 'text-blue-500' },
-          { label: 'Overdue', value: taskStats.overdue, icon: <AlertCircle className="h-4 w-4" />, color: 'text-red-500' },
-          { label: 'Completed', value: taskStats.completed, icon: <CheckCheck className="h-4 w-4" />, color: 'text-green-500' },
-        ]}
+        icon={<CheckSquare className="h-5 w-5 text-green-500" />}
+        description="Track your tasks"
         link="/tasks"
-        bgGradient="bg-gradient-to-br from-green-500/5 to-emerald-500/5"
+        color="green"
       />
 
-      <StatCard
-        title="Deadlines"
-        icon={<Clock className="h-5 w-5" />}
-        stats={[
-          { label: 'This Week', value: deadlineStats.thisWeek, icon: <Calendar className="h-4 w-4" />, color: 'text-indigo-500' },
-          { label: 'Next Milestone', value: deadlineStats.nextMilestone, icon: <Clock className="h-4 w-4" />, color: 'text-amber-500' },
-          { label: 'High Priority', value: deadlineStats.tightestTimeline, icon: <AlertCircle className="h-4 w-4" />, color: 'text-red-500' },
-        ]}
+      <SimpleCard
+        title="Calendar"
+        icon={<Calendar className="h-5 w-5 text-amber-500" />}
+        description="View your schedule"
         link="/calendar"
-        bgGradient="bg-gradient-to-br from-amber-500/5 to-orange-500/5"
+        color="amber"
       />
 
-      <StatCard
+      <SimpleCard
         title="Analytics"
-        icon={<BarChart2 className="h-5 w-5" />}
-        stats={[
-          { label: 'Task Progress', value: analyticsStats.taskProgress, icon: <CheckSquare className="h-4 w-4" />, color: 'text-blue-500' },
-          { label: 'Weekly Completed', value: analyticsStats.weeklyCompletion, icon: <CheckCheck className="h-4 w-4" />, color: 'text-green-500' },
-        ]}
+        icon={<BarChart2 className="h-5 w-5 text-purple-500" />}
+        description="See your progress"
         link="/analytics"
-        bgGradient="bg-gradient-to-br from-purple-500/5 to-fuchsia-500/5"
+        color="purple"
       />
     </motion.div>
   );
