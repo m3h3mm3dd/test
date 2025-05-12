@@ -118,4 +118,33 @@ export async function getCurrentUserTasks(): Promise<Task[]> {
 export async function getTasksCreatedByCurrentUser(): Promise<Task[]> {
   const response = await api.get('/users/tasks/created');
   return response.data;
+}/**
+ * Get attachments for a task
+ */
+export async function getTaskAttachments(taskId: string): Promise<any[]> {
+  const response = await api.get(`/tasks/${taskId}/attachments`)
+  return response.data
+}
+
+/**
+ * Upload an attachment to a task
+ */
+export async function uploadTaskAttachment(taskId: string, file: File): Promise<any> {
+  const formData = new FormData()
+  formData.append('file', file)
+
+  const response = await api.post(`/tasks/${taskId}/attachments`, formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+
+  return response.data
+}
+/**
+ * Delete an attachment from a task
+ */
+export async function deleteTaskAttachment(taskId: string, attachmentId: string): Promise<any> {
+  const response = await api.delete(`/tasks/${taskId}/attachments/${attachmentId}`)
+  return response.data
 }

@@ -1,15 +1,15 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
-import { AnimatePresence, motion } from "framer-motion"
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { AnimatePresence, motion } from 'framer-motion'
 
 const messages = [
-  "Precision in every detail.",
-  "Design meets performance.",
-  "Your flow, uninterrupted.",
-  "Productivity, redefined.",
-  "Welcome to your command center.",
+  'Precision in every detail.',
+  'Design meets performance.',
+  'Your flow, uninterrupted.',
+  'Productivity, redefined.',
+  'Welcome to your command center.',
 ]
 
 export default function Onboarding() {
@@ -18,10 +18,12 @@ export default function Onboarding() {
   const [isPaused, setIsPaused] = useState(false)
 
   useEffect(() => {
-    const onboarded = localStorage.getItem("taskup_onboarded")
-    const userId = localStorage.getItem("userId")
-    if (onboarded === "true" && userId) router.push("/dashboard")
-    else if (onboarded === "true") router.push("/login")
+    const onboarded = localStorage.getItem('taskup_onboarded')
+    const userId = localStorage.getItem('userId')
+
+    if (onboarded === 'true') {
+      router.push(userId ? '/dashboard' : '/login')
+    }
   }, [router])
 
   useEffect(() => {
@@ -30,10 +32,11 @@ export default function Onboarding() {
       setIndex(0)
       interval = setInterval(() => {
         if (!isPaused) {
-          setIndex((prev) => (prev + 1) % messages.length)
+          setIndex(prev => (prev + 1) % messages.length)
         }
-      }, 5000)
-    }, 300)
+      }, 4000)
+    }, 200)
+
     return () => {
       clearTimeout(timeout)
       clearInterval(interval)
@@ -42,7 +45,7 @@ export default function Onboarding() {
 
   const go = (path: string) => {
     try {
-      localStorage.setItem("taskup_onboarded", "true")
+      localStorage.setItem('taskup_onboarded', 'true')
     } catch {}
     router.push(path)
   }
@@ -53,46 +56,41 @@ export default function Onboarding() {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Ambient animated background */}
+      {/* Ambient Background */}
       <motion.div className="absolute inset-0 z-0">
         <motion.div
           className="absolute top-[-30vh] left-1/2 -translate-x-1/2 w-[80vw] h-[80vw] bg-indigo-500 opacity-20 rounded-full blur-[200px]"
-          animate={{
-            scale: [1, 1.1, 1],
-            rotate: [0, 5, -5, 0],
-          }}
-          transition={{ duration: 20, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }}
+          transition={{ duration: 18, repeat: Infinity, ease: 'easeInOut' }}
         />
         <motion.div
           className="absolute bottom-[-20vh] right-[-10vw] w-[60vw] h-[60vw] bg-purple-500 opacity-10 rounded-full blur-[180px]"
-          animate={{
-            scale: [1, 1.15, 1],
-            rotate: [0, -4, 4, 0],
-          }}
-          transition={{ duration: 25, repeat: Infinity, ease: "easeInOut" }}
+          animate={{ scale: [1, 1.1, 1], rotate: [0, -3, 3, 0] }}
+          transition={{ duration: 22, repeat: Infinity, ease: 'easeInOut' }}
         />
       </motion.div>
 
-      {/* Main content */}
+      {/* Main */}
       <div className="relative z-10 flex flex-col justify-center items-center min-h-screen px-6 text-center">
         <motion.h1
-          initial={{ opacity: 0, y: -16 }}
+          initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.6 }}
           className="text-3xl font-extrabold tracking-wide text-indigo-400 mb-1"
         >
           TaskUp
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: -8 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.15 }}
+          transition={{ duration: 0.6, delay: 0.1 }}
           className="text-md text-zinc-300 mb-8"
         >
           Focused work. Beautifully managed.
         </motion.p>
 
+        {/* Message cycle */}
         <div className="mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center">
           <AnimatePresence mode="wait">
             {index >= 0 && (
@@ -101,7 +99,7 @@ export default function Onboarding() {
                 initial={{ opacity: 0, y: 12 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.6 }}
+                transition={{ duration: 0.5, ease: 'easeOut' }}
                 className="block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
               >
                 {messages[index]}
@@ -110,12 +108,12 @@ export default function Onboarding() {
           </AnimatePresence>
         </div>
 
-        {/* Task Card */}
+        {/* Project Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           whileHover={{ scale: 1.02 }}
-          transition={{ duration: 0.7, delay: 0.5 }}
+          transition={{ duration: 0.6, delay: 0.4 }}
           className="mb-10 w-[90%] max-w-3xl bg-white/5 border border-white/10 rounded-2xl p-6 backdrop-blur-md shadow-xl transition-all cursor-pointer"
         >
           <div className="flex justify-between items-center text-left">
@@ -130,26 +128,26 @@ export default function Onboarding() {
           </div>
         </motion.div>
 
-        {/* CTA buttons */}
+        {/* Buttons */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
+          transition={{ duration: 0.5, delay: 0.8 }}
           className="flex flex-col sm:flex-row gap-4"
         >
           <motion.button
-            whileHover={{ scale: 1.06 }}
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => go("/register")}
-            className="bg-white text-black font-semibold px-6 py-3 rounded-full shadow-xl hover:ring-2 hover:ring-white/30 transition-all backdrop-blur-md"
+            onClick={() => go('/register')}
+            className="bg-white text-black font-semibold px-6 py-3 rounded-full shadow-lg hover:ring-2 hover:ring-white/30 transition-all"
           >
             Get Started
           </motion.button>
           <motion.button
-            whileHover={{ scale: 1.06 }}
+            whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
-            onClick={() => go("/login")}
-            className="border border-white/30 text-white px-6 py-3 rounded-full hover:bg-white/10 backdrop-blur-md transition-all"
+            onClick={() => go('/login')}
+            className="border border-white/30 text-white px-6 py-3 rounded-full hover:bg-white/10 transition-all"
           >
             Log In
           </motion.button>

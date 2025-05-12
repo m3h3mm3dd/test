@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getProjectStakeholders } from '@/api/stakeholder'
+import { getProjectStakeholders } from '@/api/StakeholderAPI'
 import { Skeleton } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { StakeholderCard } from './StakeholderCard'

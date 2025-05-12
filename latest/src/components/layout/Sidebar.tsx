@@ -4,12 +4,12 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { 
-  LayoutDashboard, 
-  FolderKanban, 
-  CheckSquare, 
-  Calendar, 
-  BarChart2, 
+import {
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  Calendar,
+  BarChart2,
   Settings,
   ChevronLeft,
   ChevronRight
@@ -35,10 +35,11 @@ export function Sidebar() {
 
   useEffect(() => {
     const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024)
-      if (window.innerWidth < 1024) setCollapsed(true)
+      const isSmall = window.innerWidth < 1024
+      setIsMobile(isSmall)
+      if (isSmall) setCollapsed(true)
     }
-    
+
     checkMobile()
     window.addEventListener('resize', checkMobile)
     return () => window.removeEventListener('resize', checkMobile)
@@ -58,24 +59,25 @@ export function Sidebar() {
           <ChevronRight className="h-5 w-5" />
         </Button>
       )}
-      
+
       <motion.aside
         initial={false}
         animate={{
           width: collapsed ? '72px' : '240px',
-          transition: { duration: 0.3, ease: 'easeInOut' }
+          transition: { duration: 0.15, ease: 'easeOut' }
         }}
         className={cn(
-          "fixed left-0 top-0 bottom-0 z-40 border-r border-white/10 bg-white/5 backdrop-blur-md shadow-md transition-all h-full",
-          "dark:bg-black/20 dark:border-white/5",
-          isMobile && collapsed && '-translate-x-full'
+          'h-screen border-r border-white/10 bg-white/5 backdrop-blur-md shadow-md transition-all',
+          'dark:bg-black/20 dark:border-white/5',
+          isMobile && collapsed && 'absolute -translate-x-full'
         )}
       >
+        {/* Header / Brand */}
         <div className="flex h-16 items-center justify-between px-4">
           <AnimatePresence mode="wait">
             {!collapsed && (
               <motion.div
-                key="logo"
+                key="taskup"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
@@ -85,7 +87,7 @@ export function Sidebar() {
               </motion.div>
             )}
           </AnimatePresence>
-          
+
           <Button
             variant="ghost"
             size="icon"
@@ -95,11 +97,11 @@ export function Sidebar() {
             {collapsed ? <ChevronRight className="h-5 w-5" /> : <ChevronLeft className="h-5 w-5" />}
           </Button>
         </div>
-        
+
+        {/* Navigation */}
         <nav className="mt-6 space-y-1 px-2">
           {navItems.map((item) => {
             const isActive = pathname.startsWith(item.href)
-            
             return (
               <Tooltip
                 key={item.href}
@@ -110,10 +112,10 @@ export function Sidebar() {
                 <Link
                   href={item.href}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200",
-                    isActive 
-                      ? "bg-primary/10 text-primary font-medium" 
-                      : "text-muted-foreground hover:bg-white/5 hover:text-foreground"
+                    'flex items-center gap-3 rounded-lg px-3 py-2 transition-all duration-200',
+                    isActive
+                      ? 'bg-primary/10 text-primary font-medium'
+                      : 'text-muted-foreground hover:bg-white/5 hover:text-foreground'
                   )}
                 >
                   <item.icon className="h-5 w-5 flex-shrink-0" />
@@ -123,7 +125,7 @@ export function Sidebar() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.2 }}
+                        transition={{ duration: 0.1 }}
                       >
                         {item.label}
                       </motion.span>

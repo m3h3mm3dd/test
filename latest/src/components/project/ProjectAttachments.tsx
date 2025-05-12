@@ -1,114 +1,105 @@
-
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
-  getAttachmentsForProject,
+  getAttachmentsByEntityType,
   uploadAttachment,
-  deleteAttachment
-} from '@/api/attachment'
-import { Skeleton } from '@/components/ui/skeleton'
+  deleteAttachment,
+} from '@/api/AttachmentAPI'
+import { useSession } from 'next-auth/react'
 import { Button } from '@/components/ui/button'
-import { useUser } from '@/hooks/useUser'
-import { canEditProject } from '@/lib/roles'
-import { toast } from '@/lib/toast'
-import { cn } from '@/lib/utils'
+import { Trash2 } from 'lucide-react'
 
-interface Props {
-  projectId: string
+interface Attachment {
+  Id: string
+  FileName: string
+  FileType: string
+  FileSize: number
+  FilePath: string
+  UploadedAt: string
+  OwnerId: string
 }
 
-export function ProjectAttachments({ projectId }: Props) {
-  const [files, setFiles] = useState<any[]>([])
+export function ProjectAttachments({ projectId }: { projectId: string }) {
+  const { data: session } = useSession()
+  const userId = session?.user?.id
+  const [attachments, setAttachments] = useState<Attachment[]>([])
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState(false)
-  const { user } = useUser()
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const entityType = 'Scope' // you can change this to match the intended default category
 
   useEffect(() => {
-    fetchFiles()
-  }, [projectId])
-
-  const fetchFiles = async () => {
-    try {
-      const res = await getAttachmentsForProject(projectId)
-      setFiles(res)
-    } catch {
-      toast.error('Failed to load attachments.')
-    } finally {
+    const fetchData = async () => {
+      const res = await getAttachmentsByEntityType(projectId, entityType)
+      setAttachments(res)
       setLoading(false)
     }
-  }
+    fetchData()
+  }, [projectId])
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    setUploading(true)
-    try {
-      await uploadAttachment(projectId, file)
-      toast.success('File uploaded.')
-      fetchFiles()
-    } catch {
-      toast.error('Upload failed.')
-    } finally {
-      setUploading(false)
-    }
+
+    const uploaded = await uploadAttachment(file, entityType, projectId, projectId)
+    setAttachments(prev => [...prev, uploaded])
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this file?')) return
-    try {
-      await deleteAttachment(id)
-      toast.success('File deleted.')
-      fetchFiles()
-    } catch {
-      toast.error('Failed to delete.')
-    }
+    await deleteAttachment(id)
+    setAttachments(prev => prev.filter(att => att.Id !== id))
   }
 
-  const canUpload = canEditProject(user, { OwnerId: projectId })
-
   return (
-    <div className="space-y-4">
-      {canUpload && (
-        <label className="block w-full">
-          <input
-            type="file"
-            onChange={handleFileUpload}
-            disabled={uploading}
-            className={cn(
-              'file:mr-4 file:rounded-full file:border-0 file:px-4 file:py-2 file:bg-muted file:text-sm file:font-semibold hover:file:bg-muted/80',
-              uploading && 'opacity-50'
-            )}
-          />
-        </label>
-      )}
-
+    <div className="mt-4 space-y-4">
       {loading ? (
-        <Skeleton className="h-24 w-full rounded-xl" />
-      ) : files.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No files uploaded yet.</p>
+        <p className="text-sm text-muted-foreground">Loading attachments...</p>
       ) : (
-        <ul className="space-y-2">
-          {files.map((file) => (
-            <li
-              key={file.Id}
-              className="flex justify-between items-center bg-white/5 px-4 py-2 rounded-md"
-            >
-              <span className="text-sm truncate max-w-[75%]" title={file.FileName}>
-                {file.FileName} ({Math.round(file.FileSize / 1024)} KB)
-              </span>
-              {canUpload && (
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleDelete(file.Id)}
-                >
-                  Delete
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        <>
+          <div className="space-y-2">
+            {attachments.map(att => (
+              <div key={att.Id} className="flex justify-between items-center border p-2 rounded-md">
+                <div>
+                  <a
+                    href={att.FilePath}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 underline"
+                  >
+                    {att.FileName}
+                  </a>
+                  <p className="text-xs text-muted-foreground">
+                    {Math.round(att.FileSize / 1024)} KB • Uploaded on{' '}
+                    {new Date(att.UploadedAt).toLocaleString()}
+                  </p>
+                </div>
+                {userId === att.OwnerId && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-destructive hover:bg-destructive/10"
+                    onClick={() => handleDelete(att.Id)}
+                  >
+                    <Trash2 size={16} />
+                  </Button>
+                )}
+              </div>
+            ))}
+          </div>
+
+          <div className="pt-2">
+            <input
+              ref={inputRef}
+              type="file"
+              className="hidden"
+              onChange={handleUpload}
+            />
+            <Button variant="outline" onClick={() => inputRef.current?.click()}>
+              Upload File
+            </Button>
+          </div>
+        </>
       )}
     </div>
   )

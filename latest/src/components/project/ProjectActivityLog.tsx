@@ -1,59 +1,40 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getProjectActivityLog } from '@/api/ActivityAPI'
-import { Skeleton } from '@/components/ui/skeleton'
-import { toast } from '@/lib/toast'
+import { getProjectActivityLog, ActivityLog } from '@/api/ActivityAPI'
+import { useSession } from 'next-auth/react'
 
-interface Props {
-  projectId: string
-}
-
-export function ProjectActivityLog({ projectId }: Props) {
-  const [activity, setActivity] = useState<any[]>([])
+export function ProjectActivityLog({ projectId }: { projectId: string }) {
+  const { data: session } = useSession()
+  const [logs, setLogs] = useState<ActivityLog[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    async function fetch() {
-      try {
-        const res = await getProjectActivityLog(projectId)
-        setActivity(res)
-      } catch {
-        toast.error('Failed to load activity log.')
-      } finally {
-        setLoading(false)
-      }
+    const load = async () => {
+      const res = await getProjectActivityLog(projectId)
+      setLogs(res)
+      setLoading(false)
     }
-    fetch()
+    load()
   }, [projectId])
 
-  if (loading) {
-    return (
-      <div className="space-y-2">
-        {Array.from({ length: 3 }).map((_, i) => (
-          <Skeleton key={i} className="h-16 w-full rounded-xl" />
-        ))}
-      </div>
-    )
-  }
-
-  if (!activity.length) {
-    return <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
-  }
+  if (loading) return <p className="text-sm text-muted-foreground">Loading activity...</p>
+  if (logs.length === 0) return <p className="text-sm text-muted-foreground">No activity found.</p>
 
   return (
-    <ul className="space-y-2">
-      {activity.map((entry) => (
-        <li
-          key={entry.Id}
-          className="p-4 rounded-lg bg-white/5 border border-white/10 backdrop-blur-md"
-        >
-          <p className="text-sm">{entry.Action}</p>
-          <p className="text-xs text-muted-foreground mt-1">
-            {new Date(entry.CreatedAt).toLocaleString()} — by {entry.User?.FirstName} {entry.User?.LastName}
+    <div className="mt-4 space-y-4">
+      {logs.map((log) => (
+        <div key={log.Id} className="border-l-2 border-muted pl-4 py-2">
+          <p className="text-sm text-foreground">
+            <span className="font-medium">{log.Action}</span>{' '}
+            on <span className="text-muted-foreground">{log.EntityType}</span>
+            {log.Details && <> — <span className="italic">{log.Details}</span></>}
           </p>
-        </li>
+          <p className="text-xs text-muted-foreground">
+            {new Date(log.Timestamp).toLocaleString()}
+          </p>
+        </div>
       ))}
-    </ul>
+    </div>
   )
 }

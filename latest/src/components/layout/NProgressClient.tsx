@@ -1,8 +1,13 @@
-"use client";
+'use client'
 
-import { useNProgress } from "@/hooks/useNProgress";
+import { ReactNode } from 'react'
+import { useNProgress } from '@/hooks/useNProgress'
 
-export function NProgressClient({ children }: { children: React.ReactNode }) {
-  useNProgress();
-  return <>{children}</>;
+interface NProgressClientProps {
+  children: ReactNode
+}
+
+export function NProgressClient({ children }: NProgressClientProps) {
+  useNProgress()
+  return <>{children}</>
 }

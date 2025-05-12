@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { getNotificationsForProject } from '@/api/notification'
+import { getNotificationsForProject } from '@/api/NotificationAPI'
 import { Skeleton } from '@/components/ui/skeleton'
 import { toast } from '@/lib/toast'
 

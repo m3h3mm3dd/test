@@ -25,6 +25,14 @@ export interface EmailVerificationData {
 }
 
 /**
+ * Get the currently logged-in user's profile
+ */
+export async function getCurrentUser(): Promise<User> {
+  const response = await api.get('/auth/me')
+  return response.data
+}
+
+/**
  * Register a new user
  */
 export async function registerUser(data: UserRegisterData): Promise<string> {
@@ -37,6 +45,14 @@ export async function registerUser(data: UserRegisterData): Promise<string> {
  */
 export async function loginUser(data: UserLoginData): Promise<any> {
   const response = await api.post('/auth/login', data);
+  return response.data;
+}
+
+/**
+ * Delete current user's account
+ */
+export async function deleteAccount(): Promise<void> {
+  const response = await api.delete('/auth/account');
   return response.data;
 }
 
