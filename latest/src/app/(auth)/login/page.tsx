@@ -1,56 +1,51 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { motion } from "framer-motion"
-import { Eye, EyeOff } from "lucide-react"
-import { FormInput } from "@/components/ui/FormInput"
-import { Button } from "@/components/ui/button"
-import { api } from "@/lib/axios"
-import { toast } from "@/lib/toast"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Eye, EyeOff } from "lucide-react";
+import { FormInput } from "@/components/ui/FormInput";
+import { Button } from "@/components/ui/button";
+import { loginUser } from "@/api/UserAPI";
+import { toast } from "@/lib/toast";
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [form, setForm] = useState({ email: "", password: "" })
-  const [show, setShow] = useState(false)
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [form, setForm] = useState({ email: "", password: "" });
+  const [show, setShow] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) =>
-    setForm({ ...form, [e.target.name]: e.target.value })
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!form.email || !form.password) {
-      toast.error("Please fill in all fields.")
-      return
+      toast.error("Please fill in all fields.");
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
-      const res = await api.post("/auth/login", {
-        Email: form.email,       // ✅ exact casing for backend
-        Password: form.password  // ✅ exact casing for backend
-      })
+      // ✅ Use loginUser from API to store user + token
+      await loginUser({
+        Email: form.email,
+        Password: form.password,
+      });
 
-      localStorage.setItem("taskup_token", res.data.access_token || res.data.token)
-      toast.success("Welcome back 👋")
-
-      await new Promise((res) => setTimeout(res, 300))
-
-      router.push("/dashboard")
+      toast.success("Welcome back 👋");
+      await new Promise((res) => setTimeout(res, 300));
+      router.push("/dashboard");
     } catch (err: any) {
-      setTimeout(() => {
-        toast.error(err?.response?.data?.message || "Invalid credentials.")
-      }, 0)
+      toast.error(err?.response?.data?.message || "Invalid credentials.");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="relative grid lg:grid-cols-2 min-h-screen w-full bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white overflow-hidden">
-      
       {/* Ambient blobs */}
       <motion.div
         className="absolute inset-0 z-0 pointer-events-none"
@@ -134,7 +129,7 @@ export default function LoginPage() {
               }
               inputProps={{
                 id: "login-password",
-                name: "password", 
+                name: "password",
                 type: show ? "text" : "password",
                 autoComplete: "current-password",
                 placeholder: "••••••••",
@@ -170,5 +165,5 @@ export default function LoginPage() {
         </div>
       </motion.section>
     </div>
-  )
+  );
 }

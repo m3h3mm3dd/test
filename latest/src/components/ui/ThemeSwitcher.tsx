@@ -6,7 +6,6 @@ import { Palette, Check, ChevronDown } from 'lucide-react';
 import { useTheme } from '@/hooks/useTheme';
 import { cn } from '@/lib/utils';
 
-// Extended theme definitions with additional properties
 const extendedThemes = {
   neonPulse: {
     name: "Neon Pulse",
@@ -103,7 +102,7 @@ export function ThemeSwitcher() {
     <div className="relative">
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 transition-colors border border-white/10 text-sm"
+        className="flex items-center gap-2 px-3 py-2 rounded-lg bg-background border border-white/10 text-sm"
         whileHover={{ scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
       >
@@ -124,7 +123,7 @@ export function ThemeSwitcher() {
       <AnimatePresence>
         {isOpen && (
           <motion.div
-            className="absolute right-0 mt-2 w-72 p-3 bg-white/10 backdrop-blur-md rounded-xl border border-white/10 shadow-lg z-50"
+            className="absolute right-0 mt-2 w-72 p-3 bg-background rounded-xl border border-white/10 shadow-lg z-50"
             variants={dropdownVariants}
             initial="hidden"
             animate="visible"
@@ -143,8 +142,8 @@ export function ThemeSwitcher() {
                   className={cn(
                     "w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors",
                     theme === key 
-                      ? "bg-white/10 text-white"
-                      : "hover:bg-white/5 text-muted-foreground hover:text-white"
+                      ? "bg-primary/10 text-foreground"
+                      : "hover:bg-muted text-muted-foreground hover:text-foreground"
                   )}
                 >
                   <div className="relative flex-shrink-0">

@@ -11,11 +11,15 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(false);
   const [userDataLoading, setUserDataLoading] = useState(true);
 
-  // Set userDataLoading to false once user data is available
+  // Fix: stop loading either when user resolves or timeout hits
   useEffect(() => {
-    if (user) {
+    const timeout = setTimeout(() => setUserDataLoading(false), 3000);
+
+    if (user !== undefined) {
       setUserDataLoading(false);
     }
+
+    return () => clearTimeout(timeout);
   }, [user]);
 
   const handleDeleteAccount = async () => {

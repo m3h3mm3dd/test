@@ -1,10 +1,9 @@
-// src/components/dashboard/CreateFAB.tsx
 
 'use client';
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, CheckSquare, FolderKanban, MessageSquare } from 'lucide-react';
+import { Plus, X, CheckSquare, FolderKanban } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -91,15 +90,6 @@ export function CreateFAB() {
         closeMenu();
       },
       color: 'bg-gradient-to-r from-blue-500 to-indigo-600',
-    },
-    {
-      label: 'New Comment',
-      icon: <MessageSquare className="h-4 w-4 mr-2" />,
-      onClick: () => {
-        // Hook into comment creation logic
-        closeMenu();
-      },
-      color: 'bg-gradient-to-r from-purple-500 to-pink-600',
     },
   ];
 

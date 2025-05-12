@@ -1,56 +1,58 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createProject } from '@/api/ProjectAPI'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { DatePicker } from '@/components/ui/DatePicker'
-import { GlassPanel } from '@/components/ui/GlassPanel'
-import { motion } from 'framer-motion'
-import { toast } from '@/lib/toast'
-import { ArrowLeft } from 'lucide-react'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createProject } from '@/api/ProjectAPI';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { GlassPanel } from '@/components/ui/GlassPanel';
+import { motion } from 'framer-motion';
+import { toast } from '@/lib/toast';
+import { ArrowLeft } from 'lucide-react';
 
 export default function CreateProjectPage() {
-  const router = useRouter()
+  const router = useRouter();
   const [form, setForm] = useState({
     Name: '',
     Description: '',
     TotalBudget: '',
     Deadline: null as Date | null,
-  })
-  const [loading, setLoading] = useState(false)
+  });
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (field: string, value: any) => {
-    setForm(prev => ({ ...prev, [field]: value }))
-  }
+    setForm(prev => ({ ...prev, [field]: value }));
+  };
 
   const handleSubmit = async () => {
     if (!form.Name.trim()) {
-      toast.error('Project name is required')
-      return
+      toast.error('Project name is required');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
       const project = await createProject({
         Name: form.Name,
-        Description: form.Description,
+        Description: form.Description || '',
         Budget: parseFloat(form.TotalBudget) || 0,
-        Deadline: form.Deadline?.toISOString(),
-      })
+        Deadline: form.Deadline?.toISOString() || new Date().toISOString(),
+        StatusId: 'active', // ✅ Use a valid default or enum from backend
+        IsDeleted: false,
+      });
 
-      toast.success('Project created successfully!')
-      router.push(`/projects/${project.Id}`)
+      toast.success('Project created successfully!');
+      router.push(`/projects/${project.Id}`);
     } catch (error) {
-      console.error('Failed to create project:', error)
-      toast.error('Failed to create project. Please try again.')
+      console.error('Failed to create project:', error);
+      toast.error('Failed to create project. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <motion.div
@@ -59,9 +61,9 @@ export default function CreateProjectPage() {
       transition={{ duration: 0.35 }}
       className="p-6"
     >
-      <Button 
-        variant="ghost" 
-        size="sm" 
+      <Button
+        variant="ghost"
+        size="sm"
         className="mb-4"
         onClick={() => router.push('/projects')}
       >
@@ -118,8 +120,8 @@ export default function CreateProjectPage() {
           </div>
 
           <div className="pt-4 flex justify-end">
-            <Button 
-              disabled={loading} 
+            <Button
+              disabled={loading}
               onClick={handleSubmit}
               className="min-w-[120px]"
             >
@@ -129,5 +131,5 @@ export default function CreateProjectPage() {
         </div>
       </GlassPanel>
     </motion.div>
-  )
+  );
 }

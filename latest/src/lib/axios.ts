@@ -5,12 +5,12 @@ export const api = axios.create({
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true
+  withCredentials: true,
 });
 
 api.interceptors.request.use((config) => {
   const token = typeof window !== "undefined"
-    ? localStorage.getItem("taskup_token")
+    ? localStorage.getItem("authToken")
     : null;
 
   if (token) {
@@ -25,9 +25,9 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       if (typeof window !== "undefined") {
-        localStorage.removeItem("taskup_token");
+        localStorage.removeItem("authToken");
         localStorage.removeItem("taskup_onboarded");
-        window.location.href = "/auth/login";
+        window.location.href = "/login";
       }
     }
     return Promise.reject(err);

@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Button } from '@/components/ui/button'
 import { getProjectTeams, getProjectMembers } from '@/api/ProjectAPI'
 import { getTaskAttachments, uploadTaskAttachment } from '@/api/TaskAPI'
-import { useUser } from '@/hooks/useUser' // ✅ CORRECT HOOK
+import { useUser } from '@/hooks/useUser'
 import { Paperclip, Plus, Trash2 } from 'lucide-react'
 import { DatePicker } from '@/components/ui/DatePicker'
 import { Dropdown } from '@/components/ui/dropdown'

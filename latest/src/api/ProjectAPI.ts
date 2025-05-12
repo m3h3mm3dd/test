@@ -13,12 +13,13 @@ export interface Project {
 
 export interface ProjectCreateData {
   Name: string;
-  Description?: string;
-  Deadline?: string;
-  Budget?: number;
-  StatusId?: string;
-  IsDeleted?: boolean;
+  Description: string;
+  Deadline: string;     
+  Budget: number;
+  StatusId: string;
+  IsDeleted: boolean;
 }
+
 
 export interface ProjectUpdateData {
   Name?: string;
@@ -49,9 +50,11 @@ export async function getProjectById(projectId: string): Promise<Project> {
  * Create a new project
  */
 export async function createProject(data: ProjectCreateData): Promise<Project> {
+  console.log('[createProject] payload sent:', data);
   const response = await api.post('/projects/create', data);
   return response.data;
 }
+
 
 /**
  * Delete a project
