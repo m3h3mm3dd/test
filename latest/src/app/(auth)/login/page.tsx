@@ -33,10 +33,9 @@ export default function LoginPage() {
         Password: form.password,
       })
 
-      localStorage.setItem("userId", res.data.Id)
+      localStorage.setItem("taskup_token", res.data.access_token || res.data.token)
       toast.success("Welcome back 👋")
 
-      // Give the browser time to trigger the password save prompt
       await new Promise((res) => setTimeout(res, 300))
 
       router.push("/dashboard")
@@ -91,7 +90,7 @@ export default function LoginPage() {
           </h1>
           <p className="text-white/70 text-lg mt-3 max-w-md">
             Pick up the flow.<br />
-            Everything’s synced.
+            Everything's synced.
           </p>
         </div>
       </motion.section>
@@ -111,7 +110,7 @@ export default function LoginPage() {
               label="Email"
               inputProps={{
                 id: "login-email",
-                name: "email", // lowercase for browser compatibility
+                name: "email",
                 type: "email",
                 autoComplete: "email",
                 placeholder: "you@example.com",
@@ -133,7 +132,7 @@ export default function LoginPage() {
               }
               inputProps={{
                 id: "login-password",
-                name: "password", // lowercase for browser compatibility
+                name: "password", 
                 type: show ? "text" : "password",
                 autoComplete: "current-password",
                 placeholder: "••••••••",
@@ -158,7 +157,7 @@ export default function LoginPage() {
           </form>
 
           <p className="text-sm text-center text-white/50 mt-6">
-            Don’t have an account?{" "}
+            Don't have an account?{" "}
             <button
               onClick={() => router.push("/register")}
               className="text-indigo-400 hover:underline"

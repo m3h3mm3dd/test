@@ -14,7 +14,7 @@ export default function DashboardLayout({ children }: { children: ReactNode }) {
     const token = localStorage.getItem("taskup_token");
 
     if (!token) {
-      router.replace("/auth/login");
+      router.replace("/login");  
     } else {
       setAuthChecked(true);
     }
