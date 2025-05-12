@@ -15,17 +15,16 @@ export interface ProjectCreateData {
   Name: string;
   Description: string;
   Deadline: string;     
-  Budget: number;
+  TotalBudget: number;
   StatusId: string;
   IsDeleted: boolean;
 }
-
 
 export interface ProjectUpdateData {
   Name?: string;
   Description?: string;
   Deadline?: string;
-  Budget?: number;
+  TotalBudget?: number;
   StatusId?: string;
   IsDeleted?: boolean;
 }
@@ -55,7 +54,6 @@ export async function createProject(data: ProjectCreateData): Promise<Project> {
   return response.data;
 }
 
-
 /**
  * Delete a project
  */
@@ -76,7 +74,7 @@ export async function getProjectMembers(projectId: string): Promise<any[]> {
  * Add a member to a project
  */
 export async function addProjectMember(projectId: string, memberId: string): Promise<any> {
-  const response = await api.post(`/projects/${project_id}/add-member?projectId=${projectId}&memberId=${memberId}`);
+  const response = await api.post(`/projects/${projectId}/add-member?projectId=${projectId}&memberId=${memberId}`);
   return response.data;
 }
 

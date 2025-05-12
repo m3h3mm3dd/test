@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 
 const messages = [
@@ -16,6 +16,7 @@ export default function Onboarding() {
   const router = useRouter()
   const [index, setIndex] = useState(-1)
   const [isPaused, setIsPaused] = useState(false)
+  const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const onboarded = localStorage.getItem('taskup_onboarded')
@@ -26,22 +27,41 @@ export default function Onboarding() {
     }
   }, [router])
 
+  // Set up the initial cycle
   useEffect(() => {
-    let interval: NodeJS.Timeout
     const timeout = setTimeout(() => {
       setIndex(0)
-      interval = setInterval(() => {
-        if (!isPaused) {
-          setIndex(prev => (prev + 1) % messages.length)
-        }
+      intervalRef.current = setInterval(() => {
+        setIndex(prev => (prev + 1) % messages.length)
       }, 4000)
     }, 200)
 
     return () => {
       clearTimeout(timeout)
-      clearInterval(interval)
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
     }
-  }, [isPaused])
+  }, []) // No dependencies so this only runs once on mount
+
+  // Handle pausing separately
+  useEffect(() => {
+    if (isPaused && intervalRef.current) {
+      clearInterval(intervalRef.current)
+      intervalRef.current = null
+    } else if (!isPaused && !intervalRef.current && index !== -1) {
+      // Only restart if we've already started (index !== -1)
+      intervalRef.current = setInterval(() => {
+        setIndex(prev => (prev + 1) % messages.length)
+      }, 4000)
+    }
+    
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current)
+      }
+    }
+  }, [isPaused, index])
 
   const go = (path: string) => {
     try {
@@ -56,6 +76,7 @@ export default function Onboarding() {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
+      {/* Rest of your component remains the same */}
       {/* Ambient Background */}
       <motion.div className="absolute inset-0 z-0">
         <motion.div
