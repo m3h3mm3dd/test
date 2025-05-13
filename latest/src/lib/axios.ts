@@ -18,6 +18,9 @@ api.interceptors.request.use((config) => {
   }
 
   return config;
+}, (error) => {
+  console.error('Request interceptor error:', error);
+  return Promise.reject(error);
 });
 
 api.interceptors.response.use(
@@ -25,11 +28,20 @@ api.interceptors.response.use(
   (err) => {
     if (err?.response?.status === 401) {
       if (typeof window !== "undefined") {
+        console.warn('Authentication error: Unauthorized. Clearing auth data and redirecting to login.');
+        
         localStorage.removeItem("authToken");
-        localStorage.removeItem("taskup_onboarded");
+        localStorage.removeItem("userData");
+        
+     
         window.location.href = "/login";
       }
     }
+    
+    if (err?.response?.status === 403) {
+      console.warn('Permission denied');
+    }
+    
     return Promise.reject(err);
   }
 );

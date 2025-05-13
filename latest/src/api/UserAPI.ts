@@ -35,22 +35,116 @@ export async function registerUser(data: UserRegisterData): Promise<any> {
 }
 
 /**
- * Login a user and store token (no user expected)
+ * Login a user and store token
  */
-export async function loginUser(data: UserLoginData): Promise<{ token: string }> {
-  console.log('[loginUser] sending:', data);
-
-  const res = await api.post('/auth/login', data);
-  const { access_token } = res.data;
-
-  console.log('[loginUser] access_token:', access_token);
-
-  if (!access_token) {
-    throw new Error('Login failed: missing token');
+export async function loginUser(data: UserLoginData): Promise<User> {
+  try {
+    console.log('[loginUser] sending:', data);
+    
+    const res = await api.post('/auth/login', data);
+    console.log('[loginUser] response:', res.data);
+    
+    let token;
+    
+    // Handle different response formats
+    if (typeof res.data === 'string') {
+      // If the response is a string token directly
+      token = res.data;
+      console.log('[loginUser] string token:', token);
+    } 
+    else if (res.data && res.data.access_token) {
+      // If response is an object with access_token
+      token = res.data.access_token;
+      console.log('[loginUser] access_token:', token);
+    }
+    else if (res.data && res.data.token) {
+      // If response has a token field
+      token = res.data.token;
+      console.log('[loginUser] token field:', token);
+    }
+    else {
+      console.error('Unexpected login response format:', res.data);
+      throw new Error('Login failed: invalid token format');
+    }
+    
+    if (!token) {
+      throw new Error('Login failed: missing token');
+    }
+    
+    // Store token in localStorage
+    localStorage.setItem('authToken', token);
+    
+    // Fetch user data after successful login
+    let userData: User;
+    
+    try {
+      const userResponse = await api.get('/users/me');
+      userData = userResponse.data;
+    } catch (error) {
+      console.error('Failed to fetch user data:', error);
+      // If the API doesn't have a /users/me endpoint, we might need to use another endpoint
+      // or just create a minimal user object from the login response
+      userData = {
+        Id: '', // We might not have this information
+        FirstName: '',
+        LastName: '',
+        Email: data.Email, // We at least know the email from the login form
+        Role: ''
+      };
+    }
+    
+    // Store user data in localStorage
+    localStorage.setItem('userData', JSON.stringify(userData));
+    
+    // Update Zustand store if available
+    try {
+      useUserStore.getState().setUser(userData);
+    } catch (error) {
+      console.error('Failed to update user store:', error);
+    }
+    
+    return userData;
+  } catch (error) {
+    console.error('Login error:', error);
+    throw error;
   }
+}
 
-  localStorage.setItem('authToken', access_token);
-  return { token: access_token };
+/**
+ * Get current user data from localStorage
+ */
+export function getCurrentUser(): User | null {
+  try {
+    const userDataStr = localStorage.getItem('userData');
+    if (!userDataStr) {
+      return null;
+    }
+    return JSON.parse(userDataStr);
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    return null;
+  }
+}
+
+/**
+ * Get current user ID
+ */
+export function getCurrentUserId(): string | null {
+  const userData = getCurrentUser();
+  return userData?.Id || null;
+}
+
+/**
+ * Logout a user
+ */
+export function logout(): void {
+  localStorage.removeItem('authToken');
+  localStorage.removeItem('userData');
+  try {
+    useUserStore.getState().logout();
+  } catch (error) {
+    console.error('Failed to update user store on logout:', error);
+  }
 }
 
 /**
@@ -58,7 +152,7 @@ export async function loginUser(data: UserLoginData): Promise<{ token: string }>
  */
 export async function deleteAccount(): Promise<void> {
   const res = await api.delete('/auth/account');
-  useUserStore.getState().logout();
+  logout();
   return res.data;
 }
 

@@ -4,12 +4,13 @@ import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { StatCards } from '@/components/dashboard/StatCards';
 import { Avatar } from '@/components/ui/avatar';
-import { Bell, Settings, User, ChevronDown } from 'lucide-react';
+import { Bell, Settings, User, ChevronDown, ArrowUpRight, Calendar, BarChart2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useTheme } from '@/hooks/useTheme';
 import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/api/UserAPI';
+import { getCurrentUser, getCurrentUserProjects } from '@/api/UserAPI';
+import { format, isPast, isToday, differenceInDays } from 'date-fns';
 
 // Animation variants
 const containerVariants = {
@@ -36,19 +37,19 @@ const itemVariants = {
 };
 
 // TopBar with Welcome message and dynamic user data
+
 function TopBar() {
   const [userData, setUserData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [dropdownOpen, setDropdownOpen] = useState(false);
   const { theme } = useTheme();
   const router = useRouter();
   
   useEffect(() => {
-    async function fetchUser() {
+    function getUserData() {
       try {
-        // Fetch the current user from the backend
-        const user = await getCurrentUser();
-        setUserData(user);
+        // Get user data from localStorage instead of API call
+        const userData = getCurrentUser();
+        setUserData(userData);
       } catch (error) {
         console.error('Failed to load user:', error);
       } finally {
@@ -56,8 +57,19 @@ function TopBar() {
       }
     }
     
-    fetchUser();
+    getUserData();
   }, []);
+  
+  // Get name or email prefix for welcome message
+  const getWelcomeName = () => {
+    if (userData?.FirstName) {
+      return userData.FirstName;
+    } else if (userData?.Email) {
+      // Extract part before @ in email
+      return userData.Email.split('@')[0];
+    }
+    return 'User';
+  };
   
   // Dynamic gradient based on theme
   const getGradient = () => {
@@ -83,7 +95,7 @@ function TopBar() {
             "text-2xl font-bold bg-gradient-to-r bg-clip-text text-transparent",
             getGradient()
           )}>
-            Welcome back, {userData?.FirstName || 'User'}
+            Welcome back, {getWelcomeName()}
           </h1>
         )}
       </motion.div>
@@ -96,75 +108,111 @@ function TopBar() {
           </span>
         </Button>
         
-        <div className="relative">
-          <div 
-            className="flex items-center gap-2 cursor-pointer"
-            onClick={() => setDropdownOpen(!dropdownOpen)}
-          >
-            <div className="relative overflow-hidden rounded-full">
-              <Avatar 
-                size="sm" 
-                name={loading ? '?' : (userData?.FirstName || 'User')}
-              />
-            </div>
-            <ChevronDown className={cn(
-              "h-4 w-4 text-muted-foreground transition-transform",
-              dropdownOpen && "rotate-180"
-            )} />
+        {/* Profile button that directly navigates to profile page */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-2 p-1 rounded-full hover:bg-white/10 transition-colors"
+          onClick={() => router.push('/profile')}
+          title="Go to profile"
+        >
+          <div className="relative overflow-hidden rounded-full">
+            <Avatar 
+              size="sm" 
+              name={loading ? '?' : getWelcomeName()}
+            />
           </div>
-          
-          <AnimatePresence>
-            {dropdownOpen && (
-              <motion.div
-                initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                transition={{ duration: 0.2 }}
-                className="absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white/5 backdrop-blur-md border border-white/10 overflow-hidden z-50"
-              >
-                <div className="p-3 border-b border-white/10">
-                  <div className="flex items-center gap-3">
-                    <Avatar 
-                      size="md" 
-                      name={loading ? '?' : (userData?.FirstName || 'User')}
-                    />
-                    <div>
-                      <p className="font-medium">{loading ? 'Loading...' : `${userData?.FirstName || ''} ${userData?.LastName || ''}`}</p>
-                      <p className="text-xs text-muted-foreground truncate">{userData?.Email || 'user@example.com'}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="py-1">
-                  <button
-                    onClick={() => {
-                      router.push('/profile');
-                      setDropdownOpen(false);
-                    }}
-                    className="flex w-full items-center px-4 py-2.5 text-sm hover:bg-white/10"
-                  >
-                    <User className="h-4 w-4 mr-2" />
-                    View Profile
-                  </button>
-                  <button
-                    onClick={() => {
-                      router.push('/settings');
-                      setDropdownOpen(false);
-                    }}
-                    className="flex w-full items-center px-4 py-2.5 text-sm hover:bg-white/10"
-                  >
-                    <Settings className="h-4 w-4 mr-2" />
-                    Account Settings
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+          <span className="text-sm font-medium hidden sm:inline-block">
+            {getWelcomeName()}
+          </span>
+        </motion.button>
       </div>
     </div>
   );
 }
 
+
+
+function ProjectHighlightCard({ project, onClick }) {
+  const deadline = project.Deadline ? new Date(project.Deadline) : null;
+  const isOverdue = deadline && isPast(deadline) && project.Progress < 100;
+  const progress = project.Progress || 0;
+  
+  return (
+    <motion.div
+      whileHover={{ 
+        y: -8, 
+        scale: 1.03,
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+      }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ 
+        type: "spring", 
+        stiffness: 400, 
+        damping: 17 
+      }}
+      className="relative group bg-white/5 border-[3px] border-white/20 rounded-lg p-4 cursor-pointer transition-all duration-300"
+      onClick={onClick}
+      style={{
+        boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)'
+      }}
+    >
+      {/* Premium glow effect that appears on hover */}
+      <div className="absolute inset-0 -z-10 bg-gradient-to-r from-primary/0 via-primary/30 to-indigo-500/0 opacity-0 group-hover:opacity-20 blur-xl rounded-lg transition-opacity duration-700 ease-in-out" />
+      
+      {/* Corner highlight effect */}
+      <div className="absolute -top-2 -right-2 h-10 w-10 bg-primary opacity-0 blur-xl rounded-full group-hover:opacity-40 transition-all duration-500" />
+      
+      <div className="flex justify-between items-start mb-2">
+        <h3 className="font-medium group-hover:text-primary transition-colors duration-300">{project.Name}</h3>
+        <div className="p-1.5 rounded-full bg-white/10 group-hover:bg-primary/20 group-hover:scale-110 transition-all duration-300">
+          <ArrowUpRight className="h-4 w-4 text-white group-hover:text-primary transition-colors" />
+        </div>
+      </div>
+      
+      <p className="text-sm text-muted-foreground line-clamp-2 mb-3 min-h-[40px] group-hover:text-white/90 transition-colors duration-300">
+        {project.Description || 'No description provided'}
+      </p>
+      
+      <div className="space-y-2">
+        <div className="flex items-center justify-between text-xs">
+          <span>Progress</span>
+          <span 
+            className="font-medium group-hover:text-primary transition-all duration-300"
+          >
+            {progress}%
+          </span>
+        </div>
+        <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden transition-all duration-500 group-hover:h-2">
+          <motion.div 
+            initial={{ width: 0 }}
+            animate={{ width: `${progress}%` }}
+            transition={{ duration: 1, delay: 0.1 }}
+            className={cn(
+              "h-full", 
+              isOverdue ? "bg-red-500" : "bg-primary"
+            )}
+          />
+        </div>
+      </div>
+      
+      {deadline && (
+        <div className="flex items-center mt-3 text-xs px-2 py-1 rounded-full bg-white/5 w-fit group-hover:bg-white/10 transition-all duration-300 group-hover:shadow-md">
+          <Calendar className="h-3 w-3 mr-1.5 text-muted-foreground group-hover:text-primary transition-colors duration-300" />
+          <span className={cn(
+            "text-muted-foreground group-hover:text-white transition-colors duration-300",
+            isOverdue && "text-red-400 group-hover:text-red-300"
+          )}>
+            {isOverdue ? 'Overdue' : isToday(deadline) ? 'Due today' : format(deadline, 'MMM d, yyyy')}
+          </span>
+        </div>
+      )}
+      
+      {/* Bottom light bar that grows on hover */}
+      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-primary/0 via-primary to-primary/0 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 ease-in-out" />
+    </motion.div>
+  );
+}
 // Footer Quote component
 function QuoteFooter() {
   const quotes = [
@@ -199,6 +247,38 @@ function QuoteFooter() {
 
 // Main Dashboard
 export default function DashboardRedesign() {
+  const [projects, setProjects] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+  
+  useEffect(() => {
+    async function fetchProjects() {
+      try {
+        // Fetch user's projects from the backend
+        const projectsData = await getCurrentUserProjects();
+        console.log('Projects loaded:', projectsData);
+        setProjects(projectsData || []);
+      } catch (error) {
+        console.error('Failed to load projects:', error);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    fetchProjects();
+  }, []);
+  
+  const goToCreateProject = () => {
+    router.push('/projects/create');
+  };
+  
+  const goToProject = (projectId) => {
+    router.push(`/projects/${projectId}`);
+  };
+  
+  // Get the top 3 projects for highlights
+  const highlightProjects = projects.slice(0, 3);
+  
   return (
     <div className="min-h-full pb-10">
       <div className="max-w-7xl mx-auto px-4">
@@ -220,12 +300,39 @@ export default function DashboardRedesign() {
             <div className="absolute -top-28 -right-28 w-56 h-56 rounded-full bg-primary/5 blur-3xl pointer-events-none"></div>
             <div className="absolute bottom-0 left-0 w-full h-1/3 bg-gradient-to-t from-background/50 to-transparent pointer-events-none"></div>
             
-            <h2 className="text-xl font-semibold mb-4">
-              Project Highlights
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-semibold">
+                Project Highlights
+              </h2>
+              
+              {projects.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => router.push('/projects')}
+                >
+                  View All
+                </Button>
+              )}
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
-              {/* Empty state with styling */}
+            {loading ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-48 bg-white/5 animate-pulse rounded-lg"></div>
+                ))}
+              </div>
+            ) : projects.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
+                {highlightProjects.map((project) => (
+                  <ProjectHighlightCard 
+                    key={project.Id} 
+                    project={project} 
+                    onClick={() => goToProject(project.Id)}
+                  />
+                ))}
+              </div>
+            ) : (
               <div className="col-span-full flex flex-col items-center justify-center py-12">
                 <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary/20 to-indigo-500/20 flex items-center justify-center mb-4">
                   <svg className="h-10 w-10 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -234,11 +341,14 @@ export default function DashboardRedesign() {
                 </div>
                 <h3 className="text-lg font-medium mb-2">No projects yet</h3>
                 <p className="text-sm text-muted-foreground mb-4 max-w-md text-center">Create your first project to see highlights, trends and progress</p>
-                <Button className="bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/20">
+                <Button 
+                  onClick={goToCreateProject}
+                  className="bg-gradient-to-r from-primary to-indigo-600 shadow-lg shadow-primary/20"
+                >
                   Create Project
                 </Button>
               </div>
-            </div>
+            )}
           </motion.div>
           
           {/* Activity Timeline */}
@@ -247,7 +357,9 @@ export default function DashboardRedesign() {
               <h2 className="text-xl font-semibold">
                 Recent Activity
               </h2>
-              <Button variant="outline" size="sm">View All</Button>
+              {projects.length > 0 && (
+                <Button variant="outline" size="sm">View All</Button>
+              )}
             </div>
             
             {/* Empty state timeline */}
