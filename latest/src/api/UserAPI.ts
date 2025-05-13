@@ -74,21 +74,29 @@ export async function loginUser(data: UserLoginData): Promise<User> {
     // Store token in localStorage
     localStorage.setItem('authToken', token);
     
-    // Fetch user data after successful login
+    // Decode JWT to extract user information
     let userData: User;
-    
     try {
-      const userResponse = await api.get('/users/me');
-      userData = userResponse.data;
-    } catch (error) {
-      console.error('Failed to fetch user data:', error);
-      // If the API doesn't have a /users/me endpoint, we might need to use another endpoint
-      // or just create a minimal user object from the login response
+      const tokenPayload = token.split('.')[1];
+      const decodedPayload = JSON.parse(atob(tokenPayload));
+      console.log('Decoded JWT payload:', decodedPayload);
+      
+      // Extract user information from JWT payload
       userData = {
-        Id: '', // We might not have this information
+        Id: decodedPayload.sub || decodedPayload.id || decodedPayload.userId || `user-${Date.now()}`,
+        FirstName: decodedPayload.firstName || decodedPayload.first_name || '',
+        LastName: decodedPayload.lastName || decodedPayload.last_name || '',
+        Email: decodedPayload.email || data.Email,
+        Role: decodedPayload.role || decodedPayload.roles || ''
+      };
+    } catch (error) {
+      console.error('Failed to decode JWT token:', error);
+      // Fallback to minimal user object if token can't be decoded
+      userData = {
+        Id: `user-${Date.now()}`,
         FirstName: '',
         LastName: '',
-        Email: data.Email, // We at least know the email from the login form
+        Email: data.Email,
         Role: ''
       };
     }

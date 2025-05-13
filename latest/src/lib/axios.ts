@@ -1,13 +1,14 @@
 import axios from "axios";
 
+// Create axios instance with base URL
 export const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
+  baseURL: "http://localhost:8000",
   headers: {
     "Content-Type": "application/json",
   },
-  withCredentials: true,
 });
 
+// Add request interceptor to inject auth token
 api.interceptors.request.use((config) => {
   const token = typeof window !== "undefined"
     ? localStorage.getItem("authToken")
@@ -23,6 +24,7 @@ api.interceptors.request.use((config) => {
   return Promise.reject(error);
 });
 
+// Add response interceptor to handle auth errors
 api.interceptors.response.use(
   (res) => res,
   (err) => {
@@ -33,13 +35,8 @@ api.interceptors.response.use(
         localStorage.removeItem("authToken");
         localStorage.removeItem("userData");
         
-     
         window.location.href = "/login";
       }
-    }
-    
-    if (err?.response?.status === 403) {
-      console.warn('Permission denied');
     }
     
     return Promise.reject(err);

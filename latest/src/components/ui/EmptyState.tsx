@@ -1,58 +1,38 @@
-import { ReactNode } from "react"
-import { motion } from "framer-motion"
-import { cn } from "@/lib/utils"
+import { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
 
 interface EmptyStateProps {
-  icon?: ReactNode
-  title: string
-  description?: string
-  action?: ReactNode
-  className?: string
-  variant?: "default" | "error" | "info"
+  title: string;
+  description?: string;
+  icon?: ReactNode;
+  action?: ReactNode;
+  className?: string;
 }
 
 export function EmptyState({
-  icon,
   title,
   description,
+  icon,
   action,
   className,
-  variant = "default",
 }: EmptyStateProps) {
-  const variantClass = {
-    default: "text-primary",
-    error: "text-red-500",
-    info: "text-blue-500",
-  }
-
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, ease: "easeOut" }}
+    <div
       className={cn(
-        "flex flex-col items-center justify-center text-center max-w-md mx-auto py-8 gap-5 sm:gap-6",
+        'flex flex-col items-center justify-center p-8 text-center bg-gray-50 dark:bg-gray-900/50 rounded-xl border border-gray-100 dark:border-gray-800',
         className
       )}
     >
       {icon && (
-        <div className={cn("mb-1", variantClass[variant])}>
-          <div className="h-12 w-12">{icon}</div>
+        <div className="mb-4 bg-white dark:bg-gray-800 p-3 rounded-full">
+          {icon}
         </div>
       )}
-
-      <div className="space-y-1">
-        <h2 className="text-xl font-semibold text-foreground">{title}</h2>
-        {description && (
-          <p className="text-sm text-muted-foreground leading-relaxed">{description}</p>
-        )}
-      </div>
-
-      {action && (
-        <div className="mt-4 animate-fade-in">
-          {action}
-        </div>
+      <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{title}</h3>
+      {description && (
+        <p className="text-gray-500 dark:text-gray-400 max-w-md mb-4">{description}</p>
       )}
-    </motion.div>
-  )
+      {action && <div>{action}</div>}
+    </div>
+  );
 }

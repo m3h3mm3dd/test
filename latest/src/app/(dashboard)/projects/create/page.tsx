@@ -1,19 +1,26 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Sparkles } from 'lucide-react';
+import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { launchConfetti } from '@/lib/confetti';
 import { useAuth } from '@/contexts/AuthContext';
-import { createProject } from '@/api/ProjectAPI';
+import {
+  createProject,
+  checkServerConnection,
+  ProjectCreateData,
+  addProjectMember,
+} from '@/api/ProjectAPI';
 
 export default function CreateProjectPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
-  const nameInputRef = useRef(null);
+  const [serverChecked, setServerChecked] = useState(false);
+  const [serverOnline, setServerOnline] = useState(true);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [form, setForm] = useState({
     Name: '',
     Description: '',
@@ -21,37 +28,133 @@ export default function CreateProjectPage() {
     Deadline: '',
   });
 
+  useEffect(() => {
+    async function checkConnection() {
+      try {
+        const isConnected = await checkServerConnection();
+        setServerOnline(isConnected);
+        if (!isConnected) {
+          toast.error('Cannot connect to the backend server. Please ensure it is running.');
+        }
+      } catch {
+        setServerOnline(false);
+        toast.error('Failed to connect to the backend server.');
+      } finally {
+        setServerChecked(true);
+      }
+    }
+
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error('You must be logged in to create a project');
+      router.push('/login');
+      return;
+    }
+
+    checkConnection();
+  }, [router]);
+
   const handleSubmit = async () => {
+    if (!serverOnline) {
+      toast.error('Cannot connect to the server. Please ensure the backend is running.');
+      return;
+    }
+
     if (!form.Name.trim()) {
       toast.error('Project name is required');
       nameInputRef.current?.focus();
       return;
     }
 
-    setLoading(true);
-    const payload = {
-      Name: form.Name,
-      Description: form.Description || '',
-      Budget: parseFloat(form.TotalBudget) || 0, // ✅ FIXED HERE
-      Deadline: form.Deadline ? new Date(form.Deadline + 'T00:00:00Z').toISOString() : null,
-      StatusId: 'active',
-      IsDeleted: false,
-    };
+    const token = localStorage.getItem('authToken');
+    if (!token) {
+      toast.error('Authentication required. Please log in.');
+      router.push('/login');
+      return;
+    }
 
-    console.log('Creating with payload:', payload);
+    setLoading(true);
 
     try {
+      const payload: ProjectCreateData = {
+        Name: form.Name,
+        Description: form.Description || '',
+        Budget: parseFloat(form.TotalBudget) || 0,
+        StatusId: 'active',
+      };
+
+      if (form.Deadline?.trim()) {
+        const parsedDate = new Date(form.Deadline + 'T00:00:00Z');
+        if (!isNaN(parsedDate.getTime())) {
+          payload.Deadline = parsedDate.toISOString();
+        }
+      }
+
       const project = await createProject(payload);
+
+      if (user?.Id && project?.Id) {
+        await addProjectMember(project.Id, user.Id);
+      }
+
       launchConfetti();
       toast.success('Project created successfully');
       router.push(`/projects/${project.Id}`);
     } catch (error: any) {
       console.error('Failed to create project:', error);
-      toast.error(error?.message || 'Failed to create project');
+      if (error.message?.includes('Authentication')) {
+        toast.error('Authentication required. Please log in again.');
+        router.push('/login');
+      } else if (
+        error.message?.includes('connect to server') ||
+        error.message?.includes('Failed to fetch')
+      ) {
+        toast.error('Cannot connect to the server. Please check if the backend is running.');
+      } else {
+        toast.error(error.message || 'Failed to create project. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
   };
+
+  if (!serverChecked) {
+    return (
+      <div className="min-h-screen bg-[#f8fdfb] flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#4CAF50] mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking server connection...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!serverOnline) {
+    return (
+      <div className="min-h-screen bg-[#f8fdfb] flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-8 bg-white rounded-xl shadow-md">
+          <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+          <h2 className="text-2xl font-bold text-gray-800 mb-2">Connection Error</h2>
+          <p className="text-gray-600 mb-6">
+            Cannot connect to the backend server. Please ensure it is running at http://localhost:8000
+          </p>
+          <div className="flex justify-center gap-4">
+            <button
+              onClick={() => router.push('/projects')}
+              className="px-4 py-2 bg-gray-200 rounded-md hover:bg-gray-300 transition-colors"
+            >
+              Back to Projects
+            </button>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-[#4CAF50] text-white rounded-md hover:bg-[#3d9140] transition-colors"
+            >
+              Retry Connection
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#f8fdfb]">
@@ -119,7 +222,7 @@ export default function CreateProjectPage() {
               </div>
 
               <div className="space-y-2">
-                <label className="block text-gray-700 font-medium">Deadline (Optional)</label>
+                <label className="block text-gray-700 font-medium">Deadline</label>
                 <input
                   type="date"
                   value={form.Deadline}
