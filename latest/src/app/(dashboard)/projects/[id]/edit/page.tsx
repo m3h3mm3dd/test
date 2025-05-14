@@ -1,9 +1,8 @@
-
 'use client'
 
 import { useEffect, useState, useRef, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { getProjectById, updateProject } from '@/api/project'
+import { getProjectById, updateProject } from '@/api/ProjectAPI'
 import { getProjectTasks } from '@/api/TaskAPI'
 import { Tabs } from '@/components/ui/tabs'
 import { ProjectScope } from '@/components/project/ProjectScope'
@@ -11,8 +10,6 @@ import { ProjectTeam } from '@/components/project/ProjectTeam'
 import { ProjectStakeholders } from '@/components/project/ProjectStakeholders'
 import { ProjectActivityLog } from '@/components/project/ProjectActivityLog'
 import { ProjectAttachments } from '@/components/project/ProjectAttachments'
-import { ProjectTasks } from '@/components/project/ProjectTasks'
-import { ProjectChat } from '@/components/chat/ProjectChat'
 import { GlassPanel } from '@/components/ui/GlassPanel'
 import { Skeleton } from '@/components/ui/skeleton'
 import { motion, AnimatePresence } from 'framer-motion'
@@ -21,6 +18,7 @@ import { canEditProject, canCreateTask, canCompleteTask } from '@/lib/roles'
 import { Button } from '@/components/ui/button'
 import { CreateTaskForm } from '@/components/project/CreateTaskForm'
 import { MarkTaskComplete } from '@/components/project/MarkTaskComplete'
+import { ProjectTasks } from '@/components/project/ProjectTasks'
 
 export default function ProjectDetailPage() {
   const { id } = useParams()
@@ -83,7 +81,6 @@ export default function ProjectDetailPage() {
     { label: 'Scope', value: 'scope' },
     { label: 'Activity', value: 'activity' },
     { label: 'Files', value: 'attachments' },
-    { label: 'Chat', value: 'chat' },
   ]
 
   return (
@@ -193,12 +190,6 @@ export default function ProjectDetailPage() {
           {tab === 'attachments' && (
             <motion.div key="attachments" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
               <ProjectAttachments projectId={project.Id} />
-            </motion.div>
-          )}
-
-          {tab === 'chat' && (
-            <motion.div key="chat" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-              <ProjectChat projectId={project.Id} />
             </motion.div>
           )}
         </AnimatePresence>

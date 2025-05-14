@@ -1,4 +1,4 @@
-/
+
 export function isProjectOwner(user: any, project: any): boolean {
   return user?.Id === project?.OwnerId
 }

@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from '@/providers/Providers';
 import { Toaster } from '@/components/ui/toaster';
+import ClientOnly from '@/components/ClientOnly'; 
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
 
@@ -24,7 +25,9 @@ export default function RootLayout({
         <Providers>
           <div className="min-h-screen bg-background">
             {children}
-            <Toaster />
+            <ClientOnly>
+              <Toaster />
+            </ClientOnly>
           </div>
         </Providers>
       </body>

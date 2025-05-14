@@ -10,6 +10,7 @@ import { toast } from '@/lib/toast';
 import { format, isPast, isToday, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
+import { ProjectDeleteDialog } from '@/components/project/ProjectDeleteDialog';
 
 // Icons
 import {
@@ -31,11 +32,11 @@ import {
   Users2,
   AlertCircle,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 
 // Components
 import { Button } from '@/components/ui/button';
-import { DeleteProjectButton } from '@/components/project/DeleteProjectButton';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function ProjectDetailPage() {
@@ -47,6 +48,14 @@ export default function ProjectDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [userRole, setUserRole] = useState({ 
+    isOwner: false, 
+    isTeamLeader: false, 
+    isStakeholder: false,
+    isMember: false,
+    role: 'guest'
+  });
   
   // Ref for clicking outside of dropdown
   const dropdownRef = useRef(null);
@@ -65,6 +74,72 @@ export default function ProjectDetailPage() {
     };
   }, []);
 
+  // Get user ID from JWT token
+  const getUserIdFromToken = () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return null;
+      
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded.sub || decoded.id || decoded.userId;
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return null;
+    }
+  };
+
+  // Determine user's role in the project
+  const determineUserRole = (project) => {
+    if (!project) return { 
+      isOwner: false, 
+      isTeamLeader: false, 
+      isStakeholder: false,
+      isMember: false,
+      role: 'guest'
+    };
+
+    // Get user ID from either user object or token
+    const userId = user?.Id || getUserIdFromToken();
+    if (!userId) return { 
+      isOwner: false, 
+      isTeamLeader: false, 
+      isStakeholder: false,
+      isMember: false,
+      role: 'guest'
+    };
+    
+    // Check if user is the project owner
+    const isOwner = userId === project.OwnerId;
+    
+    // Check if user is a team leader
+    const isTeamLeader = Array.isArray(project.teams) && 
+      project.teams.some(team => team.LeaderId === userId);
+    
+    // Check if user is a stakeholder
+    const isStakeholder = Array.isArray(project.stakeholders) && 
+      project.stakeholders.some(stake => stake.UserId === userId);
+    
+    // Check if user is a member
+    const isMember = Array.isArray(project.members) && 
+      project.members.some(member => member.UserId === userId);
+    
+    // Determine role string
+    let role = 'guest';
+    if (isOwner) role = 'Project Owner';
+    else if (isTeamLeader) role = 'Team Leader';
+    else if (isStakeholder) role = 'Stakeholder';
+    else if (isMember) role = 'Member';
+    
+    return {
+      isOwner,
+      isTeamLeader,
+      isStakeholder,
+      isMember,
+      role
+    };
+  };
+
   useEffect(() => {
     async function fetchProjectData() {
       try {
@@ -79,6 +154,10 @@ export default function ProjectDetailPage() {
         setProject(projectData);
         setTasks(tasksData || []);
         setError(null);
+        
+        // Determine user role
+        const roleInfo = determineUserRole(projectData);
+        setUserRole(roleInfo);
       } catch (err) {
         console.error('Failed to load project:', err);
         setError(err.message || 'Failed to load project details');
@@ -91,11 +170,7 @@ export default function ProjectDetailPage() {
     if (id) {
       fetchProjectData();
     }
-  }, [id]);
-
-  // Role-based access check
-  const isOwner = user?.Id === project?.OwnerId;
-  const isTeamLeader = project?.teams?.some(team => team.LeaderId === user?.Id) || false;
+  }, [id, user]);
   
   // Calculate task statistics
   const taskStats = {
@@ -173,7 +248,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Header */}
-<header className="sticky top-0 z-50 backdrop-blur-xl bg-background/90 dark:bg-background/80 border-b border-border">
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/90 dark:bg-background/80 border-b border-border">
         <div className="container max-w-7xl mx-auto px-4">
           <div className="py-4 flex items-center justify-between">
             {/* Back button and project title */}
@@ -201,7 +276,7 @@ export default function ProjectDetailPage() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-3">
-              {isOwner && (
+              {userRole.isOwner && (
                 <>
                   <Button
                     onClick={() => router.push(`/projects/${project.Id}/edit`)}
@@ -210,12 +285,6 @@ export default function ProjectDetailPage() {
                   >
                     <Edit className="h-3.5 w-3.5 mr-2" /> Edit
                   </Button>
-                  
-                  <DeleteProjectButton 
-                    projectId={project.Id} 
-                    variant="outline"
-                    size="sm"
-                  />
                 </>
               )}
               
@@ -246,6 +315,7 @@ export default function ProjectDetailPage() {
                       >
                         Export Project Data
                       </button>
+                      
                       <button 
                         className="w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors"
                         onClick={() => {
@@ -256,6 +326,19 @@ export default function ProjectDetailPage() {
                       >
                         Print Project Summary
                       </button>
+                      
+                      {userRole.isOwner && (
+                        <button 
+                          className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center"
+                          onClick={() => {
+                            setShowDropdown(false);
+                            setShowDeleteDialog(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete Project
+                        </button>
+                      )}
                     </motion.div>
                   </div>
                 )}
@@ -321,7 +404,7 @@ export default function ProjectDetailPage() {
                     <span className="text-sm font-medium text-muted-foreground">Progress</span>
                   </div>
                   
-                  {isOwner && completionPercentage !== project.Progress && (
+                  {userRole.isOwner && completionPercentage !== project.Progress && (
                     <Button 
                       variant="outline" 
                       size="xs" 
@@ -463,12 +546,14 @@ export default function ProjectDetailPage() {
                 <div className="text-center py-6 bg-muted/50 rounded-lg">
                   <Clock className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-muted-foreground">No tasks have been created yet</p>
-                  <Link 
-                    href={`/projects/${project.Id}/tasks`}
-                    className="inline-block mt-2 text-primary hover:text-primary/80 transition-colors text-sm"
-                  >
-                    Add tasks
-                  </Link>
+                  {userRole.isOwner && (
+                    <Link 
+                      href={`/projects/${project.Id}/tasks`}
+                      className="inline-block mt-2 text-primary hover:text-primary/80 transition-colors text-sm"
+                    >
+                      Add tasks
+                    </Link>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -529,6 +614,19 @@ export default function ProjectDetailPage() {
                   </div>
                   <ChevronRight className="h-4 w-4 text-muted-foreground" />
                 </Link>
+                
+                {userRole.isOwner && (
+                  <Link 
+                    href={`/projects/${project.Id}/edit`}
+                    className="flex items-center justify-between w-full py-2.5 px-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
+                  >
+                    <div className="flex items-center">
+                      <Edit className="h-5 w-5 text-indigo-400 mr-3" />
+                      <span>Edit Project</span>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  </Link>
+                )}
               </div>
             </motion.div>
             
@@ -568,9 +666,9 @@ export default function ProjectDetailPage() {
                 
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Your Role</span>
-                  <span className={isOwner ? "text-purple-500 dark:text-purple-400" : 
-                                  isTeamLeader ? "text-blue-500 dark:text-blue-400" : ""}>
-                    {isOwner ? "Project Owner" : isTeamLeader ? "Team Leader" : "Team Member"}
+                  <span className={userRole.isOwner ? "text-purple-500 dark:text-purple-400" : 
+                                  userRole.isTeamLeader ? "text-blue-500 dark:text-blue-400" : ""}>
+                    {userRole.role}
                   </span>
                 </div>
               </div>
@@ -631,6 +729,14 @@ export default function ProjectDetailPage() {
           </div>
         </div>
       </main>
+      
+      {/* Delete Project Dialog */}
+      <ProjectDeleteDialog
+        projectId={project.Id}
+        projectName={project.Name}
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+      />
     </div>
   );
 }

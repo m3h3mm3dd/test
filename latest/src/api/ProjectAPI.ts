@@ -108,15 +108,27 @@ export async function updateProject(projectId: string, data: ProjectUpdateData):
 }
 
 export async function deleteProject(projectId: string): Promise<string> {
-  const headers = getAuthHeaders();
+  const headers = {
+    ...getAuthHeaders(),
+    'Content-Type': 'application/json',
+  };
+
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/delete`, {
     method: 'DELETE',
-    headers
+    headers,
+    body: JSON.stringify({ IsDeleted: true }), 
   });
 
-  if (!response.ok) throw new Error(`Failed to delete project: ${response.status}`);
-  return response.json();
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Failed to delete project: ${response.status} - ${errorText}`);
+  }
+
+  return response.json(); 
 }
+
+
+
 
 export async function getProjectMembers(projectId: string): Promise<any[]> {
   const headers = getAuthHeaders();
