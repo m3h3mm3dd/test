@@ -1,3 +1,4 @@
+// src/api/TaskAPI.ts - Fixed version
 import { api } from '@/lib/axios';
 
 export interface Task {
@@ -68,8 +69,13 @@ export interface Attachment {
  * Get all tasks
  */
 export async function getAllTasks(): Promise<Task[]> {
-  const response = await api.get('/tasks/');
-  return response.data;
+  try {
+    const response = await api.get('/tasks/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching all tasks:', error);
+    return [];
+  }
 }
 
 /**
@@ -90,34 +96,56 @@ export async function getTaskById(taskId: string): Promise<Task> {
 
 /**
  * Update a task
+ * Uses PUT /tasks/{taskId}
  */
 export async function updateTask(taskId: string, data: TaskUpdateData): Promise<Task> {
-  const response = await api.put(`/tasks/${taskId}`, data);
-  return response.data;
+  try {
+    const response = await api.put(`/tasks/${taskId}`, data);
+    return response.data;
+  } catch (error) {
+    console.error('Error updating task:', error);
+    throw error;
+  }
 }
 
 /**
  * Delete a task
+ * Uses DELETE /tasks/{taskId}
  */
 export async function deleteTask(taskId: string): Promise<any> {
-  const response = await api.delete(`/tasks/${taskId}`);
-  return response.data;
+  try {
+    const response = await api.delete(`/tasks/${taskId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting task:', error);
+    throw error;
+  }
 }
 
 /**
  * Get all tasks for a specific user
  */
 export async function getUserTasks(userId: string): Promise<Task[]> {
-  const response = await api.get(`/users/${userId}/tasks/assigned`);
-  return response.data;
+  try {
+    const response = await api.get(`/users/${userId}/tasks/assigned`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching user tasks:', error);
+    return [];
+  }
 }
 
 /**
  * Get tasks created by a specific user
  */
 export async function getTasksCreatedByUser(userId: string): Promise<Task[]> {
-  const response = await api.get(`/users/${userId}/tasks/created`);
-  return response.data;
+  try {
+    const response = await api.get(`/users/${userId}/tasks/created`);
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tasks created by user:', error);
+    return [];
+  }
 }
 
 /**
@@ -129,7 +157,6 @@ export async function getCurrentUserTasks(): Promise<Task[]> {
     return response.data;
   } catch (error) {
     console.error('Error fetching assigned tasks:', error);
-    // Return empty array to prevent application crashes
     return [];
   }
 }
@@ -145,22 +172,31 @@ export async function getCurrentUserAssignedTasks(): Promise<Task[]> {
  * Get tasks created by the current user
  */
 export async function getTasksCreatedByCurrentUser(): Promise<Task[]> {
-  const response = await api.get('/users/tasks/created');
-  return response.data;
+  try {
+    const response = await api.get('/users/tasks/created');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching tasks created by current user:', error);
+    return [];
+  }
 }
 
 /**
  * Mark a task as complete
- * New function to update task completion status
+ * Uses PUT /tasks/{taskId}/complete
  */
 export async function markTaskComplete(taskId: string): Promise<Task> {
-  const response = await api.put(`/tasks/${taskId}/complete`, {});
-  return response.data;
+  try {
+    const response = await api.put(`/tasks/${taskId}/complete`, {});
+    return response.data;
+  } catch (error) {
+    console.error('Error marking task complete:', error);
+    throw error;
+  }
 }
 
 /**
  * Get tasks for a specific project
- * Falls back to filtering from all tasks if needed
  */
 export async function getProjectTasks(projectId: string): Promise<Task[]> {
   try {
@@ -168,19 +204,26 @@ export async function getProjectTasks(projectId: string): Promise<Task[]> {
     const response = await api.get(`/projects/${projectId}/tasks`);
     return response.data;
   } catch (error) {
-    console.warn(`Fallback: filtering all tasks for project ${projectId}`, error);
-
-    const all = await api.get('/tasks/');
-    return all.data.filter((task: Task) => task.ProjectId === projectId);
+    console.error(`Error fetching project tasks: ${error}`);
+    
+    try {
+      // Fallback: get all tasks and filter by project ID
+      const allTasks = await getAllTasks();
+      return allTasks.filter((task: Task) => task.ProjectId === projectId);
+    } catch (fallbackError) {
+      console.error(`Fallback also failed: ${fallbackError}`);
+      return [];
+    }
   }
 }
 
 /**
  * Get attachments for a task
+ * Both taskId and projectId are required
  */
 export async function getTaskAttachments(taskId: string, projectId: string): Promise<Attachment[]> {
   if (!taskId || !projectId) {
-    console.error('Missing taskId or projectId');
+    console.error('Missing taskId or projectId for getTaskAttachments');
     return [];
   }
 
@@ -196,34 +239,49 @@ export async function getTaskAttachments(taskId: string, projectId: string): Pro
 
 /**
  * Upload an attachment to a task
+ * Both file, taskId and projectId are required
  */
 export async function uploadTaskAttachment(
   file: File,
   taskId: string,
   projectId: string
 ): Promise<Attachment> {
+  if (!file || !taskId || !projectId) {
+    throw new Error('Missing required parameters for uploadTaskAttachment');
+  }
+
   const formData = new FormData();
   formData.append('file', file);
-  formData.append('entityType', 'Task'); // 👈 Use "Task" exactly as expected by backend
+  formData.append('entityType', 'Task'); // Use "Task" exactly as expected by backend
   formData.append('entityId', taskId);
   formData.append('projectId', projectId);
 
-  const response = await api.post('/attachments/upload', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
-  });
-
-  return response.data;
+  try {
+    const response = await api.post('/attachments/upload', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error uploading attachment:', error);
+    throw error;
+  }
 }
 
 /**
  * Delete an attachment from a task
  */
 export async function deleteTaskAttachment(taskId: string, attachmentId: string): Promise<any> {
-  const response = await api.delete(`/tasks/${taskId}/attachments/${attachmentId}`)
-  return response.data
+  try {
+    const response = await api.delete(`/tasks/${taskId}/attachments/${attachmentId}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error deleting attachment:', error);
+    throw error;
+  }
 }
+
 /**
  * Get all teams for a project
  */
@@ -233,7 +291,6 @@ export async function getProjectTeams(projectId: string): Promise<any[]> {
     return response.data;
   } catch (error) {
     console.error('Error fetching project teams:', error);
-    // Return empty array to prevent application crashes
     return [];
   }
 }
@@ -247,7 +304,6 @@ export async function getProjectMembers(projectId: string): Promise<any[]> {
     return response.data;
   } catch (error) {
     console.error('Error fetching project members:', error);
-    // Return empty array to prevent application crashes
     return [];
   }
 }

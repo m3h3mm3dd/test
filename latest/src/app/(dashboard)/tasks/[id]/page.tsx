@@ -1,3 +1,9 @@
+// Fixed task detail page
+// Key changes:
+// 1. Fixed getTaskAttachments call to pass projectId
+// 2. Improved error handling
+// 3. Added null checks
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -157,11 +163,16 @@ export default function TaskDetailPage() {
             canComplete: isOwner || isLeader || isAssigned,
             canUpload: isOwner || isLeader || isAssigned
           });
+          
+          // Fetch attachments - Now passing the projectId as needed
+          try {
+            const attachmentsData = await getTaskAttachments(id as string, taskData.ProjectId);
+            setAttachments(attachmentsData || []);
+          } catch (attachmentError) {
+            console.error('Error fetching attachments:', attachmentError);
+            // Don't fail the whole page load if attachments fail
+          }
         }
-        
-        // Fetch attachments
-        const attachmentsData = await getTaskAttachments(id as string);
-        setAttachments(attachmentsData || []);
         
         setError(null);
       } catch (err: any) {
@@ -179,11 +190,15 @@ export default function TaskDetailPage() {
   // Handle attachment upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !task?.Id) return;
+    if (!file || !task?.Id || !task?.ProjectId) {
+      toast.error('Missing task information for file upload');
+      return;
+    }
     
     setUploading(true);
     try {
-      const newAttachment = await uploadTaskAttachment(task.Id, file);
+      // Pass both taskId and projectId to the upload function
+      const newAttachment = await uploadTaskAttachment(file, task.Id, task.ProjectId);
       setAttachments(prev => [...prev, newAttachment]);
       toast.success('File uploaded successfully');
     } catch (error) {
@@ -287,7 +302,11 @@ export default function TaskDetailPage() {
       toast.success('Task deleted successfully');
       
       // Redirect back to project tasks page
-      router.push(`/projects/${task.ProjectId}/tasks`);
+      if (task.ProjectId) {
+        router.push(`/projects/${task.ProjectId}/tasks`);
+      } else {
+        router.push('/tasks');
+      }
     } catch (error) {
       console.error('Failed to delete task:', error);
       toast.error('Could not delete task');
@@ -310,21 +329,26 @@ export default function TaskDetailPage() {
   const getDeadlineStatus = () => {
     if (!task?.Deadline) return null;
     
-    const deadline = parseISO(task.Deadline);
-    
-    if (task.Completed) {
-      return { label: 'Task completed', color: 'text-success' };
+    try {
+      const deadline = parseISO(task.Deadline);
+      
+      if (task.Completed) {
+        return { label: 'Task completed', color: 'text-success' };
+      }
+      
+      if (isPast(deadline) && !isToday(deadline)) {
+        return { label: 'Overdue', color: 'text-destructive' };
+      }
+      
+      if (isToday(deadline)) {
+        return { label: 'Due today', color: 'text-warning' };
+      }
+      
+      return null;
+    } catch (e) {
+      console.error('Invalid date format:', e);
+      return null;
     }
-    
-    if (isPast(deadline) && !isToday(deadline)) {
-      return { label: 'Overdue', color: 'text-destructive' };
-    }
-    
-    if (isToday(deadline)) {
-      return { label: 'Due today', color: 'text-warning' };
-    }
-    
-    return null;
   };
   
   // Loading state
@@ -695,7 +719,7 @@ export default function TaskDetailPage() {
                 <>
                   <button
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading}
+                    disabled={uploading || !task.ProjectId}
                     className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-70"
                   >
                     {uploading ? (
