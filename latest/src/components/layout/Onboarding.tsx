@@ -15,46 +15,49 @@ const messages = [
 export default function Onboarding() {
   const router = useRouter()
   const [index, setIndex] = useState(0)
-  const [isPaused, setIsPaused] = useState(false)
   const timeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [show, setShow] = useState(true)
 
+  // Redirect if onboarded
   useEffect(() => {
     const onboarded = localStorage.getItem('taskup_onboarded')
     const userId = localStorage.getItem('userId')
-
     if (onboarded === 'true') {
       router.push(userId ? '/dashboard' : '/login')
     }
   }, [router])
 
+  // ✨ Bulletproof message loop using timeout
   useEffect(() => {
-    if (timeoutRef.current) clearTimeout(timeoutRef.current)
+    if (!show) return
 
-    if (!isPaused) {
-      timeoutRef.current = setTimeout(() => {
+    timeoutRef.current = setTimeout(() => {
+      setShow(false)
+      setTimeout(() => {
         setIndex((prev) => (prev + 1) % messages.length)
-      }, 4000)
-    }
+        setShow(true)
+      }, 500) // this matches the exit animation time
+    }, 4000)
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [index, isPaused])
+  }, [index, show])
 
   const go = (path: string) => {
     try {
       localStorage.setItem('taskup_onboarded', 'true')
-    } catch {}
+    } catch (error) {
+      console.error('Failed to set onboarded status:', error)
+    }
     router.push(path)
   }
 
   return (
     <main
       className="relative min-h-screen w-full overflow-hidden bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white font-sans"
-      onMouseEnter={() => setIsPaused(true)}
-      onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Ambient Background */}
+      {/* Background */}
       <motion.div className="absolute inset-0 z-0">
         <motion.div
           className="absolute top-[-30vh] left-1/2 -translate-x-1/2 w-[80vw] h-[80vw] bg-indigo-500 opacity-20 rounded-full blur-[200px]"
@@ -68,7 +71,7 @@ export default function Onboarding() {
         />
       </motion.div>
 
-      {/* Main */}
+      {/* Content */}
       <div className="relative z-10 flex flex-col justify-center items-center min-h-screen px-6 text-center">
         <motion.h1
           initial={{ opacity: 0, y: -12 }}
@@ -88,19 +91,21 @@ export default function Onboarding() {
           Focused work. Beautifully managed.
         </motion.p>
 
-        {/* Message cycle */}
-        <div className="relative mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center overflow-hidden">
+        {/* 🔁 Message loop */}
+        <div className="mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center">
           <AnimatePresence mode="wait">
-            <motion.span
-              key={`message-${index}`}
-              initial={{ opacity: 0, y: 12 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -12 }}
-              transition={{ duration: 0.5, ease: 'easeOut' }}
-              className="absolute block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
-            >
-              {messages[index]}
-            </motion.span>
+            {show && (
+              <motion.span
+                key={messages[index]}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -12 }}
+                transition={{ duration: 0.5 }}
+                className="block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
+              >
+                {messages[index]}
+              </motion.span>
+            )}
           </AnimatePresence>
         </div>
 

@@ -159,36 +159,62 @@ export async function markTaskComplete(taskId: string): Promise<Task> {
 }
 
 /**
- * Get all tasks for a project
- * New function to get tasks for a specific project
+ * Get tasks for a specific project
+ * Falls back to filtering from all tasks if needed
  */
 export async function getProjectTasks(projectId: string): Promise<Task[]> {
-  const response = await api.get(`/projects/${projectId}/tasks`);
-  return response.data;
+  try {
+    // Try the direct endpoint first
+    const response = await api.get(`/projects/${projectId}/tasks`);
+    return response.data;
+  } catch (error) {
+    console.warn(`Fallback: filtering all tasks for project ${projectId}`, error);
+
+    const all = await api.get('/tasks/');
+    return all.data.filter((task: Task) => task.ProjectId === projectId);
+  }
 }
 
 /**
  * Get attachments for a task
  */
-export async function getTaskAttachments(taskId: string): Promise<Attachment[]> {
-  const response = await api.get(`/tasks/${taskId}/attachments`)
-  return response.data
+export async function getTaskAttachments(taskId: string, projectId: string): Promise<Attachment[]> {
+  if (!taskId || !projectId) {
+    console.error('Missing taskId or projectId');
+    return [];
+  }
+
+  try {
+    const response = await api.get(`/attachments/entity/${projectId}/Task/${taskId}`);
+    return response.data;
+  } catch (error: any) {
+    if (error?.response?.status === 404) return [];
+    console.error('Failed to fetch task attachments:', error);
+    throw error;
+  }
 }
 
 /**
  * Upload an attachment to a task
  */
-export async function uploadTaskAttachment(taskId: string, file: File): Promise<Attachment> {
-  const formData = new FormData()
-  formData.append('file', file)
+export async function uploadTaskAttachment(
+  file: File,
+  taskId: string,
+  projectId: string
+): Promise<Attachment> {
+  const formData = new FormData();
+  formData.append('file', file);
+  formData.append('entityType', 'Task'); // 👈 Use "Task" exactly as expected by backend
+  formData.append('entityId', taskId);
+  formData.append('projectId', projectId);
 
-  const response = await api.post(`/tasks/${taskId}/attachments`, formData, {
+  const response = await api.post('/attachments/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
-  })
+  });
 
-  return response.data
+  return response.data;
 }
 
 /**

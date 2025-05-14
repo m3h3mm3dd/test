@@ -2,138 +2,169 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
-  Calendar,
-  User, 
+  Calendar, 
   Users, 
-  AlertTriangle
+  User, 
+  Clock, 
+  Flag, 
+  Plus, 
+  CheckCircle2, 
+  Loader2, 
+  AlertCircle
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 
-// API imports
+// API
 import { getProjectById, getProjectTeams, getProjectMembers } from '@/api/ProjectAPI';
 import { createTask } from '@/api/TaskAPI';
-import { useUser } from '@/hooks/useUser';
 import { toast } from '@/lib/toast';
 
-// CSS for the page
+// Styles
 import './createTask.css';
 
 export default function CreateTaskPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { user } = useUser();
   
   // States
-  const [project, setProject] = useState(null);
-  const [teams, setTeams] = useState([]);
-  const [members, setMembers] = useState([]);
+  const [project, setProject] = useState<any>(null);
+  const [teams, setTeams] = useState<any[]>([]);
+  const [members, setMembers] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [isOwner, setIsOwner] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [isProjectOwner, setIsProjectOwner] = useState(false);
   
   // Form state
   const [form, setForm] = useState({
     Title: '',
     Description: '',
-    Status: 'Not Started',
     Priority: 'MEDIUM',
+    Status: 'Not Started',
     Deadline: '',
-    AssignTo: 'none', // 'none', 'user', 'team'
+    AssignmentType: 'none', // 'none', 'user', 'team'
     UserId: '',
     TeamId: ''
   });
   
   // Validation state
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState<Record<string, string>>({});
   
+  // Get user ID from JWT token
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (token) {
+        const payload = token.split('.')[1];
+        const decoded = JSON.parse(atob(payload));
+        setUserId(decoded.sub || decoded.id || decoded.userId);
+      } else {
+        // No token, redirect to login
+        toast.error('Authentication required');
+        router.push('/login');
+      }
+    } catch (error) {
+      console.error('Error decoding token:', error);
+      toast.error('Authentication error');
+      router.push('/login');
+    }
+  }, [router]);
+
   // Fetch project data
   useEffect(() => {
-    const loadData = async () => {
+    const fetchData = async () => {
+      if (!id || !userId) return;
+      
+      setLoading(true);
       try {
-        setLoading(true);
-        
-        // Fetch project data
-        const projectData = await getProjectById(id);
+        // Get project and check ownership
+        const projectData = await getProjectById(id as string);
         setProject(projectData);
         
-        // Check if current user is project owner
-        const userIsOwner = user?.Id === projectData.OwnerId;
-        setIsOwner(userIsOwner);
+        // Check if user is project owner
+        const userIsOwner = projectData.OwnerId === userId;
+        setIsProjectOwner(userIsOwner);
         
         if (!userIsOwner) {
-          // Redirect if not the owner
           toast.error('Only project owners can create tasks');
           router.push(`/projects/${id}/tasks`);
           return;
         }
         
-        // Fetch teams and members in parallel
+        // Get teams and members
         const [teamsData, membersData] = await Promise.all([
-          getProjectTeams(id),
-          getProjectMembers(id)
+          getProjectTeams(id as string),
+          getProjectMembers(id as string)
         ]);
         
-        setTeams(teamsData);
-        setMembers(membersData);
-      } catch (error) {
-        console.error('Failed to load project data:', error);
+        setTeams(teamsData || []);
+        setMembers(membersData || []);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error fetching project data:', err);
+        setError(err?.message || 'Failed to load project data');
         toast.error('Could not load project data');
       } finally {
         setLoading(false);
       }
     };
     
-    if (id && user) {
-      loadData();
-    }
-  }, [id, user, router]);
-  
+    fetchData();
+  }, [id, userId, router]);
+
   // Handle input change
-  const handleInputChange = (e) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setForm(prev => ({ ...prev, [name]: value }));
-    
-    // Reset related field errors
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }));
-    }
     
     // Handle assignment type changes
-    if (name === 'AssignTo') {
+    if (name === 'AssignmentType') {
       if (value === 'none') {
-        setForm(prev => ({ ...prev, UserId: '', TeamId: '' }));
+        setForm(prev => ({ ...prev, [name]: value, UserId: '', TeamId: '' }));
       } else if (value === 'user') {
-        setForm(prev => ({ ...prev, TeamId: '' }));
+        setForm(prev => ({ ...prev, [name]: value, TeamId: '' }));
       } else if (value === 'team') {
-        setForm(prev => ({ ...prev, UserId: '' }));
+        setForm(prev => ({ ...prev, [name]: value, UserId: '' }));
       }
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }));
+    }
+    
+    // Clear validation error when field is changed
+    if (errors[name]) {
+      setErrors(prev => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
     }
   };
-  
+
   // Validate form
   const validateForm = () => {
-    const newErrors = {};
+    const newErrors: Record<string, string> = {};
     
     if (!form.Title.trim()) {
       newErrors.Title = 'Title is required';
     }
     
-    if (form.AssignTo === 'user' && !form.UserId) {
+    if (form.AssignmentType === 'user' && !form.UserId) {
       newErrors.UserId = 'Please select a team member';
     }
     
-    if (form.AssignTo === 'team' && !form.TeamId) {
+    if (form.AssignmentType === 'team' && !form.TeamId) {
       newErrors.TeamId = 'Please select a team';
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
-  
+
   // Handle form submission
-  const handleSubmit = async (e) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!validateForm()) {
@@ -144,14 +175,12 @@ export default function CreateTaskPage() {
     
     try {
       // Prepare task data
-      const taskData = {
+      const taskData: any = {
         Title: form.Title,
         Description: form.Description,
         Status: form.Status,
         Priority: form.Priority,
         ProjectId: id,
-        UserId: form.AssignTo === 'user' ? form.UserId : undefined,
-        TeamId: form.AssignTo === 'team' ? form.TeamId : undefined
       };
       
       // Add deadline if provided
@@ -159,63 +188,103 @@ export default function CreateTaskPage() {
         taskData.Deadline = new Date(form.Deadline).toISOString();
       }
       
+      // Add assignment based on type
+      if (form.AssignmentType === 'user') {
+        taskData.UserId = form.UserId;
+      } else if (form.AssignmentType === 'team') {
+        taskData.TeamId = form.TeamId;
+      }
+      
       // Create task
       await createTask(taskData);
       
       toast.success('Task created successfully');
       router.push(`/projects/${id}/tasks`);
-    } catch (error) {
-      console.error('Failed to create task:', error);
-      toast.error('Could not create task');
+    } catch (err: any) {
+      console.error('Error creating task:', err);
+      toast.error(err?.message || 'Could not create task');
     } finally {
       setSubmitting(false);
     }
   };
-  
-  // If not the project owner (after check), return null
-  if (!loading && !isOwner) {
-    return null;
+
+  // If not the project owner, redirect
+  if (loading) {
+    return (
+      <div className="create-task-container flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading project data...</p>
+        </div>
+      </div>
+    );
   }
-  
+
+  if (error) {
+    return (
+      <div className="create-task-container flex items-center justify-center min-h-[60vh]">
+        <div className="bg-card rounded-xl p-8 max-w-md w-full text-center space-y-4 border shadow-sm">
+          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
+          <h2 className="text-xl font-bold">Error Loading Project</h2>
+          <p className="text-muted-foreground">{error}</p>
+          <div className="flex justify-center gap-4 mt-6">
+            <button 
+              onClick={() => router.push(`/projects/${id}/tasks`)}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
+            >
+              Back to Tasks
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isProjectOwner) {
+    return null; // This shouldn't be visible since we redirect
+  }
+
   return (
     <div className="create-task-container">
       {/* Header */}
-      <div className="create-task-header">
-        <div className="create-task-title">
-          <button 
-            className="back-button" 
+      <div className="mb-8">
+        <div className="flex items-center gap-4">
+          <button
             onClick={() => router.push(`/projects/${id}/tasks`)}
+            className="h-10 w-10 rounded-full flex items-center justify-center bg-muted hover:bg-muted/80 transition-colors"
+            aria-label="Back to tasks"
           >
-            <ArrowLeft size={18} />
+            <ArrowLeft className="h-5 w-5 text-foreground" />
           </button>
+          
           <div>
-            <h1>Create New Task</h1>
-            <p className="subtitle">
-              {project?.Name ? `Add a task to ${project.Name}` : 'Add a task to this project'}
+            <h1 className="text-2xl font-bold">Create New Task</h1>
+            <p className="text-muted-foreground mt-1">
+              Add a new task to {project?.Name || 'this project'}
             </p>
           </div>
         </div>
       </div>
       
       {/* Form */}
-      {loading ? (
-        <div className="form-skeleton">
-          <div className="input-skeleton"></div>
-          <div className="textarea-skeleton"></div>
-          <div className="input-row-skeleton">
-            <div className="input-skeleton"></div>
-            <div className="input-skeleton"></div>
-          </div>
-          <div className="input-row-skeleton">
-            <div className="input-skeleton"></div>
-            <div className="input-skeleton"></div>
-          </div>
-        </div>
-      ) : (
-        <form className="create-task-form" onSubmit={handleSubmit}>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="bg-card rounded-xl border shadow-sm overflow-hidden"
+      >
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
           {/* Title */}
-          <div className="form-group">
-            <label htmlFor="Title">Task Title <span className="required">*</span></label>
+          <div className="space-y-2">
+            <label htmlFor="Title" className="block text-sm font-medium">
+              Task Title <span className="text-destructive">*</span>
+            </label>
             <input
               type="text"
               id="Title"
@@ -223,33 +292,39 @@ export default function CreateTaskPage() {
               value={form.Title}
               onChange={handleInputChange}
               placeholder="Enter task title"
-              className={errors.Title ? 'error' : ''}
+              className={`w-full px-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.Title ? 'border-destructive' : 'border-input'}`}
             />
-            {errors.Title && <div className="error-message">{errors.Title}</div>}
+            {errors.Title && <p className="text-destructive text-sm">{errors.Title}</p>}
           </div>
           
           {/* Description */}
-          <div className="form-group">
-            <label htmlFor="Description">Description</label>
+          <div className="space-y-2">
+            <label htmlFor="Description" className="block text-sm font-medium">
+              Description
+            </label>
             <textarea
               id="Description"
               name="Description"
               value={form.Description}
               onChange={handleInputChange}
-              placeholder="Enter task description"
+              placeholder="Describe the task details, requirements, or any additional information"
               rows={4}
+              className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
             ></textarea>
           </div>
           
-          {/* Status and Priority */}
-          <div className="form-row">
-            <div className="form-group">
-              <label htmlFor="Status">Status</label>
+          {/* Two columns for Status and Priority */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="Status" className="block text-sm font-medium">
+                Status
+              </label>
               <select
                 id="Status"
                 name="Status"
                 value={form.Status}
                 onChange={handleInputChange}
+                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
               >
                 <option value="Not Started">Not Started</option>
                 <option value="In Progress">In Progress</option>
@@ -257,13 +332,16 @@ export default function CreateTaskPage() {
               </select>
             </div>
             
-            <div className="form-group">
-              <label htmlFor="Priority">Priority</label>
+            <div className="space-y-2">
+              <label htmlFor="Priority" className="block text-sm font-medium">
+                Priority
+              </label>
               <select
                 id="Priority"
                 name="Priority"
                 value={form.Priority}
                 onChange={handleInputChange}
+                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
               >
                 <option value="LOW">Low</option>
                 <option value="MEDIUM">Medium</option>
@@ -273,138 +351,166 @@ export default function CreateTaskPage() {
           </div>
           
           {/* Deadline */}
-          <div className="form-group">
-            <label htmlFor="Deadline">Deadline</label>
-            <div className="date-input-container">
-              <Calendar className="date-icon" size={16} />
+          <div className="space-y-2">
+            <label htmlFor="Deadline" className="block text-sm font-medium">
+              Deadline
+            </label>
+            <div className="relative">
+              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
               <input
                 type="date"
                 id="Deadline"
                 name="Deadline"
                 value={form.Deadline}
                 onChange={handleInputChange}
-                min={format(new Date(), 'yyyy-MM-dd')}
+                className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
               />
             </div>
           </div>
           
           {/* Assignment */}
-          <div className="form-group">
-            <label>Assign To</label>
-            <div className="assign-options">
-              <label className="radio-label">
+          <div className="space-y-4">
+            <label className="block text-sm font-medium">
+              Assignment
+            </label>
+            
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  name="AssignTo"
+                  id="assignNone"
+                  name="AssignmentType"
                   value="none"
-                  checked={form.AssignTo === 'none'}
+                  checked={form.AssignmentType === 'none'}
                   onChange={handleInputChange}
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
                 />
-                <span>No Assignment</span>
-              </label>
+                <label htmlFor="assignNone">No Assignment</label>
+              </div>
               
-              <label className="radio-label">
+              <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  name="AssignTo"
+                  id="assignUser"
+                  name="AssignmentType"
                   value="user"
-                  checked={form.AssignTo === 'user'}
+                  checked={form.AssignmentType === 'user'}
                   onChange={handleInputChange}
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
                 />
-                <span>Team Member</span>
-              </label>
+                <label htmlFor="assignUser">Assign to Team Member</label>
+              </div>
               
-              <label className="radio-label">
+              <div className="flex items-center space-x-2">
                 <input
                   type="radio"
-                  name="AssignTo"
+                  id="assignTeam"
+                  name="AssignmentType"
                   value="team"
-                  checked={form.AssignTo === 'team'}
+                  checked={form.AssignmentType === 'team'}
                   onChange={handleInputChange}
+                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
                 />
-                <span>Team</span>
-              </label>
+                <label htmlFor="assignTeam">Assign to Team</label>
+              </div>
             </div>
+            
+            {/* User selection */}
+            {form.AssignmentType === 'user' && (
+              <div className="space-y-2 pl-6 border-l-2 border-muted">
+                <label htmlFor="UserId" className="block text-sm font-medium">
+                  Select Team Member <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <select
+                    id="UserId"
+                    name="UserId"
+                    value={form.UserId}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.UserId ? 'border-destructive' : 'border-input'}`}
+                  >
+                    <option value="">Select a team member...</option>
+                    {members.length === 0 ? (
+                      <option value="" disabled>No members available</option>
+                    ) : (
+                      members.map(member => (
+                        <option key={member.UserId} value={member.UserId}>
+                          {member.User?.FirstName 
+                            ? `${member.User.FirstName} ${member.User.LastName || ''}` 
+                            : `User ${member.UserId.substring(0, 8)}`}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                {errors.UserId && <p className="text-destructive text-sm">{errors.UserId}</p>}
+              </div>
+            )}
+            
+            {/* Team selection */}
+            {form.AssignmentType === 'team' && (
+              <div className="space-y-2 pl-6 border-l-2 border-muted">
+                <label htmlFor="TeamId" className="block text-sm font-medium">
+                  Select Team <span className="text-destructive">*</span>
+                </label>
+                <div className="relative">
+                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                  <select
+                    id="TeamId"
+                    name="TeamId"
+                    value={form.TeamId}
+                    onChange={handleInputChange}
+                    className={`w-full pl-10 pr-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.TeamId ? 'border-destructive' : 'border-input'}`}
+                  >
+                    <option value="">Select a team...</option>
+                    {teams.length === 0 ? (
+                      <option value="" disabled>No teams available</option>
+                    ) : (
+                      teams.map(team => (
+                        <option key={team.Id} value={team.Id}>
+                          {team.Name}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
+                {errors.TeamId && <p className="text-destructive text-sm">{errors.TeamId}</p>}
+              </div>
+            )}
           </div>
           
-          {/* User selection */}
-          {form.AssignTo === 'user' && (
-            <div className="form-group">
-              <label htmlFor="UserId">
-                Select Team Member <span className="required">*</span>
-              </label>
-              <div className="select-container">
-                <User className="select-icon" size={16} />
-                <select
-                  id="UserId"
-                  name="UserId"
-                  value={form.UserId}
-                  onChange={handleInputChange}
-                  className={errors.UserId ? 'error' : ''}
-                >
-                  <option value="">Select a member...</option>
-                  {members.map(member => (
-                    <option key={member.UserId} value={member.UserId}>
-                      {/* Display user name if available, otherwise use ID */}
-                      {member.User?.FirstName 
-                        ? `${member.User.FirstName} ${member.User.LastName || ''}` 
-                        : `User ${member.UserId.substring(0, 8)}`}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {errors.UserId && <div className="error-message">{errors.UserId}</div>}
-            </div>
-          )}
-          
-          {/* Team selection */}
-          {form.AssignTo === 'team' && (
-            <div className="form-group">
-              <label htmlFor="TeamId">
-                Select Team <span className="required">*</span>
-              </label>
-              <div className="select-container">
-                <Users className="select-icon" size={16} />
-                <select
-                  id="TeamId"
-                  name="TeamId"
-                  value={form.TeamId}
-                  onChange={handleInputChange}
-                  className={errors.TeamId ? 'error' : ''}
-                >
-                  <option value="">Select a team...</option>
-                  {teams.map(team => (
-                    <option key={team.Id} value={team.Id}>
-                      {team.Name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {errors.TeamId && <div className="error-message">{errors.TeamId}</div>}
-            </div>
-          )}
-          
           {/* Form actions */}
-          <div className="form-actions">
+          <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
-              className="cancel-button"
               onClick={() => router.push(`/projects/${id}/tasks`)}
               disabled={submitting}
+              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
             >
               Cancel
             </button>
             
             <button
               type="submit"
-              className="submit-button"
               disabled={submitting}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
-              {submitting ? 'Creating...' : 'Create Task'}
+              {submitting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span>Creating...</span>
+                </>
+              ) : (
+                <>
+                  <Plus className="h-4 w-4" />
+                  <span>Create Task</span>
+                </>
+              )}
             </button>
           </div>
         </form>
-      )}
+      </motion.div>
     </div>
   );
 }
