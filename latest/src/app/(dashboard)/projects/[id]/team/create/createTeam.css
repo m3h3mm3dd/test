@@ -1,0 +1,351 @@
+/* Modern iOS-style CSS for Create Team Page */
+
+.create-team-container {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+/* Header */
+.create-team-header {
+  margin-bottom: 2rem;
+}
+
+.create-team-title {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.back-button {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: none;
+  background-color: var(--accent);
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: var(--muted);
+}
+
+.create-team-title h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--foreground);
+}
+
+.subtitle {
+  font-size: 0.95rem;
+  color: var(--muted-foreground);
+  margin: 0.25rem 0 0 0;
+}
+
+/* Form */
+.create-team-form {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .create-team-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+.team-preview-section,
+.team-details-section {
+  background-color: var(--card);
+  border-radius: 1rem;
+  border: 1px solid var(--border);
+  padding: 1.5rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.team-preview-section h2,
+.team-details-section h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 0 0 1.25rem 0;
+  color: var(--foreground);
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Team preview */
+.team-preview-card {
+  text-align: center;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  transition: all 0.2s ease;
+}
+
+.team-preview-avatar {
+  width: 8rem;
+  height: 8rem;
+  border-radius: 1rem;
+  margin: 0 auto 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  transition: all 0.2s ease;
+}
+
+.team-preview-name {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: var(--foreground);
+}
+
+.team-preview-description {
+  font-size: 0.9rem;
+  color: var(--muted-foreground);
+  margin: 0;
+}
+
+/* Form elements */
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--foreground);
+  display: flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.required {
+  color: var(--destructive);
+  margin-left: 0.25rem;
+}
+
+input[type="text"],
+textarea {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  background-color: var(--background);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  transition: all 0.2s ease;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 6rem;
+}
+
+input[type="text"]:focus,
+textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-alpha);
+}
+
+input.error {
+  border-color: var(--destructive);
+}
+
+.error-message {
+  font-size: 0.8rem;
+  color: var(--destructive);
+  margin-top: 0.25rem;
+}
+
+/* Color selection */
+.color-options {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 0.75rem;
+}
+
+.color-option {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  border: 3px solid transparent;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.selected {
+  border-color: var(--foreground);
+  transform: scale(1.1);
+}
+
+.color-option.selected::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 0.75rem;
+  height: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.6);
+  border-radius: 50%;
+}
+
+/* Form actions */
+.form-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border);
+}
+
+.cancel-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--muted);
+  color: var(--foreground);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button:hover {
+  background-color: var(--muted-dark);
+}
+
+.submit-button {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.5rem;
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+  font-size: 0.95rem;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.submit-button:hover {
+  background-color: var(--primary-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.submit-button:disabled,
+.cancel-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* Loading skeleton */
+.form-skeleton {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr;
+  gap: 2rem;
+  margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+  .form-skeleton {
+    grid-template-columns: 1fr;
+  }
+}
+
+.input-skeleton {
+  height: 2.5rem;
+  background-color: var(--accent);
+  border-radius: 0.75rem;
+  animation: pulse 1.5s infinite;
+  margin-bottom: 1rem;
+}
+
+.textarea-skeleton {
+  height: 6rem;
+  background-color: var(--accent);
+  border-radius: 0.75rem;
+  animation: pulse 1.5s infinite;
+  margin-bottom: 1rem;
+}
+
+.colors-skeleton {
+  height: 3rem;
+  background-color: var(--accent);
+  border-radius: 0.75rem;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 0.4;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* CSS Variables */
+:root {
+  --team-color-1: #f87171;
+  --team-color-1-text: #7f1d1d;
+  --team-color-2: #fbbf24;
+  --team-color-2-text: #78350f;
+  --team-color-3: #34d399;
+  --team-color-3-text: #064e3b;
+  --team-color-4: #60a5fa;
+  --team-color-4-text: #1e3a8a;
+  --team-color-5: #a78bfa;
+  --team-color-5-text: #4c1d95;
+  --team-color-6: #f472b6;
+  --team-color-6-text: #831843;
+  --primary-dark: #2563eb;
+  --muted-dark: #e2e8f0;
+}
+
+/* Dark mode color adjustments */
+.dark {
+  --team-color-1-text: #fecaca;
+  --team-color-2-text: #fef3c7;
+  --team-color-3-text: #a7f3d0;
+  --team-color-4-text: #bfdbfe;
+  --team-color-5-text: #ddd6fe;
+  --team-color-6-text: #fbcfe8;
+  --muted-dark: #334155;
+}

@@ -1,11 +1,11 @@
 import { api } from '@/lib/axios';
 
 export interface Team {
+  Id: string;
   Name: string;
   Description: string;
   ColorIndex: number;
   ProjectId: string;
-  Id: string;
   CreatedAt: string;
   UpdatedAt: string;
   IsDeleted: boolean;
@@ -31,12 +31,22 @@ export interface TeamMemberData {
   IsLeader?: boolean;
 }
 
+export interface TeamMemberRemoveData {
+  TeamId: string;
+  UserIdToBeRemoved: string;
+}
+
 /**
  * Get all teams
  */
 export async function getAllTeams(): Promise<Team[]> {
-  const response = await api.get('/teams/');
-  return response.data;
+  try {
+    const response = await api.get('/teams/');
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching teams:', error);
+    return [];
+  }
 }
 
 /**
@@ -51,7 +61,9 @@ export async function createTeam(data: TeamCreateData): Promise<Team> {
  * Get a specific team by ID
  */
 export async function getTeamById(teamId: string): Promise<Team> {
-  const response = await api.get(`/teams/${team_id}?teamId=${teamId}`);
+  const response = await api.get(`/teams/${teamId}`, {
+    params: { teamId }
+  });
   return response.data;
 }
 
@@ -67,7 +79,9 @@ export async function updateTeam(teamId: string, data: TeamUpdateData): Promise<
  * Delete a team
  */
 export async function deleteTeam(teamId: string): Promise<void> {
-  await api.delete(`/teams/${team_id}?teamId=${teamId}`);
+  await api.delete(`/teams/${teamId}`, {
+    params: { teamId }
+  });
 }
 
 /**
@@ -81,8 +95,10 @@ export async function addTeamMember(data: TeamMemberData): Promise<string> {
 /**
  * Remove a member from a team
  */
-export async function removeTeamMember(data: { TeamId: string, UserIdToBeRemoved: string }): Promise<string> {
-  const response = await api.delete(`/teams/${data.TeamId}/members/${data.UserIdToBeRemoved}`, { data });
+export async function removeTeamMember(data: TeamMemberRemoveData): Promise<string> {
+  const response = await api.delete(`/teams/${data.TeamId}/members/${data.UserIdToBeRemoved}`, {
+    data
+  });
   return response.data;
 }
 
@@ -90,6 +106,27 @@ export async function removeTeamMember(data: { TeamId: string, UserIdToBeRemoved
  * Get all tasks for a team
  */
 export async function getTeamTasks(teamId: string): Promise<any[]> {
-  const response = await api.get(`/teams/${team_id}/tasks?teamId=${teamId}`);
-  return response.data;
+  try {
+    const response = await api.get(`/teams/${teamId}/tasks`, {
+      params: { teamId }
+    });
+    return response.data;
+  } catch (error) {
+    console.error('Error fetching team tasks:', error);
+    return [];
+  }
+}
+
+/**
+ * Get all teams for a project
+ */
+export async function getProjectTeams(projectId: string): Promise<Team[]> {
+  try {
+    // Filter teams by project ID from getAllTeams since specific endpoint might not be available
+    const allTeams = await getAllTeams();
+    return allTeams.filter(team => team.ProjectId === projectId);
+  } catch (error) {
+    console.error('Error fetching project teams:', error);
+    return [];
+  }
 }

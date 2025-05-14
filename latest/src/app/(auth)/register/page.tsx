@@ -4,7 +4,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import { toast } from "@/lib/toast"
-import axios from "axios"
+import api from "@/lib/axios" // ✅ fixed import
 
 export default function Register() {
   const router = useRouter()
@@ -13,25 +13,21 @@ export default function Register() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!email) return toast.error("Please enter your email address")
+    if (!email || !email.includes("@")) {
+      toast.error("Enter a valid email address")
+      return
+    }
+
     setLoading(true)
     try {
-      const response = await axios.post(
-        `http://127.0.0.1:8000/email/send-verification-code?recipientEmail=${encodeURIComponent(email)}`,
-        {},
-        {
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-          }
-        }
-      )
+      await api.post(`/email/send-verification-code?recipientEmail=${encodeURIComponent(email)}`)
+
       localStorage.setItem("taskup_register_email", email)
       toast.success("Verification code sent to your email")
       router.push("/verify")
     } catch (err: any) {
-      console.error(err)
-      toast.error("Failed to send verification code. Please try again.")
+      const msg = err?.response?.data?.detail || "Something went wrong. Please try again."
+      toast.error(typeof msg === "string" ? msg : "Failed to send verification code.")
     } finally {
       setLoading(false)
     }
@@ -39,13 +35,8 @@ export default function Register() {
 
   return (
     <div className="relative grid lg:grid-cols-2 min-h-screen w-full bg-gradient-to-br from-[#0f0c29] via-[#302b63] to-[#24243e] text-white overflow-hidden">
-      
       {/* Ambient blobs */}
-      <motion.div
-        className="absolute inset-0 z-0 pointer-events-none"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
+      <motion.div className="absolute inset-0 z-0 pointer-events-none" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
         <motion.div
           className="absolute top-[-25%] left-[-10%] w-[60vw] h-[60vw] bg-indigo-500 opacity-20 rounded-full blur-[200px]"
           animate={{ scale: [1, 1.1, 1], rotate: [0, 4, -4, 0] }}
@@ -58,18 +49,17 @@ export default function Register() {
         />
       </motion.div>
 
-      {/* App name top-left */}
+      {/* App logo */}
       <motion.div
-  initial={{ opacity: 0, y: -10 }}
-  animate={{ opacity: 1, y: 0 }}
-  transition={{ duration: 0.6, delay: 0.4 }}
-  className="absolute top-6 left-6 z-20 text-white text-xl font-bold tracking-tight drop-shadow-md"
->
-  TaskUp
-</motion.div>
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
+        className="absolute top-6 left-6 z-20 text-white text-xl font-bold tracking-tight drop-shadow-md"
+      >
+        TaskUp
+      </motion.div>
 
-
-      {/* Left Hero */}
+      {/* Hero left */}
       <motion.section
         initial={{ opacity: 0, x: -30 }}
         animate={{ opacity: 1, x: 0 }}
@@ -88,7 +78,7 @@ export default function Register() {
         </div>
       </motion.section>
 
-      {/* Right Form */}
+      {/* Register Form */}
       <motion.section
         initial={{ opacity: 0, x: 30 }}
         animate={{ opacity: 1, x: 0 }}
@@ -124,7 +114,7 @@ export default function Register() {
               {loading ? "Sending..." : "Continue"}
             </motion.button>
           </form>
-          
+
           <p className="mt-6 text-center text-sm text-white/50">
             Already have an account?{" "}
             <a href="/login" className="text-indigo-400 hover:text-indigo-300 transition-colors underline-offset-4 hover:underline">

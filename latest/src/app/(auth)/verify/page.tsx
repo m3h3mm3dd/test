@@ -1,14 +1,15 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { toast } from "@/lib/toast"
-import { api } from "@/lib/api"
+import api from "@/lib/axios"
 import { motion } from "framer-motion"
 
 export default function VerifyPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [code, setCode] = useState(Array(6).fill(""))
   const [loading, setLoading] = useState(false)
   const [resending, setResending] = useState(false)
@@ -18,12 +19,11 @@ export default function VerifyPage() {
   const inputsRef = useRef<(HTMLInputElement | null)[]>([])
 
   useEffect(() => {
-    const e = localStorage.getItem("taskup_register_email")
+    const e = localStorage.getItem("taskup_register_email") || localStorage.getItem("taskup_reset_email")
     if (!e) router.push("/register")
     else setEmail(e)
   }, [])
 
-  // ⏱ countdown
   useEffect(() => {
     const interval = setInterval(() => {
       setTimeLeft((prev) => {
@@ -38,9 +38,7 @@ export default function VerifyPage() {
   }, [])
 
   const formatTime = (s: number) =>
-    `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60)
-      .toString()
-      .padStart(2, "0")}`
+    `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`
 
   const handleChange = (value: string, idx: number) => {
     if (!/^\d?$/.test(value)) return
@@ -48,10 +46,7 @@ export default function VerifyPage() {
     newCode[idx] = value
     setCode(newCode)
     setError("")
-
-    if (value && idx < 5) {
-      inputsRef.current[idx + 1]?.focus()
-    }
+    if (value && idx < 5) inputsRef.current[idx + 1]?.focus()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent, idx: number) => {
@@ -65,30 +60,23 @@ export default function VerifyPage() {
 
   const handleSubmit = async () => {
     const fullCode = code.join("")
-    if (fullCode.length < 6) {
-      setError("Please enter all 6 digits.")
-      return
-    }
-    if (timeLeft === 0) {
-      setError("Code expired. Please resend.")
-      return
-    }
+    if (fullCode.length < 6) return setError("Please enter all 6 digits.")
+    if (timeLeft === 0) return setError("Code expired. Please resend.")
 
     setLoading(true)
     try {
-      const response = await api.post("/email/check-verification-code", {
+      const res = await api.post("/email/check-verification-code", {
         Email: email,
         VerificationCode: fullCode,
       })
-      
-      // Fixed: Check if verification was actually successful
-      const data = response.data
+      const data = res.data
       if (data.Success) {
         toast.success("Email verified ✅")
-        router.push("/finishRegister")
+        const next = searchParams.get("next")
+        router.push(next === "reset" ? "/reset" : "/finishRegister")
       } else {
-        setError(data.Message || "Verification failed. Please try again.")
-        toast.error(data.Message || "Verification failed. Please try again.")
+        setError(data.Message || "Verification failed")
+        toast.error(data.Message || "Verification failed")
       }
     } catch (err: any) {
       const msg = err?.response?.data?.message || "Invalid or expired code."
@@ -100,19 +88,20 @@ export default function VerifyPage() {
   }
 
   const handleResend = async () => {
+    if (!email) {
+      toast.error("Email not found in localStorage")
+      return
+    }
+
     setResending(true)
     try {
       setCode(Array(6).fill(""))
       setError("")
       setTimeLeft(120)
-      await api.post("/email/send-verification-code", null, {
-        params: { recipientEmail: email },
-      })
+
+      await api.post(`/email/send-verification-code?recipientEmail=${encodeURIComponent(email)}`)
       toast.success("Code resent!")
-      // Focus on the first input after resending
-      setTimeout(() => {
-        inputsRef.current[0]?.focus()
-      }, 100)
+      setTimeout(() => inputsRef.current[0]?.focus(), 100)
     } catch {
       toast.error("Failed to resend code. Try again.")
     } finally {
@@ -159,8 +148,10 @@ export default function VerifyPage() {
         <div className="text-center text-sm text-zinc-400">
           {timeLeft > 0 ? (
             <div className="flex flex-col gap-1 items-center">
-              <div>Code expires in <span className="text-white font-semibold">{formatTime(timeLeft)}</span></div>
-              {/* Added: Resend link even when timer is still running */}
+              <div>
+                Code expires in{" "}
+                <span className="text-white font-semibold">{formatTime(timeLeft)}</span>
+              </div>
               <button
                 onClick={handleResend}
                 disabled={resending}

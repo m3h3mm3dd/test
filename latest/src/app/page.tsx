@@ -17,7 +17,7 @@ export default function RootPage() {
     } else if (onboarded !== "true") {
       setShowOnboarding(true);
     } else {
-      router.replace("/auth/login");
+      router.replace("/login");
     }
   }, [router]);
 
