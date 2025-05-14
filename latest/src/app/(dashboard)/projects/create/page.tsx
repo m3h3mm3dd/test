@@ -6,17 +6,14 @@ import { ArrowLeft, Sparkles, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from '@/lib/toast';
 import { launchConfetti } from '@/lib/confetti';
-import { useAuth } from '@/contexts/AuthContext';
 import {
   createProject,
   checkServerConnection,
   ProjectCreateData,
-  addProjectMember,
 } from '@/api/ProjectAPI';
 
 export default function CreateProjectPage() {
   const router = useRouter();
-  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [serverChecked, setServerChecked] = useState(false);
   const [serverOnline, setServerOnline] = useState(true);
@@ -73,45 +70,44 @@ export default function CreateProjectPage() {
       return;
     }
 
-    setLoading(true);
-
+    // Simple token decode to get user ID
     try {
-      const payload: ProjectCreateData = {
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      const userId = decoded.sub || decoded.id || decoded.userId;
+      
+      if (!userId) {
+        toast.error('Invalid token. Please log in again.');
+        router.push('/login');
+        return;
+      }
+
+      setLoading(true);
+
+      const projectData: ProjectCreateData = {
         Name: form.Name,
         Description: form.Description || '',
         Budget: parseFloat(form.TotalBudget) || 0,
         StatusId: 'active',
+        OwnerId: userId // Set user as owner directly
       };
 
       if (form.Deadline?.trim()) {
         const parsedDate = new Date(form.Deadline + 'T00:00:00Z');
         if (!isNaN(parsedDate.getTime())) {
-          payload.Deadline = parsedDate.toISOString();
+          projectData.Deadline = parsedDate.toISOString();
         }
       }
 
-      const project = await createProject(payload);
-
-      if (user?.Id && project?.Id) {
-        await addProjectMember(project.Id, user.Id);
-      }
-
+      const project = await createProject(projectData);
+      
       launchConfetti();
       toast.success('Project created successfully');
       router.push(`/projects/${project.Id}`);
     } catch (error: any) {
       console.error('Failed to create project:', error);
-      if (error.message?.includes('Authentication')) {
-        toast.error('Authentication required. Please log in again.');
-        router.push('/login');
-      } else if (
-        error.message?.includes('connect to server') ||
-        error.message?.includes('Failed to fetch')
-      ) {
-        toast.error('Cannot connect to the server. Please check if the backend is running.');
-      } else {
-        toast.error(error.message || 'Failed to create project. Please try again.');
-      }
+      toast.error(error.message || 'Failed to create project. Please try again.');
+      setLoading(false);
     } finally {
       setLoading(false);
     }

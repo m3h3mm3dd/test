@@ -215,152 +215,177 @@ export default function ProjectsPage() {
     )
   }
 
-  function ProjectCard({ project, currentUser, onClick }) {
-    // Role detection logic
-    const determineUserRole = () => {
-      if (!currentUser) return { label: 'Member', color: '#3B82F6' };
+function ProjectCard({ project, currentUser, onClick }) {
+  const getUserIdFromToken = () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return null;
       
-      // Check if user is the project owner
-      if (currentUser.Id === project.OwnerId) {
-        return { label: 'Project Owner', color: '#8B5CF6' };
-      }
-      
-      // Check if user is a team leader
-      const isTeamLeader = project.teams?.some(team => 
-        team.LeaderId === currentUser.Id
-      );
-      if (isTeamLeader) {
-        return { label: 'Team Leader', color: '#EC4899' };
-      }
-      
-      // Check if user is a stakeholder
-      const isStakeholder = project.stakeholders?.some(stake => 
-        stake.UserId === currentUser.Id
-      );
-      if (isStakeholder) {
-        return { label: 'Stakeholder', color: '#F59E0B' };
-      }
-      
-      // If none of the above, user is a member
-      return { label: 'Member', color: '#3B82F6' };
-    };
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded.sub || decoded.id || decoded.userId;
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return null;
+    }
+  };
+  
+  // Simple role detection using token as backup
+  const determineUserRole = () => {
+    // Get user ID from either currentUser object or token
+    const userId = currentUser?.Id || getUserIdFromToken();
+    if (!userId) return { label: 'Viewer', color: '#6B7280' };
     
-    const roleInfo = determineUserRole();
-    const deadline = project.Deadline ? new Date(project.Deadline) : null;
-    const isOverdue = deadline && isPast(deadline) && project.Progress < 100;
-    const isDueToday = deadline && isToday(deadline);
-    const progress = project.Progress || 0;
-    
-    // Deadline calculation
-    let deadlineText = 'No deadline set';
-    let deadlineStatus = '';
-    
-    if (deadline) {
-      const daysLeft = differenceInDays(deadline, new Date());
-      
-      if (isOverdue) {
-        deadlineText = `${Math.abs(daysLeft)} days overdue`;
-        deadlineStatus = 'text-red-500';
-      } else if (isDueToday) {
-        deadlineText = 'Due today';
-        deadlineStatus = 'text-amber-500 font-semibold';
-      } else if (daysLeft <= 7) {
-        deadlineText = `${daysLeft} days left`;
-        deadlineStatus = 'text-amber-500';
-      } else {
-        deadlineText = format(deadline, 'MMM d, yyyy');
-      }
+    // Check if user is the project owner
+    if (userId === project.OwnerId) {
+      return { label: 'Project Owner', color: '#8B5CF6' };
     }
     
-    return (
-      <motion.div
-        whileHover={{ y: -5 }}
-        whileTap={{ scale: 0.98 }}
-        className="h-full"
+    // Check if user is a team leader
+    const isTeamLeader = Array.isArray(project.teams) && 
+      project.teams.some(team => team.LeaderId === userId);
+    
+    if (isTeamLeader) {
+      return { label: 'Team Leader', color: '#EC4899' };
+    }
+    
+    // Check if user is a stakeholder
+    const isStakeholder = Array.isArray(project.stakeholders) && 
+      project.stakeholders.some(stake => stake.UserId === userId);
+    
+    if (isStakeholder) {
+      return { label: 'Stakeholder', color: '#F59E0B' };
+    }
+    
+    // Check if user is a member
+    const isMember = Array.isArray(project.members) && 
+      project.members.some(member => member.UserId === userId);
+    
+    if (isMember) {
+      return { label: 'Member', color: '#3B82F6' };
+    }
+    
+    // Default - viewer with access but no specific role
+    return { label: 'Viewer', color: '#6B7280' };
+  };
+  
+  const roleInfo = determineUserRole();
+  const deadline = project.Deadline ? new Date(project.Deadline) : null;
+  const isOverdue = deadline && isPast(deadline) && project.Progress < 100;
+  const isDueToday = deadline && isToday(deadline);
+  const progress = project.Progress || 0;
+  
+  // Deadline calculation
+  let deadlineText = 'No deadline set';
+  let deadlineStatus = '';
+  
+  if (deadline) {
+    const daysLeft = differenceInDays(deadline, new Date());
+    
+    if (isOverdue) {
+      deadlineText = `${Math.abs(daysLeft)} days overdue`;
+      deadlineStatus = 'text-red-500';
+    } else if (isDueToday) {
+      deadlineText = 'Due today';
+      deadlineStatus = 'text-amber-500 font-semibold';
+    } else if (daysLeft <= 7) {
+      deadlineText = `${daysLeft} days left`;
+      deadlineStatus = 'text-amber-500';
+    } else {
+      deadlineText = format(deadline, 'MMM d, yyyy');
+    }
+  }
+  
+  return (
+    <motion.div
+      whileHover={{ y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      className="h-full"
+    >
+      <div 
+        onClick={onClick}
+        className="cursor-pointer h-full rounded-xl overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.03] 
+                  backdrop-blur-sm border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300"
       >
         <div 
-          onClick={onClick}
-          className="cursor-pointer h-full rounded-xl overflow-hidden bg-gradient-to-br from-white/[0.07] to-white/[0.03] 
-                    backdrop-blur-sm border border-white/10 shadow-xl hover:shadow-2xl transition-all duration-300"
-        >
-          <div 
-            className={`h-1.5 w-full ${isOverdue ? 'bg-red-500' : isDueToday ? 'bg-amber-500' : progress >= 100 ? 'bg-green-500' : 'bg-primary'}`}
-          ></div>
+          className={`h-1.5 w-full ${isOverdue ? 'bg-red-500' : isDueToday ? 'bg-amber-500' : progress >= 100 ? 'bg-green-500' : 'bg-primary'}`}
+        ></div>
+        
+        <div className="p-6">
+          {/* Project Title and Role */}
+          <div className="flex justify-between items-start mb-4">
+            <h3 className="text-xl font-semibold tracking-tight">
+              {project.Name}
+            </h3>
+            
+            <div 
+              className="px-3 py-1 rounded-full text-xs font-medium"
+              style={{ 
+                backgroundColor: `${roleInfo.color}20`, 
+                color: roleInfo.color
+              }}
+            >
+              {roleInfo.label}
+            </div>
+          </div>
           
-          <div className="p-6">
-            {/* Project Title and Role */}
-            <div className="flex justify-between items-start mb-4">
-              <h3 className="text-xl font-semibold tracking-tight">
-                {project.Name}
-              </h3>
-              
+          {/* Description */}
+          <p className="text-muted-foreground line-clamp-2 mb-6">
+            {project.Description || 'No description provided'}
+          </p>
+          
+          {/* Progress Bar */}
+          <div className="mt-1 mb-4">
+            <div className="mb-2 flex justify-between items-center">
+              <span className="text-sm font-medium">{progress}% Complete</span>
+              <span className={`text-xs ${deadlineStatus}`}>{deadlineText}</span>
+            </div>
+            <div className="overflow-hidden h-2 text-xs flex rounded-full bg-white/5">
               <div 
-                className="px-3 py-1 rounded-full text-xs font-medium"
-                style={{ 
-                  backgroundColor: `${roleInfo.color}20`, 
-                  color: roleInfo.color
-                }}
-              >
-                {roleInfo.label}
-              </div>
+                style={{ width: `${progress}%` }} 
+                className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
+                  progress >= 100 ? 'bg-green-500' : isOverdue ? 'bg-red-500' : 'bg-primary'
+                }`}
+              ></div>
+            </div>
+          </div>
+          
+          {/* Project Metadata */}
+          <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs text-muted-foreground">
+            <div>
+              {project.Frontend && (
+                <span className="mr-3">{project.Frontend}</span>
+              )}
+              <span>Created {format(new Date(project.CreatedAt), 'MMM d')}</span>
             </div>
             
-            {/* Description */}
-            <p className="text-muted-foreground line-clamp-2 mb-6">
-              {project.Description || 'No description provided'}
-            </p>
-            
-            {/* Progress Bar */}
-            <div className="mt-1 mb-4">
-              <div className="mb-2 flex justify-between items-center">
-                <span className="text-sm font-medium">{progress}% Complete</span>
-                <span className={`text-xs ${deadlineStatus}`}>{deadlineText}</span>
-              </div>
-              <div className="overflow-hidden h-2 text-xs flex rounded-full bg-white/5">
-                <div 
-                  style={{ width: `${progress}%` }} 
-                  className={`shadow-none flex flex-col text-center whitespace-nowrap text-white justify-center ${
-                    progress >= 100 ? 'bg-green-500' : isOverdue ? 'bg-red-500' : 'bg-primary'
-                  }`}
-                ></div>
-              </div>
-            </div>
-            
-            {/* Project Metadata */}
-            <div className="pt-4 border-t border-white/10 flex justify-between items-center text-xs text-muted-foreground">
-              <div>
-                {project.Frontend && (
-                  <span className="mr-3">{project.Frontend}</span>
-                )}
-                <span>Created {format(new Date(project.CreatedAt), 'MMM d')}</span>
-              </div>
+            <div className="flex items-center">
+              {Array.isArray(project.teams) && project.teams.length > 0 && (
+                <div className="flex items-center mr-3">
+                  <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  {project.teams.length}
+                </div>
+              )}
               
-              <div className="flex items-center">
-                {project.teams?.length > 0 && (
-                  <div className="flex items-center mr-3">
-                    <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    {project.teams.length}
-                  </div>
-                )}
-                
-                {(project.members?.length > 0 || project.stakeholders?.length > 0) && (
-                  <div className="flex items-center">
-                    <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
-                    </svg>
-                    {(project.members?.length || 0) + (project.stakeholders?.length || 0)}
-                  </div>
-                )}
-              </div>
+              {((Array.isArray(project.members) && project.members.length > 0) || 
+                (Array.isArray(project.stakeholders) && project.stakeholders.length > 0)) && (
+                <div className="flex items-center">
+                  <svg className="h-3.5 w-3.5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                  </svg>
+                  {(Array.isArray(project.members) ? project.members.length : 0) + 
+                   (Array.isArray(project.stakeholders) ? project.stakeholders.length : 0)}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      </motion.div>
-    )
-  }
-
+      </div>
+    </motion.div>
+  )
+}
   function SkeletonCard() {
     return (
       <div className="rounded-xl overflow-hidden bg-white/5 border border-white/10 shadow-xl h-64">
