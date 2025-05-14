@@ -1,177 +1,110 @@
-'use client';
-
-import { useState, useEffect, useRef } from 'react';
+"use client"
+import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   ArrowLeft, 
   Users, 
-  Plus, 
-  Edit, 
-  User,
-  Settings, 
+  UserPlus, 
+  Pencil, 
   Trash2, 
-  MoreHorizontal,
-  CheckCircle2,
-  Paperclip,
-  X,
-  AlertTriangle,
-  UserPlus,
+  Clock, 
+  Plus,
+  CheckCircle,
+  AlertCircle,
   Calendar,
-  Clock
+  User
 } from 'lucide-react';
 import { toast } from '@/lib/toast';
-import { format, isPast, isToday } from 'date-fns';
 
-// API imports
-import { getProjectById, getProjectMembers } from '@/api/ProjectAPI';
-import { getTeamById, deleteTeam, updateTeam, addTeamMember, removeTeamMember, getTeamTasks } from '@/api/TeamAPI';
-import { getTaskAttachments, uploadTaskAttachment, markTaskComplete } from '@/api/TaskAPI';
-import { useUser } from '@/hooks/useUser';
-
-// CSS for the page
-import './teamDetail.css';
-
-// Team colors
-const TEAM_COLORS = [
-  { index: 0, bg: 'var(--team-color-1)', text: 'var(--team-color-1-text)' },
-  { index: 1, bg: 'var(--team-color-2)', text: 'var(--team-color-2-text)' },
-  { index: 2, bg: 'var(--team-color-3)', text: 'var(--team-color-3-text)' },
-  { index: 3, bg: 'var(--team-color-4)', text: 'var(--team-color-4-text)' },
-  { index: 4, bg: 'var(--team-color-5)', text: 'var(--team-color-5-text)' },
-  { index: 5, bg: 'var(--team-color-6)', text: 'var(--team-color-6-text)' },
-];
+// Mock API functions - replace with your actual API functions
+import { getTeamById, updateTeam, deleteTeam, addTeamMember, removeTeamMember } from '@/api/TeamAPI';
+import { getTeamTasks, assignTaskToTeam } from '@/api/TaskAPI';
+import { getProjectMembers } from '@/api/ProjectAPI';
 
 export default function TeamDetailPage() {
-  const params = useParams();
-  const projectId = params.id;
-  const teamId = params['id2']; // The second id in the URL
+  const { id: projectId, teamid: teamId } = useParams();
   const router = useRouter();
-  const { user } = useUser();
-  const fileInputRef = useRef(null);
   
   // States
-  const [project, setProject] = useState(null);
   const [team, setTeam] = useState(null);
-  const [tasks, setTasks] = useState([]);
   const [members, setMembers] = useState([]);
+  const [tasks, setTasks] = useState([]);
   const [projectMembers, setProjectMembers] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [isOwner, setIsOwner] = useState(false);
-  const [addingMember, setAddingMember] = useState(false);
-  const [newMember, setNewMember] = useState('');
-  const [newMemberRole, setNewMemberRole] = useState('Member');
-  const [newMemberIsLeader, setNewMemberIsLeader] = useState(false);
-  const [activeTab, setActiveTab] = useState('tasks'); // 'tasks', 'members', 'settings'
-  const [editMode, setEditMode] = useState(false);
-  const [editForm, setEditForm] = useState({ Name: '', Description: '', ColorIndex: 0 });
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [attachments, setAttachments] = useState([]);
-  const [loadingAttachments, setLoadingAttachments] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [userRole, setUserRole] = useState({ 
+    isOwner: false, 
+    isTeamLeader: false
+  });
   
-  // Fetch team data
+  // Modal states
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showAssignTaskModal, setShowAssignTaskModal] = useState(false);
+  
+  // Determine user role from JWT token or some other auth method
+  const getUserIdFromToken = () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) return null;
+      
+      const payload = token.split('.')[1];
+      const decoded = JSON.parse(atob(payload));
+      return decoded.sub || decoded.id || decoded.userId;
+    } catch (error) {
+      console.error("Error decoding token:", error);
+      return null;
+    }
+  };
+  
+  // Fetch team data and other related info
   useEffect(() => {
-    const loadData = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
         
-        // Fetch team, project, tasks, and members in parallel
-        const [teamData, projectData, tasksData, projectMembersData] = await Promise.all([
+        // Get current user ID
+        const userId = getUserIdFromToken();
+        
+        // Fetch team, members and tasks in parallel
+        const [teamData, projectMembersData] = await Promise.all([
           getTeamById(teamId),
-          getProjectById(projectId),
-          getTeamTasks(teamId),
           getProjectMembers(projectId)
         ]);
         
         setTeam(teamData);
-        setProject(projectData);
-        setTasks(tasksData);
         setProjectMembers(projectMembersData);
         
-        // Extract team members from project members
-        // In a real application, this would come from a proper endpoint
-        // This is a simplified approach for the demo
-        const teamMembersData = projectMembersData.filter(member => 
-          member.TeamId === teamId
-        );
+        // Determine user role
+        const isOwner = teamData.ProjectOwnerId === userId;
+        const isTeamLeader = teamData.LeaderId === userId;
+        setUserRole({ isOwner, isTeamLeader });
         
-        setMembers(teamMembersData);
+        // Get team members and tasks
+        const [membersData, tasksData] = await Promise.all([
+          // Assume team has members array or fetch them if not
+          teamData.members || [], 
+          getTeamTasks(teamId)
+        ]);
         
-        // Check if current user is project owner
-        setIsOwner(user?.Id === projectData.OwnerId);
-        
-        // Set edit form initial values
-        setEditForm({
-          Name: teamData.Name,
-          Description: teamData.Description || '',
-          ColorIndex: teamData.ColorIndex || 0
-        });
+        setMembers(membersData);
+        setTasks(tasksData || []);
       } catch (error) {
         console.error('Failed to load team data:', error);
-        toast.error('Could not load team data');
+        toast.error('Could not load team details');
       } finally {
         setLoading(false);
       }
     };
     
-    if (projectId && teamId && user) {
-      loadData();
+    if (teamId && projectId) {
+      fetchData();
     }
-  }, [projectId, teamId, user]);
-  
-  // Load attachments when a task is selected
-  useEffect(() => {
-    if (selectedTask) {
-      const loadAttachments = async () => {
-        try {
-          setLoadingAttachments(true);
-          const data = await getTaskAttachments(selectedTask.Id);
-          setAttachments(data);
-        } catch (error) {
-          console.error('Failed to load attachments:', error);
-        } finally {
-          setLoadingAttachments(false);
-        }
-      };
-      
-      loadAttachments();
-    } else {
-      setAttachments([]);
-    }
-  }, [selectedTask]);
-  
-  // Handle team editing
-  const handleEditSubmit = async () => {
-    try {
-      await updateTeam(teamId, {
-        Name: editForm.Name,
-        Description: editForm.Description,
-        ColorIndex: editForm.ColorIndex
-      });
-      
-      // Update local state
-      setTeam(prev => ({
-        ...prev,
-        Name: editForm.Name,
-        Description: editForm.Description,
-        ColorIndex: editForm.ColorIndex
-      }));
-      
-      setEditMode(false);
-      toast.success('Team updated successfully');
-    } catch (error) {
-      console.error('Failed to update team:', error);
-      toast.error('Could not update team');
-    }
-  };
+  }, [teamId, projectId]);
   
   // Handle team deletion
   const handleDeleteTeam = async () => {
-    if (!confirm('Are you sure you want to delete this team?')) return;
-    
     try {
       await deleteTeam(teamId);
-      
       toast.success('Team deleted successfully');
       router.push(`/projects/${projectId}/team`);
     } catch (error) {
@@ -181,121 +114,106 @@ export default function TeamDetailPage() {
   };
   
   // Handle member addition
-  const handleAddMember = async () => {
-    if (!newMember) {
-      toast.error('Please select a member');
-      return;
-    }
-    
+  const handleAddMember = async (userId, role, isLeader) => {
     try {
       await addTeamMember({
         TeamId: teamId,
-        UserIdToBeAdded: newMember,
-        Role: newMemberRole,
-        IsLeader: newMemberIsLeader
+        UserIdToBeAdded: userId,
+        Role: role,
+        IsLeader: isLeader
       });
       
-      // Update local state (simulating response from backend)
-      const addedMember = projectMembers.find(m => m.UserId === newMember);
-      if (addedMember) {
-        setMembers(prev => [...prev, {
-          ...addedMember,
-          TeamId: teamId,
-          Role: newMemberRole,
-          IsLeader: newMemberIsLeader
-        }]);
-      }
+      // Update members list
+      const updatedMembers = [...members, {
+        UserId: userId,
+        Role: role,
+        IsLeader: isLeader,
+        // Add other member details as needed
+      }];
       
-      // Reset form
-      setAddingMember(false);
-      setNewMember('');
-      setNewMemberRole('Member');
-      setNewMemberIsLeader(false);
-      
-      toast.success('Member added to team');
+      setMembers(updatedMembers);
+      setShowAddMemberModal(false);
+      toast.success('Member added successfully');
     } catch (error) {
       console.error('Failed to add member:', error);
-      toast.error('Could not add member to team');
+      toast.error('Could not add member');
     }
   };
   
   // Handle member removal
   const handleRemoveMember = async (userId) => {
-    if (!confirm('Are you sure you want to remove this member from the team?')) return;
-    
     try {
       await removeTeamMember({
         TeamId: teamId,
         UserIdToBeRemoved: userId
       });
       
-      // Update local state
-      setMembers(prev => prev.filter(member => member.UserId !== userId));
-      
-      toast.success('Member removed from team');
+      // Update members list
+      const updatedMembers = members.filter(member => member.UserId !== userId);
+      setMembers(updatedMembers);
+      toast.success('Member removed successfully');
     } catch (error) {
       console.error('Failed to remove member:', error);
-      toast.error('Could not remove member from team');
+      toast.error('Could not remove member');
     }
   };
   
-  // Handle task completion
-  const handleCompleteTask = async (taskId) => {
+  // Handle task assignment
+  const handleAssignTask = async (taskId) => {
     try {
-      await markTaskComplete(taskId);
+      await assignTaskToTeam(taskId, teamId);
       
-      // Update local state
-      setTasks(prevTasks => 
-        prevTasks.map(task => 
-          task.Id === taskId 
-            ? { ...task, Status: 'Completed', Completed: true } 
-            : task
-        )
-      );
-      
-      toast.success('Task marked as complete');
+      // Update tasks list - in real app, fetch the updated task and add it
+      toast.success('Task assigned successfully');
+      setShowAssignTaskModal(false);
     } catch (error) {
-      console.error('Failed to complete task:', error);
-      toast.error('Could not mark task as complete');
+      console.error('Failed to assign task:', error);
+      toast.error('Could not assign task');
     }
   };
   
-  // Handle file upload for task
-  const handleFileUpload = async (event) => {
-    if (!selectedTask) return;
-    
-    const file = event.target.files?.[0];
-    if (!file) return;
-    
-    setUploading(true);
-    
-    try {
-      const newAttachment = await uploadTaskAttachment(selectedTask.Id, file);
-      
-      // Update local state
-      setAttachments(prev => [...prev, newAttachment]);
-      
-      toast.success('File uploaded successfully');
-    } catch (error) {
-      console.error('Failed to upload file:', error);
-      toast.error('Could not upload file');
-    } finally {
-      setUploading(false);
-      
-      // Reset file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
-    }
-  };
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96">
+        <div className="w-10 h-10 border-4 border-primary border-t-transparent rounded-full animate-spin mb-4"></div>
+        <p className="text-muted-foreground">Loading team details...</p>
+      </div>
+    );
+  }
   
-  // Get team color
+  if (!team) {
+    return (
+      <div className="flex flex-col items-center justify-center h-96 text-center">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Team Not Found</h2>
+        <p className="text-muted-foreground mb-6">The team you're looking for doesn't exist or you don't have permission to view it.</p>
+        <button 
+          onClick={() => router.push(`/projects/${projectId}/team`)}
+          className="px-4 py-2 bg-primary text-white rounded-md hover:bg-primary/90 transition-colors"
+        >
+          Back to Teams
+        </button>
+      </div>
+    );
+  }
+  
+  // Team color generation based on colorIndex
   const getTeamColor = (colorIndex) => {
-    const index = colorIndex % TEAM_COLORS.length;
-    return TEAM_COLORS[index] || TEAM_COLORS[0];
+    const colors = [
+      'bg-rose-500 text-white',
+      'bg-orange-500 text-white',
+      'bg-amber-500 text-white',
+      'bg-green-500 text-white',
+      'bg-sky-500 text-white',
+      'bg-blue-500 text-white',
+      'bg-violet-500 text-white',
+      'bg-fuchsia-500 text-white'
+    ];
+    
+    return colors[colorIndex % colors.length] || colors[0];
   };
-  
-  // Get team initials
+
+  // Get team initials from name
   const getTeamInitials = (name) => {
     if (!name) return '?';
     
@@ -306,536 +224,377 @@ export default function TeamDetailPage() {
     
     return (words[0][0] + words[1][0]).toUpperCase();
   };
-  
-  // Get available project members (not already in this team)
-  const getAvailableMembers = () => {
-    if (!projectMembers || !members) return [];
-    
-    const memberIds = members.map(m => m.UserId);
-    return projectMembers.filter(m => !memberIds.includes(m.UserId));
+
+  const roleLabels = {
+    'Project Owner': 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
+    'Team Leader': 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
+    'Member': 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
   };
-  
-  // Format file size
-  const formatFileSize = (bytes) => {
-    if (bytes < 1024) return bytes + ' bytes';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + ' KB';
-    return (bytes / 1048576).toFixed(1) + ' MB';
-  };
-  
-  // Get user name by ID
-  const getUserName = (userId) => {
-    if (!projectMembers) return 'Unknown User';
-    
-    const member = projectMembers.find(m => m.UserId === userId);
-    if (member?.User) {
-      return `${member.User.FirstName || ''} ${member.User.LastName || ''}`.trim();
-    }
-    
-    return `User ${userId.substring(0, 8)}...`;
-  };
-  
-  // Check if current user can complete task
-  const canCompleteTask = (task) => {
-    if (!task || !user) return false;
-    
-    return (
-      task.UserId === user.Id || 
-      task.CreatedBy === user.Id || 
-      isOwner
-    );
-  };
-  
-  // Check if a user is team leader
-  const isTeamLeader = (userId) => {
-    if (!members) return false;
-    
-    const member = members.find(m => m.UserId === userId);
-    return member?.IsLeader;
-  };
-  
-  if (loading) {
-    return (
-      <div className="team-loading">
-        <div className="team-loading-spinner"></div>
-        <p>Loading team details...</p>
-      </div>
-    );
-  }
-  
-  // Get team color
-  const teamColor = team ? getTeamColor(team.ColorIndex) : TEAM_COLORS[0];
   
   return (
-    <div className="team-detail-container">
-      {/* Header */}
-      <div className="team-detail-header">
-        <div className="team-detail-title">
-          <button 
-            className="back-button" 
-            onClick={() => router.push(`/projects/${projectId}/team`)}
-          >
-            <ArrowLeft size={18} />
-          </button>
-          <div>
-            <h1>Team Details</h1>
-            <p className="subtitle">
-              {project?.Name ? `View and manage team for ${project.Name}` : 'View and manage team'}
-            </p>
-          </div>
-        </div>
+    <div className="container mx-auto px-4 py-8">
+      {/* Header with back button */}
+      <div className="flex items-center mb-8">
+        <button 
+          onClick={() => router.push(`/projects/${projectId}/team`)}
+          className="flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors mr-4"
+        >
+          <ArrowLeft className="w-4 h-4 mr-1" />
+          Back to Teams
+        </button>
+        <h1 className="text-2xl font-bold">Team Details</h1>
       </div>
       
       {/* Team info card */}
-      <div className="team-info-card">
-        <div 
-          className="team-info-avatar"
-          style={{ backgroundColor: teamColor.bg, color: teamColor.text }}
-        >
-          {getTeamInitials(team.Name)}
+      <div className="bg-card rounded-xl border border-border overflow-hidden mb-8 shadow-sm">
+        <div className="p-6 flex items-start justify-between border-b border-border">
+          <div className="flex items-center">
+            <div className={`flex-shrink-0 w-16 h-16 ${getTeamColor(team.ColorIndex || 0)} rounded-lg flex items-center justify-center text-2xl font-bold`}>
+              {getTeamInitials(team.Name)}
+            </div>
+            <div className="ml-5">
+              <h2 className="text-xl font-semibold">{team.Name}</h2>
+              <p className="text-muted-foreground mt-1">{team.Description || 'No description provided'}</p>
+            </div>
+          </div>
+          
+          {/* Action buttons - only shown to owners/leaders */}
+          {(userRole.isOwner || userRole.isTeamLeader) && (
+            <div className="flex gap-2">
+              <button 
+                onClick={() => router.push(`/projects/${projectId}/team/${teamId}/edit`)}
+                className="flex items-center px-3 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm transition-colors"
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Edit Team
+              </button>
+              
+              <button 
+                onClick={() => setShowAddMemberModal(true)}
+                className="flex items-center px-3 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm transition-colors"
+              >
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Member
+              </button>
+              
+              {userRole.isOwner && (
+                <button 
+                  onClick={() => setShowDeleteModal(true)}
+                  className="flex items-center px-3 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md text-sm transition-colors"
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Team
+                </button>
+              )}
+            </div>
+          )}
         </div>
         
-        <div className="team-info-content">
-          <h2>{team.Name}</h2>
-          <p>{team.Description || 'No description provided'}</p>
-          
-          <div className="team-info-meta">
-            <div className="team-info-stats">
-              <div className="team-stat">
-                <Users size={16} />
-                <span>{members.length} Members</span>
-              </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-6">
+          {/* Team members */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center">
+                <Users className="w-5 h-5 mr-2" />
+                Team Members
+              </h3>
               
-              <div className="team-stat">
-                <CheckCircle2 size={16} />
-                <span>{tasks.length} Tasks</span>
-              </div>
-            </div>
-            
-            {isOwner && (
-              <div className="team-actions">
+              {(userRole.isOwner || userRole.isTeamLeader) && (
                 <button 
-                  className="team-edit-button"
-                  onClick={() => setEditMode(!editMode)}
+                  onClick={() => setShowAddMemberModal(true)}
+                  className="text-sm text-primary hover:text-primary/90 transition-colors"
                 >
-                  <Edit size={16} />
-                  <span>Edit Team</span>
+                  + Add Member
                 </button>
-                
-                <button 
-                  className="team-delete-button"
-                  onClick={handleDeleteTeam}
-                >
-                  <Trash2 size={16} />
-                  <span>Delete</span>
-                </button>
+              )}
+            </div>
+            
+            {members.length === 0 ? (
+              <div className="bg-muted/50 rounded-lg p-8 text-center">
+                <Users className="w-8 h-8 mx-auto text-muted-foreground/60 mb-2" />
+                <p className="text-muted-foreground">No members in this team yet</p>
               </div>
-            )}
-          </div>
-        </div>
-      </div>
-      
-      {/* Edit team form */}
-      {editMode && (
-        <div className="team-edit-form">
-          <h3>Edit Team</h3>
-          
-          <div className="team-edit-grid">
-            <div className="form-group">
-              <label htmlFor="Name">Team Name</label>
-              <input
-                type="text"
-                id="Name"
-                value={editForm.Name}
-                onChange={(e) => setEditForm({ ...editForm, Name: e.target.value })}
-              />
-            </div>
-            
-            <div className="form-group">
-              <label htmlFor="Description">Description</label>
-              <textarea
-                id="Description"
-                value={editForm.Description}
-                onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })}
-                rows={3}
-              ></textarea>
-            </div>
-            
-            <div className="form-group">
-              <label>Team Color</label>
-              <div className="color-options">
-                {TEAM_COLORS.map((color) => (
-                  <button
-                    key={color.index}
-                    type="button"
-                    className={`color-option ${editForm.ColorIndex === color.index ? 'selected' : ''}`}
-                    style={{ backgroundColor: color.bg }}
-                    onClick={() => setEditForm({ ...editForm, ColorIndex: color.index })}
-                  ></button>
+            ) : (
+              <div className="space-y-3">
+                {members.map((member) => (
+                  <div key={member.UserId} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center">
+                      <div className="w-10 h-10 rounded-full bg-secondary flex items-center justify-center text-secondary-foreground font-semibold">
+                        {member.User?.FirstName?.[0] || 'U'}
+                      </div>
+                      <div className="ml-3">
+                        <div className="font-medium">{member.User?.FirstName} {member.User?.LastName}</div>
+                        <div className="text-xs text-muted-foreground">{member.User?.Email}</div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        member.UserId === team.ProjectOwnerId ? roleLabels['Project Owner'] :
+                        member.IsLeader ? roleLabels['Team Leader'] : roleLabels['Member']
+                      }`}>
+                        {member.UserId === team.ProjectOwnerId ? 'Project Owner' :
+                         member.IsLeader ? 'Team Leader' : 'Member'}
+                      </span>
+                      
+                      {(userRole.isOwner || userRole.isTeamLeader) && 
+                       member.UserId !== team.ProjectOwnerId && (
+                        <button 
+                          onClick={() => handleRemoveMember(member.UserId)}
+                          className="p-1 text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 ))}
               </div>
-            </div>
-          </div>
-          
-          <div className="team-edit-actions">
-            <button 
-              className="cancel-button"
-              onClick={() => setEditMode(false)}
-            >
-              Cancel
-            </button>
-            
-            <button 
-              className="save-button"
-              onClick={handleEditSubmit}
-            >
-              Save Changes
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Tabs */}
-      <div className="team-tabs">
-        <button 
-          className={`team-tab ${activeTab === 'tasks' ? 'active' : ''}`}
-          onClick={() => setActiveTab('tasks')}
-        >
-          <CheckCircle2 size={16} />
-          <span>Tasks</span>
-        </button>
-        
-        <button 
-          className={`team-tab ${activeTab === 'members' ? 'active' : ''}`}
-          onClick={() => setActiveTab('members')}
-        >
-          <Users size={16} />
-          <span>Members</span>
-        </button>
-      </div>
-      
-      {/* Tasks Tab */}
-      {activeTab === 'tasks' && (
-        <div className="team-tasks">
-          <div className="team-section-header">
-            <h3>Team Tasks</h3>
-            
-            {selectedTask ? (
-              <button 
-                className="close-detail-button"
-                onClick={() => setSelectedTask(null)}
-              >
-                <X size={16} />
-                <span>Close Details</span>
-              </button>
-            ) : tasks.length === 0 ? (
-              <div></div>
-            ) : (
-              <div className="task-count">
-                {tasks.filter(t => t.Completed).length} / {tasks.length} completed
-              </div>
             )}
           </div>
           
-          {tasks.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <CheckCircle2 size={40} />
-              </div>
-              <h2>No Tasks Assigned</h2>
-              <p>This team doesn't have any tasks assigned yet.</p>
-            </div>
-          ) : selectedTask ? (
-            <div className="task-detail">
-              <div className="task-detail-header">
-                <h3 className="task-detail-title">{selectedTask.Title}</h3>
-                
-                {canCompleteTask(selectedTask) && !selectedTask.Completed && (
-                  <button 
-                    className="complete-task-button"
-                    onClick={() => handleCompleteTask(selectedTask.Id)}
-                  >
-                    <CheckCircle2 size={16} />
-                    <span>Mark Complete</span>
-                  </button>
-                )}
-              </div>
+          {/* Team tasks */}
+          <div>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold flex items-center">
+                <Clock className="w-5 h-5 mr-2" />
+                Team Tasks
+              </h3>
               
-              {selectedTask.Description && (
-                <div className="task-detail-description">
-                  <p>{selectedTask.Description}</p>
-                </div>
-              )}
-              
-              <div className="task-detail-meta">
-                <div className="task-meta-item">
-                  <span className="meta-label">Status:</span>
-                  <span className={`task-status ${selectedTask.Status.toLowerCase().replace(' ', '-')}`}>
-                    {selectedTask.Status}
-                  </span>
-                </div>
-                
-                <div className="task-meta-item">
-                  <span className="meta-label">Priority:</span>
-                  <span className={`task-priority ${selectedTask.Priority.toLowerCase()}`}>
-                    {selectedTask.Priority}
-                  </span>
-                </div>
-                
-                {selectedTask.Deadline && (
-                  <div className="task-meta-item">
-                    <span className="meta-label">Deadline:</span>
-                    <div className={`task-deadline ${isPast(new Date(selectedTask.Deadline)) && !selectedTask.Completed ? 'overdue' : ''}`}>
-                      <Calendar size={14} />
-                      <span>{format(new Date(selectedTask.Deadline), 'MMM d, yyyy')}</span>
-                    </div>
-                  </div>
-                )}
-                
-                {selectedTask.UserId && (
-                  <div className="task-meta-item">
-                    <span className="meta-label">Assigned To:</span>
-                    <div className="task-assignee">
-                      <User size={14} />
-                      <span>{getUserName(selectedTask.UserId)}</span>
-                    </div>
-                  </div>
-                )}
-              </div>
-              
-              <div className="task-attachments">
-                <div className="attachment-header">
-                  <h4>
-                    <Paperclip size={16} />
-                    <span>Attachments</span>
-                  </h4>
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    style={{ display: 'none' }}
-                    onChange={handleFileUpload}
-                  />
-                  
-                  <button 
-                    className="upload-button"
-                    onClick={() => fileInputRef.current.click()}
-                    disabled={uploading}
-                  >
-                    <Plus size={14} />
-                    <span>{uploading ? 'Uploading...' : 'Add File'}</span>
-                  </button>
-                </div>
-                
-                {loadingAttachments ? (
-                  <div className="attachment-loading">Loading attachments...</div>
-                ) : attachments.length === 0 ? (
-                  <div className="no-attachments">No attachments yet</div>
-                ) : (
-                  <ul className="attachment-list">
-                    {attachments.map((file) => (
-                      <li key={file.Id} className="attachment-item">
-                        <div className="attachment-icon">
-                          <Paperclip size={14} />
-                        </div>
-                        
-                        <div className="attachment-info">
-                          <span className="attachment-name">{file.FileName}</span>
-                          <span className="attachment-size">{formatFileSize(file.FileSize || 0)}</span>
-                        </div>
-                        
-                        <a 
-                          href={file.Url || `${process.env.NEXT_PUBLIC_API_URL}/tasks/${selectedTask.Id}/attachments/${file.Id}`}
-                          download
-                          className="attachment-download"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Download
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div className="task-list">
-              {tasks.map((task) => (
-                <div 
-                  key={task.Id} 
-                  className={`task-card ${task.Completed ? 'completed' : ''}`}
-                  onClick={() => setSelectedTask(task)}
+              {(userRole.isOwner || userRole.isTeamLeader) && (
+                <button 
+                  onClick={() => setShowAssignTaskModal(true)}
+                  className="text-sm text-primary hover:text-primary/90 transition-colors"
                 >
-                  <div className="task-status-indicator">
-                    <div className={`task-priority-dot priority-${task.Priority.toLowerCase()}`}></div>
-                    <div className={`task-status-dot status-${task.Status.toLowerCase().replace(' ', '-')}`}></div>
-                  </div>
-                  
-                  <div className="task-content">
-                    <h4 className="task-title">{task.Title}</h4>
+                  + Assign Task
+                </button>
+              )}
+            </div>
+            
+            {tasks.length === 0 ? (
+              <div className="bg-muted/50 rounded-lg p-8 text-center">
+                <Clock className="w-8 h-8 mx-auto text-muted-foreground/60 mb-2" />
+                <p className="text-muted-foreground">No tasks assigned to this team yet</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {tasks.map((task) => (
+                  <div key={task.Id} className="p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium">{task.Title}</h4>
+                      <span className={`text-xs px-2 py-1 rounded-full ${
+                        task.Status === 'Completed' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                        task.Status === 'In Progress' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' :
+                        'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+                      }`}>
+                        {task.Status || 'Not Started'}
+                      </span>
+                    </div>
                     
                     {task.Description && (
-                      <p className="task-description">{task.Description}</p>
+                      <p className="text-sm text-muted-foreground mb-2">{task.Description}</p>
                     )}
                     
-                    <div className="task-card-meta">
+                    <div className="flex items-center text-xs text-muted-foreground">
                       {task.Deadline && (
-                        <div className={`task-deadline ${isPast(new Date(task.Deadline)) && !task.Completed ? 'overdue' : ''}`}>
-                          <Clock size={14} />
-                          <span>
-                            {isToday(new Date(task.Deadline)) ? 'Due today' : 
-                             format(new Date(task.Deadline), 'MMM d, yyyy')}
-                          </span>
+                        <div className="flex items-center mr-4">
+                          <Calendar className="w-3 h-3 mr-1" />
+                          {new Date(task.Deadline).toLocaleDateString()}
                         </div>
                       )}
                       
                       {task.UserId && (
-                        <div className="task-assignee">
-                          <User size={14} />
-                          <span>{getUserName(task.UserId)}</span>
+                        <div className="flex items-center">
+                          <User className="w-3 h-3 mr-1" />
+                          Assigned to {task.UserId === getUserIdFromToken() ? 'you' : 'a team member'}
                         </div>
                       )}
                     </div>
                   </div>
-                  
-                  {canCompleteTask(task) && !task.Completed && (
-                    <button
-                      className="task-complete-button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleCompleteTask(task.Id);
-                      }}
-                    >
-                      <CheckCircle2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      
-      {/* Members Tab */}
-      {activeTab === 'members' && (
-        <div className="team-members">
-          <div className="team-section-header">
-            <h3>Team Members</h3>
-            
-            {isOwner && (
-              <button 
-                className="add-member-button"
-                onClick={() => setAddingMember(!addingMember)}
-              >
-                <UserPlus size={16} />
-                <span>{addingMember ? 'Cancel' : 'Add Member'}</span>
-              </button>
+                ))}
+              </div>
             )}
           </div>
-          
-          {/* Add member form */}
-          {addingMember && (
-            <div className="add-member-form">
-              <div className="form-group">
-                <label htmlFor="member">Select Member</label>
-                <select
-                  id="member"
-                  value={newMember}
-                  onChange={(e) => setNewMember(e.target.value)}
-                >
-                  <option value="">Select a member...</option>
-                  {getAvailableMembers().map((member) => (
-                    <option key={member.UserId} value={member.UserId}>
-                      {member.User?.FirstName 
-                        ? `${member.User.FirstName} ${member.User.LastName || ''}` 
-                        : `User ${member.UserId.substring(0, 8)}...`}
-                    </option>
-                  ))}
+        </div>
+      </div>
+      
+      {/* Team statistics overview */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+          <div className="text-muted-foreground mb-2 text-sm">Total Members</div>
+          <div className="text-2xl font-bold mb-1">{members.length}</div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Users className="w-4 h-4 mr-1" />
+            {members.filter(m => m.IsLeader).length} leaders, {members.length - members.filter(m => m.IsLeader).length} members
+          </div>
+        </div>
+        
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+          <div className="text-muted-foreground mb-2 text-sm">Active Tasks</div>
+          <div className="text-2xl font-bold mb-1">{tasks.filter(t => !t.Completed).length}</div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Clock className="w-4 h-4 mr-1" />
+            {tasks.filter(t => t.Status === 'In Progress').length} in progress
+          </div>
+        </div>
+        
+        <div className="bg-card border border-border rounded-xl p-5 shadow-sm">
+          <div className="text-muted-foreground mb-2 text-sm">Completed Tasks</div>
+          <div className="text-2xl font-bold mb-1">{tasks.filter(t => t.Completed).length}</div>
+          <div className="flex items-center text-sm text-muted-foreground">
+            <CheckCircle className="w-4 h-4 mr-1" />
+            {tasks.filter(t => t.Completed).length > 0 ? `${Math.round((tasks.filter(t => t.Completed).length / tasks.length) * 100)}% completion rate` : 'No completed tasks'}
+          </div>
+        </div>
+      </div>
+      
+      {/* Add Member Modal */}
+      {showAddMemberModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Add Team Member</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Select User</label>
+                <select className="w-full p-2 rounded-md border border-input bg-background">
+                  <option value="">Select a user...</option>
+                  {projectMembers
+                    .filter(m => !members.some(member => member.UserId === m.UserId))
+                    .map(member => (
+                      <option key={member.UserId} value={member.UserId}>
+                        {member.User?.FirstName} {member.User?.LastName}
+                      </option>
+                    ))
+                  }
                 </select>
               </div>
               
-              <div className="form-group">
-                <label htmlFor="role">Role</label>
-                <input
-                  type="text"
-                  id="role"
-                  value={newMemberRole}
-                  onChange={(e) => setNewMemberRole(e.target.value)}
-                  placeholder="e.g. Developer, Designer"
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. Developer, Designer, etc." 
+                  className="w-full p-2 rounded-md border border-input bg-background"
                 />
               </div>
               
-              <div className="form-checkbox">
-                <input
-                  type="checkbox"
-                  id="isLeader"
-                  checked={newMemberIsLeader}
-                  onChange={(e) => setNewMemberIsLeader(e.target.checked)}
+              <div className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  id="is-leader" 
+                  className="mr-2"
                 />
-                <label htmlFor="isLeader">Team Leader</label>
+                <label htmlFor="is-leader" className="text-sm">Make team leader</label>
               </div>
-              
+            </div>
+            
+            <div className="flex justify-end gap-2 mt-6">
               <button 
-                className="add-button"
-                onClick={handleAddMember}
-                disabled={!newMember}
+                onClick={() => setShowAddMemberModal(false)}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm transition-colors"
               >
-                Add to Team
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  // In real app, get values from form inputs
+                  handleAddMember('user123', 'Developer', false);
+                }}
+                className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm transition-colors"
+              >
+                Add Member
               </button>
             </div>
-          )}
-          
-          {members.length === 0 ? (
-            <div className="empty-state">
-              <div className="empty-icon">
-                <Users size={40} />
+          </div>
+        </div>
+      )}
+      
+      {/* Delete Team Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full">
+            <h3 className="text-lg font-semibold mb-2">Delete Team</h3>
+            <p className="text-muted-foreground mb-4">Are you sure you want to delete this team? This action cannot be undone.</p>
+            
+            <div className="flex justify-end gap-2">
+              <button 
+                onClick={() => setShowDeleteModal(false)}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={handleDeleteTeam}
+                className="px-4 py-2 bg-destructive text-destructive-foreground hover:bg-destructive/90 rounded-md text-sm transition-colors"
+              >
+                Delete Team
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Assign Task Modal */}
+      {showAssignTaskModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold mb-4">Assign Task to Team</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Task Title</label>
+                <input 
+                  type="text" 
+                  placeholder="Enter task title" 
+                  className="w-full p-2 rounded-md border border-input bg-background"
+                />
               </div>
-              <h2>No Team Members</h2>
-              <p>This team doesn't have any members yet.</p>
-              {isOwner && (
-                <button 
-                  className="add-first-button"
-                  onClick={() => setAddingMember(true)}
-                >
-                  <UserPlus size={16} />
-                  <span>Add First Member</span>
-                </button>
-              )}
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Description</label>
+                <textarea 
+                  placeholder="Enter task description" 
+                  className="w-full p-2 rounded-md border border-input bg-background min-h-[100px]"
+                ></textarea>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Deadline</label>
+                <input 
+                  type="date" 
+                  className="w-full p-2 rounded-md border border-input bg-background"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1">Priority</label>
+                <select className="w-full p-2 rounded-md border border-input bg-background">
+                  <option value="LOW">Low</option>
+                  <option value="MEDIUM">Medium</option>
+                  <option value="HIGH">High</option>
+                </select>
+              </div>
             </div>
-          ) : (
-            <div className="member-list">
-              {members.map((member) => (
-                <div key={member.UserId} className="member-card">
-                  <div className="member-avatar">
-                    <User size={20} />
-                  </div>
-                  
-                  <div className="member-content">
-                    <div className="member-header">
-                      <h4 className="member-name">{getUserName(member.UserId)}</h4>
-                      
-                      {isTeamLeader(member.UserId) && (
-                        <div className="member-badge leader">Team Leader</div>
-                      )}
-                    </div>
-                    
-                    {member.Role && (
-                      <p className="member-role">{member.Role}</p>
-                    )}
-                  </div>
-                  
-                  {isOwner && (
-                    <button 
-                      className="remove-member-button"
-                      onClick={() => handleRemoveMember(member.UserId)}
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              ))}
+            
+            <div className="flex justify-end gap-2 mt-6">
+              <button 
+                onClick={() => setShowAssignTaskModal(false)}
+                className="px-4 py-2 bg-muted hover:bg-muted/80 rounded-md text-sm transition-colors"
+              >
+                Cancel
+              </button>
+              <button 
+                onClick={() => {
+                  // In real app, get values from form inputs
+                  handleAssignTask('task123');
+                }}
+                className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-md text-sm transition-colors"
+              >
+                Assign Task
+              </button>
             </div>
-          )}
+          </div>
         </div>
       )}
     </div>

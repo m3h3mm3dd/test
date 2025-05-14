@@ -14,9 +14,9 @@ const messages = [
 
 export default function Onboarding() {
   const router = useRouter()
-  const [index, setIndex] = useState(-1)
+  const [index, setIndex] = useState(0)
   const [isPaused, setIsPaused] = useState(false)
-  const intervalRef = useRef<NodeJS.Timeout | null>(null)
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
     const onboarded = localStorage.getItem('taskup_onboarded')
@@ -27,41 +27,19 @@ export default function Onboarding() {
     }
   }, [router])
 
-  // Set up the initial cycle
   useEffect(() => {
-    const timeout = setTimeout(() => {
-      setIndex(0)
-      intervalRef.current = setInterval(() => {
-        setIndex(prev => (prev + 1) % messages.length)
-      }, 4000)
-    }, 200)
+    if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
-    return () => {
-      clearTimeout(timeout)
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
-    }
-  }, []) // No dependencies so this only runs once on mount
-
-  // Handle pausing separately
-  useEffect(() => {
-    if (isPaused && intervalRef.current) {
-      clearInterval(intervalRef.current)
-      intervalRef.current = null
-    } else if (!isPaused && !intervalRef.current && index !== -1) {
-      // Only restart if we've already started (index !== -1)
-      intervalRef.current = setInterval(() => {
-        setIndex(prev => (prev + 1) % messages.length)
+    if (!isPaused) {
+      timeoutRef.current = setTimeout(() => {
+        setIndex((prev) => (prev + 1) % messages.length)
       }, 4000)
     }
-    
+
     return () => {
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current)
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current)
     }
-  }, [isPaused, index])
+  }, [index, isPaused])
 
   const go = (path: string) => {
     try {
@@ -76,7 +54,6 @@ export default function Onboarding() {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      {/* Rest of your component remains the same */}
       {/* Ambient Background */}
       <motion.div className="absolute inset-0 z-0">
         <motion.div
@@ -112,20 +89,18 @@ export default function Onboarding() {
         </motion.p>
 
         {/* Message cycle */}
-        <div className="mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center">
+        <div className="relative mb-8 text-2xl sm:text-3xl md:text-4xl font-bold leading-tight min-h-[3.5rem] flex items-center justify-center overflow-hidden">
           <AnimatePresence mode="wait">
-            {index >= 0 && (
-              <motion.span
-                key={messages[index]}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -12 }}
-                transition={{ duration: 0.5, ease: 'easeOut' }}
-                className="block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
-              >
-                {messages[index]}
-              </motion.span>
-            )}
+            <motion.span
+              key={`message-${index}`}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="absolute block bg-gradient-to-r from-indigo-300 to-white bg-clip-text text-transparent"
+            >
+              {messages[index]}
+            </motion.span>
           </AnimatePresence>
         </div>
 

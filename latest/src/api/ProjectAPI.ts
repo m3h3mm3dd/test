@@ -116,7 +116,7 @@ export async function deleteProject(projectId: string): Promise<string> {
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/delete`, {
     method: 'DELETE',
     headers,
-    body: JSON.stringify({ IsDeleted: true }), 
+    body: JSON.stringify({ IsDeleted: true }),  
   });
 
   if (!response.ok) {

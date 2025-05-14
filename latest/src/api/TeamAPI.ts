@@ -37,6 +37,51 @@ export interface TeamMemberRemoveData {
 }
 
 /**
+ * Create a new team
+ */
+export async function createTeam(data: TeamCreateData): Promise<Team> {
+  console.log('[TeamAPI] Creating team with data:', data);
+  
+  try {
+    // Ensure all properties are included
+    const validatedData = {
+      Name: data.Name,
+      Description: data.Description || "",
+      ColorIndex: data.ColorIndex || 0,
+      ProjectId: data.ProjectId
+    };
+    
+    console.log('[TeamAPI] Sending validated data:', validatedData);
+    
+    const response = await api.post('/teams/', validatedData);
+    console.log('[TeamAPI] Create team response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[TeamAPI] Create team error:', error);
+    
+    // Enhanced error logging with safe property access
+    if (error?.response) {
+      try {
+        console.error('[TeamAPI] Error response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: JSON.stringify(error.response?.data || {}),
+          url: error.response?.config?.url
+        });
+      } catch (loggingError) {
+        console.error('[TeamAPI] Error while logging response:', loggingError);
+      }
+    } else if (error?.request) {
+      console.error('[TeamAPI] No response received:', error.request);
+    } else {
+      console.error('[TeamAPI] Request setup error:', error.message);
+    }
+    
+    throw error;
+  }
+}
+
+/**
  * Get all teams
  */
 export async function getAllTeams(): Promise<Team[]> {
@@ -44,27 +89,79 @@ export async function getAllTeams(): Promise<Team[]> {
     const response = await api.get('/teams/');
     return response.data;
   } catch (error) {
-    console.error('Error fetching teams:', error);
+    console.error('[TeamAPI] Error fetching teams:', error);
     return [];
   }
 }
 
 /**
- * Create a new team
+ * Get a specific team by ID
+ * FIXED: Based on API spec, the team_id is sent as a query parameter
  */
-export async function createTeam(data: TeamCreateData): Promise<Team> {
-  const response = await api.post('/teams/', data);
-  return response.data;
+export async function getTeamById(teamId: string): Promise<Team> {
+  console.log(`[TeamAPI] Fetching team with ID: ${teamId}`);
+  
+  try {
+    // Use the correct endpoint format per the API spec
+    // The endpoint is GET /teams/{team_id} with teamId as a query parameter
+    const response = await api.get('/teams', {
+      params: { teamId }
+    });
+    
+    console.log('[TeamAPI] Team fetch successful:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[TeamAPI] Error fetching team:', error);
+    
+    // Enhanced error logging
+    if (error?.response) {
+      try {
+        console.error('[TeamAPI] Error response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: JSON.stringify(error.response?.data || {}),
+          url: error.response?.config?.url
+        });
+      } catch (loggingError) {
+        console.error('[TeamAPI] Error while logging response:', loggingError);
+      }
+    }
+    
+    throw error;
+  }
 }
 
 /**
- * Get a specific team by ID
+ * Alternative implementation for getTeamById
+ * This version treats teamId as a path parameter
  */
-export async function getTeamById(teamId: string): Promise<Team> {
-  const response = await api.get(`/teams/${teamId}`, {
-    params: { teamId }
-  });
-  return response.data;
+export async function getTeamByIdAlt(teamId: string): Promise<Team> {
+  console.log(`[TeamAPI] Fetching team with ID (alt method): ${teamId}`);
+  
+  try {
+    // Treat teamId as a path parameter
+    const response = await api.get(`/teams/${teamId}`);
+    
+    console.log('[TeamAPI] Team fetch successful (alt method):', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('[TeamAPI] Error fetching team (alt method):', error);
+    
+    if (error?.response) {
+      try {
+        console.error('[TeamAPI] Error response details:', {
+          status: error.response?.status,
+          statusText: error.response?.statusText,
+          data: JSON.stringify(error.response?.data || {}),
+          url: error.response?.config?.url
+        });
+      } catch (loggingError) {
+        console.error('[TeamAPI] Error while logging response:', loggingError);
+      }
+    }
+    
+    throw error;
+  }
 }
 
 /**
@@ -112,7 +209,7 @@ export async function getTeamTasks(teamId: string): Promise<any[]> {
     });
     return response.data;
   } catch (error) {
-    console.error('Error fetching team tasks:', error);
+    console.error('[TeamAPI] Error fetching team tasks:', error);
     return [];
   }
 }
@@ -126,7 +223,7 @@ export async function getProjectTeams(projectId: string): Promise<Team[]> {
     const allTeams = await getAllTeams();
     return allTeams.filter(team => team.ProjectId === projectId);
   } catch (error) {
-    console.error('Error fetching project teams:', error);
+    console.error('[TeamAPI] Error fetching project teams:', error);
     return [];
   }
 }
