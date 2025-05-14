@@ -20,7 +20,7 @@ import { toast } from '@/lib/toast';
 // Reuse the analysis form styles
 import '../analysis/create/analysisForm.css';
 
-// Response strategies
+// Response strategies based on the actual options
 const RESPONSE_STRATEGIES = [
   'Avoid',
   'Mitigate',
@@ -93,7 +93,7 @@ export default function CreateRiskResponsePage() {
       } catch (error) {
         console.error('Error fetching risk:', error);
         toast.error('Could not load risk data');
-        router.push(`/projects/${id}/risk/${riskId}`);
+        router.push(`/projects/${id}/risks/${riskId}`);
       } finally {
         setLoading(false);
       }
@@ -163,7 +163,7 @@ export default function CreateRiskResponsePage() {
       await createRiskResponsePlan(responseData);
       
       toast.success('Response plan created successfully');
-      router.push(`/projects/${id}/risk/${riskId}`);
+      router.push(`/projects/${id}/risks/${riskId}`);
     } catch (error) {
       console.error('Error creating response plan:', error);
       toast.error('Failed to create response plan');
@@ -202,7 +202,7 @@ export default function CreateRiskResponsePage() {
       {/* Header */}
       <div className="mb-8 flex items-center">
         <button
-          onClick={() => router.push(`/projects/${id}/risk/${riskId}`)}
+          onClick={() => router.push(`/projects/${id}/risks/${riskId}`)}
           className="mr-4 p-2 rounded-full bg-background/80 backdrop-blur border border-border hover:bg-muted transition-colors"
           aria-label="Back to risk details"
         >
@@ -242,7 +242,7 @@ export default function CreateRiskResponsePage() {
             
             <div className="space-y-1">
               <div className="text-sm text-muted-foreground">Severity</div>
-              <div className={`font-medium text-${severityInfo.color}-500`}>
+              <div className={`font-medium text-${severityInfo.color}-600 dark:text-${severityInfo.color}-400`}>
                 {risk?.Severity || (risk?.Probability && risk?.Impact ? (risk.Probability * risk.Impact).toFixed(1) : 'N/A')} 
               </div>
             </div>
@@ -358,7 +358,7 @@ export default function CreateRiskResponsePage() {
           <div className="flex justify-end gap-3 pt-4 border-t">
             <button
               type="button"
-              onClick={() => router.push(`/projects/${id}/risk/${riskId}`)}
+              onClick={() => router.push(`/projects/${id}/risks/${riskId}`)}
               disabled={submitting}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
             >

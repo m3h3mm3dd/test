@@ -26,7 +26,7 @@ import { getProjectRisks } from '@/api/RiskAPI';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 
-// Styles for the component (we'll use inline styles consistent with the app)
+// Styles for the component
 import './riskDashboard.css';
 
 export default function RiskManagementPage() {
@@ -255,7 +255,7 @@ export default function RiskManagementPage() {
         </div>
         
         <div>
-          <Link href={`/projects/${id}/risk/create`}>
+          <Link href={`/projects/${id}/risks/create`}>
             <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
               Add Risk
@@ -275,7 +275,11 @@ export default function RiskManagementPage() {
         <div className="bg-card border rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-sm">High Risks</h3>
-            <div className={`px-2 py-1 text-xs font-medium rounded-full ${risksByLevel.high > 0 ? 'bg-red-100 text-red-800 dark:bg-red-900/20 dark:text-red-300' : 'bg-muted text-muted-foreground'}`}>
+            <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+              risksByLevel.high > 0 
+                ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
               {risksByLevel.high}
             </div>
           </div>
@@ -291,7 +295,11 @@ export default function RiskManagementPage() {
         <div className="bg-card border rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-sm">Medium Risks</h3>
-            <div className={`px-2 py-1 text-xs font-medium rounded-full ${risksByLevel.medium > 0 ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300' : 'bg-muted text-muted-foreground'}`}>
+            <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+              risksByLevel.medium > 0 
+                ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
               {risksByLevel.medium}
             </div>
           </div>
@@ -307,7 +315,11 @@ export default function RiskManagementPage() {
         <div className="bg-card border rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between mb-3">
             <h3 className="font-medium text-sm">Low Risks</h3>
-            <div className={`px-2 py-1 text-xs font-medium rounded-full ${risksByLevel.low > 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300' : 'bg-muted text-muted-foreground'}`}>
+            <div className={`px-2 py-1 text-xs font-medium rounded-full ${
+              risksByLevel.low > 0 
+                ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' 
+                : 'bg-muted text-muted-foreground'
+            }`}>
               {risksByLevel.low}
             </div>
           </div>
@@ -458,7 +470,7 @@ export default function RiskManagementPage() {
             No risks have been identified for this project yet. Add risks to track potential issues that could impact your project's success.
           </p>
           
-          <Link href={`/projects/${id}/risk/create`}>
+          <Link href={`/projects/${id}/risks/create`}>
             <button className="inline-flex items-center px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all shadow-sm">
               <Plus className="h-4 w-4 mr-2" />
               Add First Risk
@@ -494,11 +506,15 @@ export default function RiskManagementPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: index * 0.05 }}
                 className="bg-card border rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => router.push(`/projects/${id}/risk/${risk.Id}`)}
+                onClick={() => router.push(`/projects/${id}/risks/${risk.Id}`)}
               >
                 <div className="flex">
                   <div 
-                    className={`w-1.5 bg-${severity.color}-500`}
+                    className={`w-1.5 ${
+                      severity.color === 'red' ? 'bg-red-500' : 
+                      severity.color === 'amber' ? 'bg-amber-500' : 
+                      'bg-green-500'
+                    }`}
                   ></div>
                   
                   <div className="flex-1 p-4">
@@ -511,15 +527,19 @@ export default function RiskManagementPage() {
                       </div>
                       
                       <div className="flex flex-wrap gap-2">
-                        <div className={`px-2.5 py-1 text-xs font-medium rounded-full bg-${severity.color}-100 text-${severity.color}-800 dark:bg-${severity.color}-900/20 dark:text-${severity.color}-300`}>
+                        <div className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                          severity.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
+                          severity.color === 'amber' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 
+                          'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                        }`}>
                           {severity.level} Severity
                         </div>
                         
                         {risk.Status && (
                           <div className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                             risk.Status === 'Resolved' 
-                              ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
-                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                              ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                              : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                           }`}>
                             {risk.Status}
                           </div>

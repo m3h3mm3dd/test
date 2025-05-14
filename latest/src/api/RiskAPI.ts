@@ -1,3 +1,5 @@
+// src/api/RiskAPI.ts
+
 import { api } from '@/lib/axios';
 
 export interface Risk {
@@ -11,8 +13,8 @@ export interface Risk {
   Severity: number;
   OwnerId: string;
   Status: string;
-  CreatedAt: string;
-  UpdatedAt?: string;
+  IdentifiedDate: string;
+  IsDeleted: boolean;
 }
 
 export interface RiskCreateData {
@@ -54,13 +56,13 @@ export interface RiskResponsePlanCreateData {
   Status?: string;
 }
 
-// Mock data for development
+// Mock data for development fallback
 const mockRisks: Record<string, Risk[]> = {};
 
-// Helper function to create fake risk IDs
+// Helper function to create fake risk IDs for fallback
 const createFakeRiskId = () => `risk-${Math.random().toString(36).substring(2, 11)}`;
 
-// Generate mock data for a project if it doesn't exist
+// Generate mock data for a project if it doesn't exist (for fallback)
 const generateMockRisks = (projectId: string, count = 5): Risk[] => {
   if (mockRisks[projectId]) return mockRisks[projectId];
   
@@ -85,7 +87,8 @@ const generateMockRisks = (projectId: string, count = 5): Risk[] => {
       Severity: severity,
       OwnerId: localStorage.getItem('userId') || 'user-123',
       Status: statuses[Math.floor(Math.random() * statuses.length)],
-      CreatedAt: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
+      IdentifiedDate: new Date(Date.now() - Math.floor(Math.random() * 30) * 24 * 60 * 60 * 1000).toISOString(),
+      IsDeleted: false
     });
   }
   
@@ -93,10 +96,10 @@ const generateMockRisks = (projectId: string, count = 5): Risk[] => {
   return risks;
 };
 
-// Mock analyses data
+// Mock analyses data for fallback
 const mockAnalyses: Record<string, any[]> = {};
 
-// Generate mock analyses for a risk
+// Generate mock analyses for a risk (for fallback)
 const generateMockAnalyses = (riskId: string, count = 2): any[] => {
   if (mockAnalyses[riskId]) return mockAnalyses[riskId];
   
@@ -112,7 +115,8 @@ const generateMockAnalyses = (riskId: string, count = 2): any[] => {
       MatrixScore: ['A3', 'B2', 'C4', 'D1'][Math.floor(Math.random() * 4)],
       ExpectedValue: Math.floor(Math.random() * 50000) + 5000,
       OwnerId: localStorage.getItem('userId') || 'user-123',
-      CreatedAt: new Date().toISOString(),
+      AnalysisDate: new Date().toISOString(),
+      IsDeleted: false
     });
   }
   
@@ -120,10 +124,10 @@ const generateMockAnalyses = (riskId: string, count = 2): any[] => {
   return analyses;
 };
 
-// Mock response plans data
+// Mock response plans data for fallback
 const mockResponsePlans: Record<string, any[]> = {};
 
-// Generate mock response plans for a risk
+// Generate mock response plans for a risk (for fallback)
 const generateMockResponsePlans = (riskId: string, count = 2): any[] => {
   if (mockResponsePlans[riskId]) return mockResponsePlans[riskId];
   
@@ -142,6 +146,7 @@ const generateMockResponsePlans = (riskId: string, count = 2): any[] => {
       Status: statuses[Math.floor(Math.random() * statuses.length)],
       OwnerId: localStorage.getItem('userId') || 'user-123',
       CreatedAt: new Date().toISOString(),
+      IsDeleted: false
     });
   }
   
@@ -158,9 +163,9 @@ export async function getProjectRisks(projectId: string): Promise<Risk[]> {
     const response = await api.get(`/risks/project/${projectId}`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to fetch risks from API, using mock data instead:', error);
+    console.warn('API not available, using mock data instead:', error);
     
-    // For development, return mock data
+    // Return mock data as fallback
     return generateMockRisks(projectId);
   }
 }
@@ -173,7 +178,7 @@ export async function getRiskById(riskId: string): Promise<Risk> {
     const response = await api.get(`/risks/${riskId}`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to fetch risk by ID, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     
     // Find the risk in our mock data
     for (const projectId in mockRisks) {
@@ -193,7 +198,8 @@ export async function getRiskById(riskId: string): Promise<Risk> {
       Severity: 2.5,
       OwnerId: localStorage.getItem('userId') || 'user-123',
       Status: 'Identified',
-      CreatedAt: new Date().toISOString(),
+      IdentifiedDate: new Date().toISOString(),
+      IsDeleted: false
     };
     
     return mockRisk;
@@ -208,7 +214,7 @@ export async function createRisk(data: RiskCreateData): Promise<string> {
     const response = await api.post('/risks/create', data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to create risk via API, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     
     // Create a mock risk
     const riskId = createFakeRiskId();
@@ -223,7 +229,8 @@ export async function createRisk(data: RiskCreateData): Promise<string> {
       Severity: data.Severity,
       OwnerId: data.OwnerId || (localStorage.getItem('userId') || 'user-123'),
       Status: data.Status || 'Identified',
-      CreatedAt: new Date().toISOString(),
+      IdentifiedDate: new Date().toISOString(),
+      IsDeleted: false
     };
     
     // Add to mock data
@@ -244,7 +251,7 @@ export async function updateRisk(riskId: string, data: RiskUpdateData): Promise<
     const response = await api.put(`/risks/${riskId}/update`, data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to update risk via API, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Find and update the risk in our mock data
     for (const projectId in mockRisks) {
@@ -252,8 +259,7 @@ export async function updateRisk(riskId: string, data: RiskUpdateData): Promise<
       if (riskIndex >= 0) {
         mockRisks[projectId][riskIndex] = {
           ...mockRisks[projectId][riskIndex],
-          ...data,
-          UpdatedAt: new Date().toISOString()
+          ...data
         };
         return riskId;
       }
@@ -271,7 +277,7 @@ export async function deleteRisk(riskId: string, projectId: string): Promise<str
     const response = await api.delete(`/risks/${riskId}/delete?projectId=${projectId}`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to delete risk via API, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Remove from mock data
     if (mockRisks[projectId]) {
@@ -294,7 +300,7 @@ export async function getRiskAnalyses(riskId: string): Promise<any[]> {
     const response = await api.get(`/risks/${riskId}/analyses`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to fetch risk analyses, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     return generateMockAnalyses(riskId);
   }
 }
@@ -307,13 +313,14 @@ export async function createRiskAnalysis(data: RiskAnalysisCreateData): Promise<
     const response = await api.post('/risks/analysis/create', data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to create risk analysis, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     
     const analysisId = `analysis-${Math.random().toString(36).substring(2, 11)}`;
     const analysis = {
       Id: analysisId,
       ...data,
-      CreatedAt: new Date().toISOString()
+      AnalysisDate: new Date().toISOString(),
+      IsDeleted: false
     };
     
     if (!mockAnalyses[data.RiskId]) {
@@ -336,7 +343,7 @@ export async function updateRiskAnalysis(
     const response = await api.put(`/risks/analysis/${analysisId}/update`, data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to update risk analysis, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Find and update in mock data
     for (const riskId in mockAnalyses) {
@@ -344,8 +351,7 @@ export async function updateRiskAnalysis(
       if (index >= 0) {
         mockAnalyses[riskId][index] = {
           ...mockAnalyses[riskId][index],
-          ...data,
-          UpdatedAt: new Date().toISOString()
+          ...data
         };
         return analysisId;
       }
@@ -363,7 +369,7 @@ export async function deleteRiskAnalysis(analysisId: string): Promise<string> {
     const response = await api.delete(`/risks/analysis/${analysisId}/delete`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to delete risk analysis, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Remove from mock data
     for (const riskId in mockAnalyses) {
@@ -382,7 +388,7 @@ export async function getRiskResponsePlans(riskId: string): Promise<any[]> {
     const response = await api.get(`/risks/${riskId}/responses`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to fetch risk response plans, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     return generateMockResponsePlans(riskId);
   }
 }
@@ -395,13 +401,14 @@ export async function createRiskResponsePlan(data: RiskResponsePlanCreateData): 
     const response = await api.post('/risks/response/create', data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to create risk response plan, using mock data:', error);
+    console.warn('API not available, using mock data:', error);
     
     const responseId = `response-${Math.random().toString(36).substring(2, 11)}`;
     const responsePlan = {
       Id: responseId,
       ...data,
-      CreatedAt: new Date().toISOString()
+      CreatedAt: new Date().toISOString(),
+      IsDeleted: false
     };
     
     if (!mockResponsePlans[data.RiskId]) {
@@ -429,7 +436,7 @@ export async function updateRiskResponsePlan(
     const response = await api.put(`/risks/response/${responseId}/update`, data);
     return response.data;
   } catch (error) {
-    console.warn('Failed to update risk response plan, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Find and update in mock data
     for (const riskId in mockResponsePlans) {
@@ -437,8 +444,7 @@ export async function updateRiskResponsePlan(
       if (index >= 0) {
         mockResponsePlans[riskId][index] = {
           ...mockResponsePlans[riskId][index],
-          ...data,
-          UpdatedAt: new Date().toISOString()
+          ...data
         };
         return responseId;
       }
@@ -456,7 +462,7 @@ export async function deleteRiskResponsePlan(responseId: string): Promise<string
     const response = await api.delete(`/risks/response/${responseId}/delete`);
     return response.data;
   } catch (error) {
-    console.warn('Failed to delete risk response plan, updating mock data:', error);
+    console.warn('API not available, updating mock data:', error);
     
     // Remove from mock data
     for (const riskId in mockResponsePlans) {

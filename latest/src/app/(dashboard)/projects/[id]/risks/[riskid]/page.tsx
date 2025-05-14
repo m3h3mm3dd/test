@@ -132,7 +132,7 @@ export default function RiskDetailPage() {
       await deleteRisk(risk.Id, id as string);
       
       toast.success('Risk deleted successfully');
-      router.push(`/projects/${id}/risk`);
+      router.push(`/projects/${id}/risks`);
     } catch (error) {
       console.error('Failed to delete risk:', error);
       toast.error('Could not delete risk');
@@ -169,7 +169,7 @@ export default function RiskDetailPage() {
           <p className="text-muted-foreground">{error || 'Risk not found'}</p>
           <div className="flex justify-center gap-4 mt-6">
             <button 
-              onClick={() => router.push(`/projects/${id}/risk`)}
+              onClick={() => router.push(`/projects/${id}/risks`)}
               className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
             >
               Back to Risks
@@ -195,7 +195,7 @@ export default function RiskDetailPage() {
       <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <button
-            onClick={() => router.push(`/projects/${id}/risk`)}
+            onClick={() => router.push(`/projects/${id}/risks`)}
             className="h-10 w-10 rounded-full flex items-center justify-center bg-muted hover:bg-muted/80 transition-colors"
             aria-label="Back to risks"
           >
@@ -213,7 +213,7 @@ export default function RiskDetailPage() {
         <div className="flex items-center gap-2">
           {permissions.canEdit && (
             <button
-              onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/edit`)}
+              onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/edit`)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
             >
               <Edit className="h-4 w-4" />
@@ -249,7 +249,11 @@ export default function RiskDetailPage() {
                 <div className="space-y-1">
                   <div className="flex gap-2">
                     <span
-                      className={`px-2.5 py-1 text-xs font-medium rounded-full bg-${severityInfo.color}-100 text-${severityInfo.color}-800 dark:bg-${severityInfo.color}-900/20 dark:text-${severityInfo.color}-300`}
+                      className={`px-2.5 py-1 text-xs font-medium rounded-full ${
+                        severityInfo.color === 'red' ? 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' : 
+                        severityInfo.color === 'amber' ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300' : 
+                        'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                      }`}
                     >
                       {severityInfo.level} Severity
                     </span>
@@ -258,10 +262,10 @@ export default function RiskDetailPage() {
                       <span
                         className={`px-2.5 py-1 text-xs font-medium rounded-full ${
                           risk.Status === 'Resolved' 
-                            ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                            ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                             : risk.Status === 'Mitigating'
-                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300'
-                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                            ? 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300'
+                            : 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                         }`}
                       >
                         {risk.Status}
@@ -324,11 +328,21 @@ export default function RiskDetailPage() {
                   <div className="bg-muted/40 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-xs text-muted-foreground">Severity</span>
-                      <span className={`text-sm font-medium text-${severityInfo.color}-500`}>{severity.toFixed(1)}/10</span>
+                      <span className={`text-sm font-medium ${
+                        severityInfo.color === 'red' ? 'text-red-600 dark:text-red-400' : 
+                        severityInfo.color === 'amber' ? 'text-amber-600 dark:text-amber-400' : 
+                        'text-green-600 dark:text-green-400'
+                      }`}>
+                        {severity.toFixed(1)}/10
+                      </span>
                     </div>
                     <div className="h-1.5 w-full bg-muted rounded-full overflow-hidden">
                       <div 
-                        className={`h-full bg-${severityInfo.color}-500 rounded-full`}
+                        className={`h-full ${
+                          severityInfo.color === 'red' ? 'bg-red-500' :
+                          severityInfo.color === 'amber' ? 'bg-amber-500' :
+                          'bg-green-500'
+                        } rounded-full`}
                         style={{ width: `${(severity / 10) * 100}%` }}
                       ></div>
                     </div>
@@ -389,7 +403,7 @@ export default function RiskDetailPage() {
                         <p>No analyses have been performed yet</p>
                         {permissions.canAddAnalysis && (
                           <button
-                            onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/analysis/create`)}
+                            onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/analysis/create`)}
                             className="mt-2 text-primary hover:underline flex items-center gap-1 mx-auto"
                           >
                             <PlusCircle className="h-3.5 w-3.5" />
@@ -417,7 +431,7 @@ export default function RiskDetailPage() {
                               
                               {permissions.canEdit && (
                                 <button
-                                  onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/analysis/${analysis.Id}/edit`)}
+                                  onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/analysis/${analysis.Id}/edit`)}
                                   className="p-1.5 rounded-md hover:bg-muted"
                                 >
                                   <Edit className="h-4 w-4 text-muted-foreground" />
@@ -429,7 +443,7 @@ export default function RiskDetailPage() {
                         
                         {permissions.canAddAnalysis && (
                           <button
-                            onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/analysis/create`)}
+                            onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/analysis/create`)}
                             className="w-full py-2 px-4 border border-dashed rounded-lg text-muted-foreground hover:text-primary hover:border-primary flex items-center justify-center gap-1 transition-colors"
                           >
                             <PlusCircle className="h-4 w-4" />
@@ -491,7 +505,7 @@ export default function RiskDetailPage() {
                         <p>No response plans have been created yet</p>
                         {permissions.canAddResponse && (
                           <button
-                            onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/response/create`)}
+                            onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/response/create`)}
                             className="mt-2 text-primary hover:underline flex items-center gap-1 mx-auto"
                           >
                             <PlusCircle className="h-3.5 w-3.5" />
@@ -512,9 +526,9 @@ export default function RiskDetailPage() {
                                 {response.Status && (
                                   <div className={`inline-block text-xs px-2 py-0.5 rounded-full ${
                                     response.Status === 'Completed' 
-                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-300'
+                                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                                       : response.Status === 'In Progress'
-                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300'
+                                      ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300'
                                       : 'bg-muted text-muted-foreground'
                                   }`}>
                                     {response.Status}
@@ -524,7 +538,7 @@ export default function RiskDetailPage() {
                               
                               {permissions.canEdit && (
                                 <button
-                                  onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/response/${response.Id}/edit`)}
+                                  onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/response/${response.Id}/edit`)}
                                   className="p-1.5 rounded-md hover:bg-muted"
                                 >
                                   <Edit className="h-4 w-4 text-muted-foreground" />
@@ -547,7 +561,7 @@ export default function RiskDetailPage() {
                         
                         {permissions.canAddResponse && (
                           <button
-                            onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/response/create`)}
+                            onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/response/create`)}
                             className="w-full py-2 px-4 border border-dashed rounded-lg text-muted-foreground hover:text-primary hover:border-primary flex items-center justify-center gap-1 transition-colors"
                           >
                             <PlusCircle className="h-4 w-4" />
@@ -584,25 +598,12 @@ export default function RiskDetailPage() {
               <div className="space-y-1">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center">
                   <Calendar className="h-4 w-4 mr-2" />
-                  Created
+                  Identified Date
                 </h3>
                 <p className="text-foreground">
-                  {format(new Date(risk.CreatedAt), 'MMM d, yyyy')}
+                  {risk.IdentifiedDate ? format(new Date(risk.IdentifiedDate), 'MMM d, yyyy') : 'N/A'}
                 </p>
               </div>
-              
-              {/* Last Updated */}
-              {risk.UpdatedAt && (
-                <div className="space-y-1">
-                  <h3 className="text-sm font-medium text-muted-foreground flex items-center">
-                    <Calendar className="h-4 w-4 mr-2" />
-                    Last Updated
-                  </h3>
-                  <p className="text-foreground">
-                    {format(new Date(risk.UpdatedAt), 'MMM d, yyyy')}
-                  </p>
-                </div>
-              )}
               
               {/* Owner */}
               <div className="space-y-1">
@@ -642,11 +643,11 @@ export default function RiskDetailPage() {
             <div className="p-4 space-y-3">
               {permissions.canAddAnalysis && (
                 <button
-                  onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/analysis/create`)}
+                  onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/analysis/create`)}
                   className="w-full flex justify-between items-center p-2.5 rounded-md hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/20 dark:text-blue-300 flex items-center justify-center mr-3">
+                    <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 flex items-center justify-center mr-3">
                       <BarChart className="h-4 w-4" />
                     </div>
                     <span>Add Analysis</span>
@@ -657,11 +658,11 @@ export default function RiskDetailPage() {
               
               {permissions.canAddResponse && (
                 <button
-                  onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/response/create`)}
+                  onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/response/create`)}
                   className="w-full flex justify-between items-center p-2.5 rounded-md hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/20 dark:text-purple-300 flex items-center justify-center mr-3">
+                    <div className="w-8 h-8 rounded-full bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300 flex items-center justify-center mr-3">
                       <ShieldAlert className="h-4 w-4" />
                     </div>
                     <span>Add Response Plan</span>
@@ -672,11 +673,11 @@ export default function RiskDetailPage() {
               
               {permissions.canEdit && (
                 <button
-                  onClick={() => router.push(`/projects/${id}/risk/${risk.Id}/edit`)}
+                  onClick={() => router.push(`/projects/${id}/risks/${risk.Id}/edit`)}
                   className="w-full flex justify-between items-center p-2.5 rounded-md hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center">
-                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/20 dark:text-amber-300 flex items-center justify-center mr-3">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 flex items-center justify-center mr-3">
                       <Edit className="h-4 w-4" />
                     </div>
                     <span>Edit Risk</span>

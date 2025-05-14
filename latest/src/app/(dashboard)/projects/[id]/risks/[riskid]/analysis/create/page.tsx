@@ -18,7 +18,7 @@ import { createRiskAnalysis } from '@/api/RiskAPI';
 import { toast } from '@/lib/toast';
 
 // Styles
-import './analysisForm.css';
+import "/analysisForm.css";
 
 // Analysis types
 const ANALYSIS_TYPES = [

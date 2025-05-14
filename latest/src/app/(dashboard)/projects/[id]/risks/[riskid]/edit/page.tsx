@@ -272,7 +272,7 @@ export default function EditRiskPage() {
           </p>
         </div>
       </div>
-      
+     
       {/* Form Card */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
