@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { v4 as uuidv4 } from 'uuid';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+import { Database } from 'lucide-react';
 
 // Icons
 import {

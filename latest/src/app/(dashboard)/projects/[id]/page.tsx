@@ -11,6 +11,7 @@ import { format, isPast, isToday, differenceInDays } from 'date-fns';
 import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { ProjectDeleteDialog } from '@/components/project/ProjectDeleteDialog';
+import { AddMemberDialog } from '@/components/project/AddMemberDialog';
 
 // Icons
 import {
@@ -34,6 +35,7 @@ import {
   ExternalLink,
   Trash2,
   Package,
+  UserPlus,
 } from 'lucide-react';
 
 // Components
@@ -50,6 +52,7 @@ export default function ProjectDetailPage() {
   const [error, setError] = useState(null);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
   const [userRole, setUserRole] = useState({ 
     isOwner: false, 
     isTeamLeader: false, 
@@ -87,6 +90,52 @@ export default function ProjectDetailPage() {
     } catch (error) {
       console.error("Error decoding token:", error);
       return null;
+    }
+  };
+
+  // Function to load locally stored members
+  const loadLocalMembers = (projectId, existingMembers = []) => {
+    try {
+      const storageKey = 'projectMembers';
+      const storedMembersJSON = localStorage.getItem(storageKey);
+      
+      if (!storedMembersJSON) return existingMembers;
+      
+      const allStoredMembers = JSON.parse(storedMembersJSON);
+      const localProjectMembers = allStoredMembers[projectId] || [];
+      
+      // Combine existing members with local members
+      const combinedMembers = [...existingMembers];
+      
+      // Add local members if they don't already exist
+      localProjectMembers.forEach(localMember => {
+        const exists = combinedMembers.some(
+          member => member.UserId === localMember.UserId || 
+                  (member.User?.Email && localMember.User?.Email && 
+                   member.User.Email.toLowerCase() === localMember.User.Email.toLowerCase())
+        );
+        
+        if (!exists) {
+          combinedMembers.push(localMember);
+        }
+      });
+      
+      return combinedMembers;
+    } catch (error) {
+      console.error('Error loading local members:', error);
+      return existingMembers;
+    }
+  };
+
+  // Handle member added
+  const handleMemberAdded = () => {
+    // Update the project with the newly added member
+    if (project) {
+      const updatedMembers = loadLocalMembers(id, project.members || []);
+      setProject({
+        ...project,
+        members: updatedMembers
+      });
     }
   };
 
@@ -152,12 +201,19 @@ export default function ProjectDetailPage() {
           getProjectTasks(id)
         ]);
         
-        setProject(projectData);
+        // Load locally stored members
+        const updatedMembers = loadLocalMembers(id, projectData.members || []);
+        const updatedProject = {
+          ...projectData,
+          members: updatedMembers
+        };
+        
+        setProject(updatedProject);
         setTasks(tasksData || []);
         setError(null);
         
         // Determine user role
-        const roleInfo = determineUserRole(projectData);
+        const roleInfo = determineUserRole(updatedProject);
         setUserRole(roleInfo);
       } catch (err) {
         console.error('Failed to load project:', err);
@@ -623,7 +679,7 @@ export default function ProjectDetailPage() {
                     className="flex items-center justify-between w-full py-2.5 px-3 bg-muted/50 hover:bg-muted rounded-lg transition-colors"
                   >
                     <div className="flex items-center">
-                      <Edit className="h-5 w-5 text-indigo-400 mr-3" />
+                      <Edit className="h-5 w-5 text-red-400 mr-3" />
                       <span>Edit Project</span>
                     </div>
                     <ChevronRight className="h-4 w-4 text-muted-foreground" />
@@ -632,72 +688,42 @@ export default function ProjectDetailPage() {
               </div>
             </motion.div>
             
-            {/* Project info */}
+            {/* Team members */}
             <motion.div 
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.3 }}
               className="bg-card backdrop-blur-md rounded-xl p-6 shadow-sm border border-border"
             >
-              <h2 className="text-lg font-semibold mb-4">Project Info</h2>
-              
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Project ID</span>
-                  <span className="text-sm font-mono">{project.Id.substring(0, 8)}</span>
-                </div>
-                <div className="border-t border-border"></div>
-                
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Created</span>
-                  <span>{format(new Date(project.CreatedAt), 'MMM d, yyyy')}</span>
-                </div>
-                <div className="border-t border-border"></div>
-                
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Status</span>
-                  <span className={cn(
-                    completionPercentage >= 100 ? "text-green-500" : 
-                    isPast(new Date(project.Deadline)) ? "text-red-500" : "text-blue-500"
-                  )}>
-                    {completionPercentage >= 100 ? "Completed" : 
-                     isPast(new Date(project.Deadline)) ? "Overdue" : "In Progress"}
-                  </span>
-                </div>
-                <div className="border-t border-border"></div>
-                
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Your Role</span>
-                  <span className={userRole.isOwner ? "text-purple-500 dark:text-purple-400" : 
-                                  userRole.isTeamLeader ? "text-blue-500 dark:text-blue-400" : ""}>
-                    {userRole.role}
-                  </span>
-                </div>
-              </div>
-            </motion.div>
-            
-            {/* Team members */}
-            <motion.div 
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.4 }}
-              className="bg-card backdrop-blur-md rounded-xl p-6 shadow-sm border border-border"
-            >
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold">Team</h2>
-                <Link 
-                  href={`/projects/${project.Id}/team`}
-                  className="flex items-center text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  View all <ChevronRight className="h-4 w-4" />
-                </Link>
+                <div className="flex items-center gap-2">
+                  {/* Add team member button - only visible to project owners */}
+                  {userRole.isOwner && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => setShowAddMemberDialog(true)}
+                      className="text-sm text-primary border-primary/30 hover:bg-primary/10"
+                    >
+                      <UserPlus className="h-3.5 w-3.5 mr-1" /> Add
+                    </Button>
+                  )}
+
+                  <Link 
+                    href={`/projects/${project.Id}/team`}
+                    className="flex items-center text-sm text-primary hover:text-primary/80 transition-colors"
+                  >
+                    View all <ChevronRight className="h-4 w-4" />
+                  </Link>
+                </div>
               </div>
               
               {project.members && project.members.length > 0 ? (
                 <div className="space-y-3">
                   {project.members.slice(0, 3).map((member, index) => (
                     <motion.div 
-                      key={member.UserId}
+                      key={member.UserId || index}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: 0.5 + (index * 0.1) }}
@@ -708,16 +734,20 @@ export default function ProjectDetailPage() {
                           {member.User?.FirstName?.charAt(0) || '?'}{member.User?.LastName?.charAt(0) || ''}
                         </div>
                         <div>
-                          <div className="font-medium">{member.User?.FirstName} {member.User?.LastName}</div>
-                          <div className="text-xs text-muted-foreground">{member.User?.Email}</div>
+                          <div className="font-medium">{member.User?.FirstName || 'User'} {member.User?.LastName || ''}</div>
+                          <div className="text-xs text-muted-foreground">{member.User?.Email || 'No email'}</div>
                         </div>
                       </div>
-                      
-                      {member.UserId === project.OwnerId && (
+
+                      {member.UserId === project.OwnerId ? (
                         <div className="px-2 py-1 rounded text-xs bg-purple-500/20 text-purple-500 dark:text-purple-400">
                           Owner
                         </div>
-                      )}
+                      ) : member.UserId?.startsWith('local-') ? (
+                        <div className="px-2 py-1 rounded text-xs bg-blue-500/20 text-blue-500 dark:text-blue-400">
+                          New
+                        </div>
+                      ) : null}
                     </motion.div>
                   ))}
                 </div>
@@ -725,6 +755,132 @@ export default function ProjectDetailPage() {
                 <div className="text-center py-4 bg-muted/50 rounded-lg">
                   <Users className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
                   <p className="text-muted-foreground">No team members yet</p>
+                  {userRole.isOwner && (
+                    <Button
+                      variant="link"
+                      className="mt-2 text-primary hover:text-primary/80"
+                      onClick={() => setShowAddMemberDialog(true)}
+                    >
+                      <UserPlus className="h-4 w-4 mr-1" /> Add member
+                    </Button>
+                  )}
+                </div>
+              )}
+            </motion.div>
+            
+            {/* Project details */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.4 }}
+              className="bg-card backdrop-blur-md rounded-xl p-6 shadow-sm border border-border"
+            >
+              <h2 className="text-lg font-semibold mb-4">Project Details</h2>
+              
+              <div className="space-y-4">
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Status</div>
+                  <div className={cn(
+                    "inline-flex items-center px-2 py-1 rounded text-xs font-medium",
+                    completionPercentage >= 100 ? "bg-green-500/20 text-green-500 dark:text-green-400" : 
+                    isPast(new Date(project.Deadline)) ? "bg-red-500/20 text-red-500 dark:text-red-400" : 
+                    "bg-blue-500/20 text-blue-600 dark:text-blue-400"
+                  )}>
+                    {completionPercentage >= 100 ? "Completed" : 
+                     isPast(new Date(project.Deadline)) ? "Overdue" : "In Progress"}
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Priority</div>
+                  <div className={cn(
+                    "inline-flex items-center",
+                    project.Priority === 'High' ? "text-red-500" : 
+                    project.Priority === 'Medium' ? "text-amber-500" : 
+                    "text-blue-500"
+                  )}>
+                    <Flag className={cn(
+                      "h-4 w-4 mr-1",
+                      project.Priority === 'High' ? "text-red-500" : 
+                      project.Priority === 'Medium' ? "text-amber-500" : 
+                      "text-blue-500"
+                    )} />
+                    {project.Priority || 'Medium'} Priority
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Created</div>
+                  <div className="text-sm">
+                    {project.CreatedAt ? format(new Date(project.CreatedAt), 'MMM d, yyyy') : 'Not available'}
+                  </div>
+                </div>
+                
+                <div>
+                  <div className="text-sm text-muted-foreground mb-1">Your Role</div>
+                  <div className="text-sm font-medium">
+                    {userRole.role}
+                  </div>
+                </div>
+                
+                {project.Category && (
+                  <div>
+                    <div className="text-sm text-muted-foreground mb-1">Category</div>
+                    <div className="text-sm">{project.Category}</div>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+            
+            {/* Key stakeholders */}
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.5 }}
+              className="bg-card backdrop-blur-md rounded-xl p-6 shadow-sm border border-border"
+            >
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold">Key Stakeholders</h2>
+                <Link 
+                  href={`/projects/${project.Id}/stakeholders`}
+                  className="flex items-center text-sm text-primary hover:text-primary/80 transition-colors"
+                >
+                  View all <ChevronRight className="h-4 w-4" />
+                </Link>
+              </div>
+              
+              {project.stakeholders && project.stakeholders.length > 0 ? (
+                <div className="space-y-3">
+                  {project.stakeholders.slice(0, 3).map((stakeholder, index) => (
+                    <motion.div 
+                      key={stakeholder.Id || index}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3, delay: 0.5 + (index * 0.1) }}
+                      className="flex items-center"
+                    >
+                      <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm font-medium mr-3">
+                        {stakeholder.User?.FirstName?.charAt(0) || '?'}{stakeholder.User?.LastName?.charAt(0) || ''}
+                      </div>
+                      <div>
+                        <div className="font-medium">{stakeholder.User?.FirstName || 'User'} {stakeholder.User?.LastName || ''}</div>
+                        <div className="text-xs text-muted-foreground">{stakeholder.Role || 'Stakeholder'}</div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-4 bg-muted/50 rounded-lg">
+                  <Users2 className="h-8 w-8 text-muted-foreground/30 mx-auto mb-2" />
+                  <p className="text-muted-foreground">No stakeholders identified</p>
+                  {userRole.isOwner && (
+                    <Link 
+                      href={`/projects/${project.Id}/stakeholders`}
+                      className="inline-block mt-2 text-primary hover:text-primary/80 transition-colors text-sm"
+                    >
+                      Add stakeholders
+                    </Link>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -732,55 +888,57 @@ export default function ProjectDetailPage() {
         </div>
       </main>
       
-      {/* Delete Project Dialog */}
-      <ProjectDeleteDialog
-        projectId={project.Id}
-        projectName={project.Name}
-        isOpen={showDeleteDialog}
-        onClose={() => setShowDeleteDialog(false)}
-      />
+      {/* Project Delete Dialog */}
+      {showDeleteDialog && (
+        <ProjectDeleteDialog
+          projectId={project.Id}
+          projectName={project.Name}
+          isOpen={showDeleteDialog}
+          onClose={() => setShowDeleteDialog(false)}
+          onDelete={() => {
+            setShowDeleteDialog(false);
+            router.push('/projects');
+          }}
+        />
+      )}
+
+      {/* Add Member Dialog */}
+      {showAddMemberDialog && (
+        <AddMemberDialog
+          projectId={project.Id}
+          isOpen={showAddMemberDialog}
+          onClose={() => setShowAddMemberDialog(false)}
+          onMemberAdded={handleMemberAdded}
+        />
+      )}
     </div>
   );
 }
 
-// Loading Screen Component
+// Loading screen component
 function LoadingScreen() {
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container max-w-7xl mx-auto px-4 py-8">
-        {/* Header skeleton */}
-        <div className="flex items-center gap-4 mb-8 animate-pulse">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <div>
-            <Skeleton className="h-7 w-56" />
-            <Skeleton className="h-4 w-32 mt-2" />
-          </div>
+    <div className="min-h-screen p-4">
+      <div className="container max-w-7xl mx-auto">
+        <div className="flex items-center gap-4 mb-6">
+          <div className="w-10 h-10 rounded-full bg-muted animate-pulse" />
+          <Skeleton className="h-8 w-64" />
         </div>
         
-        {/* Tabs skeleton */}
-        <div className="flex gap-2 mb-8 animate-pulse">
-          {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-10 w-24 rounded-md" />
-          ))}
-        </div>
-        
-        {/* Content skeleton */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Skeleton className="h-40 w-full rounded-xl animate-pulse" />
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-32 rounded-xl animate-pulse" />
-              ))}
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <div className="grid grid-cols-3 gap-4">
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
+              <Skeleton className="h-24 w-full rounded-xl" />
             </div>
-            
-            <Skeleton className="h-64 w-full rounded-xl animate-pulse" />
+            <Skeleton className="h-64 w-full rounded-xl" />
           </div>
-          
           <div className="space-y-6">
-            <Skeleton className="h-48 w-full rounded-xl animate-pulse" />
-            <Skeleton className="h-48 w-full rounded-xl animate-pulse" />
+            <Skeleton className="h-40 w-full rounded-xl" />
+            <Skeleton className="h-48 w-full rounded-xl" />
+            <Skeleton className="h-40 w-full rounded-xl" />
           </div>
         </div>
       </div>
@@ -788,31 +946,22 @@ function LoadingScreen() {
   );
 }
 
-// Error Screen Component
+// Error screen component
 function ErrorScreen({ error, onRetry }) {
   return (
-    <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-      <div className="max-w-md mx-auto px-6 py-12 bg-card rounded-xl shadow-sm border border-border text-center">
-        <div className="bg-red-500/10 p-3 rounded-full inline-flex items-center justify-center mb-4">
-          <AlertCircle className="h-8 w-8 text-red-500" />
-        </div>
-        
-        <h1 className="text-2xl font-bold mb-2">Failed to Load Project</h1>
-        <p className="text-muted-foreground mb-6">{error || "Something went wrong. Please try again."}</p>
-        
+    <div className="min-h-screen flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-card backdrop-blur-md rounded-xl p-6 shadow-sm border border-border text-center">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Failed to load project</h1>
+        <p className="text-muted-foreground mb-6">
+          {error || "There was an error loading the project details. Please try again."}
+        </p>
         <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <Button
-            variant="outline"
-            onClick={() => window.history.back()}
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" /> Go Back
+          <Button variant="outline" onClick={() => router.push('/projects')}>
+            Back to Projects
           </Button>
-          
-          <Button
-            onClick={onRetry}
-            className="bg-primary hover:bg-primary/90"
-          >
-            <ExternalLink className="h-4 w-4 mr-2" /> Try Again
+          <Button onClick={onRetry}>
+            Retry
           </Button>
         </div>
       </div>

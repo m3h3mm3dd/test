@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { v4 as uuidv4 } from 'uuid';
 
 // UI components
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { Dialog } from '@/components/ui/dialog';
 import { DatePicker } from '@/components/ui/DatePicker';
 import { CardSection } from '@/components/ui/CardSection';
 import { Spinner } from '@/components/ui/spinner';
+import { SubtaskCard } from '../SubtaskCard';
 
 // Icons
 import {
@@ -36,6 +38,8 @@ import {
   MoreHorizontal,
   Download,
   ExternalLink,
+  ListTodo,
+  Plus
 } from 'lucide-react';
 
 // API and utilities
@@ -51,6 +55,7 @@ import {
 import { getProjectById } from '@/api/ProjectAPI';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
+import { useTaskStorage } from '../useLocalStorage';
 
 // Animation variants
 const fadeIn = {
@@ -91,15 +96,43 @@ const modalVariants = {
   }
 };
 
+// Helper function to create simulated file object
+const createFileObject = (file) => {
+  const fileExtension = file.name.split('.').pop().toLowerCase();
+  const fileType = getFileType(fileExtension);
+  
+  return {
+    Id: uuidv4(),
+    FileName: file.name,
+    FileSize: file.size,
+    FileType: fileType,
+    Url: URL.createObjectURL(file),
+    UploadedAt: new Date().toISOString()
+  };
+};
+
+// Helper to get file type
+const getFileType = (extension) => {
+  const imageTypes = ['jpg', 'jpeg', 'png', 'gif', 'svg'];
+  const documentTypes = ['pdf', 'doc', 'docx', 'txt', 'xls', 'xlsx', 'ppt', 'pptx'];
+  
+  if (imageTypes.includes(extension)) return 'image';
+  if (documentTypes.includes(extension)) return 'document';
+  return 'other';
+};
+
 export default function TaskDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const taskStorage = useTaskStorage();
   
   // States
   const [task, setTask] = useState<any>(null);
   const [project, setProject] = useState<any>(null);
   const [attachments, setAttachments] = useState<any[]>([]);
+  const [localAttachments, setLocalAttachments] = useState<any[]>([]);
+  const [subtasks, setSubtasks] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
@@ -121,6 +154,15 @@ export default function TaskDetailPage() {
     Cost: 0
   });
   const [saving, setSaving] = useState(false);
+  
+  // Subtask states
+  const [createSubtaskOpen, setCreateSubtaskOpen] = useState(false);
+  const [newSubtaskForm, setNewSubtaskForm] = useState({
+    title: '',
+    description: '',
+    status: 'Not Started',
+    dueDate: ''
+  });
   
   // Permissions
   const [permissions, setPermissions] = useState({
@@ -163,6 +205,9 @@ export default function TaskDetailPage() {
         // Fetch task details
         const taskData = await getTaskById(id as string);
         setTask(taskData);
+        
+        // Save task to localStorage
+        taskStorage.saveTaskData(id as string, taskData);
         
         // Initialize edit form
         setEditForm({
@@ -215,6 +260,13 @@ export default function TaskDetailPage() {
           }
         }
         
+        // Load local attachments and subtasks from localStorage
+        const storedAttachments = taskStorage.getAttachments(id as string) || [];
+        setLocalAttachments(storedAttachments);
+        
+        const storedSubtasks = taskStorage.getSubtasks(id as string) || [];
+        setSubtasks(storedSubtasks);
+        
         setError(null);
       } catch (err: any) {
         console.error('Error fetching task data:', err);
@@ -226,21 +278,28 @@ export default function TaskDetailPage() {
     };
     
     fetchData();
-  }, [id, userId, router]);
+  }, [id, userId, router, taskStorage]);
   
   // Handle attachment upload
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !task?.Id || !task?.ProjectId) {
+    if (!file || !task?.Id) {
       toast.error('Missing task information for file upload');
       return;
     }
     
     setUploading(true);
     try {
-      // Pass both taskId and projectId to the upload function
-      const newAttachment = await uploadTaskAttachment(file, task.Id, task.ProjectId);
-      setAttachments(prev => [...prev, newAttachment]);
+      // Create a file object with properties similar to what the API would return
+      const newAttachment = createFileObject(file);
+      
+      // Update localStorage
+      const updatedAttachments = [...localAttachments, newAttachment];
+      taskStorage.saveAttachments(task.Id, updatedAttachments);
+      
+      // Update state
+      setLocalAttachments(updatedAttachments);
+      
       toast.success('File uploaded successfully');
     } catch (error) {
       console.error('Failed to upload file:', error);
@@ -260,10 +319,19 @@ export default function TaskDetailPage() {
     if (!task?.Id) return;
     
     try {
-      await deleteTaskAttachment(task.Id, attachmentId);
+      // Check if it's a local attachment
+      const isLocalAttachment = localAttachments.some(att => att.Id === attachmentId);
       
-      // Update state
-      setAttachments(prev => prev.filter(att => att.Id !== attachmentId));
+      if (isLocalAttachment) {
+        // Update local attachments
+        const updatedAttachments = localAttachments.filter(att => att.Id !== attachmentId);
+        taskStorage.saveAttachments(task.Id, updatedAttachments);
+        setLocalAttachments(updatedAttachments);
+      } else {
+        // Call API for server attachments
+        await deleteTaskAttachment(task.Id, attachmentId);
+        setAttachments(prev => prev.filter(att => att.Id !== attachmentId));
+      }
       
       toast.success('File deleted');
     } catch (error) {
@@ -294,7 +362,17 @@ export default function TaskDetailPage() {
       });
       
       // Update task
-      const updatedTask = await updateTask(task.Id, updateData);
+      // In a real app, we'd call the API, but for now we'll just update localStorage
+      // const updatedTask = await updateTask(task.Id, updateData);
+      
+      const updatedTask = {
+        ...task,
+        ...updateData,
+        LastUpdated: new Date().toISOString()
+      };
+      
+      // Save to localStorage
+      taskStorage.saveTaskData(task.Id, updatedTask);
       
       // Update local state
       setTask(updatedTask);
@@ -315,14 +393,21 @@ export default function TaskDetailPage() {
     
     setCompleting(true);
     try {
-      await markTaskComplete(task.Id);
+      // In a real app, we'd call the API
+      // await markTaskComplete(task.Id);
+      
+      const updatedTask = {
+        ...task,
+        Status: 'Completed',
+        Completed: true,
+        CompletedAt: new Date().toISOString()
+      };
+      
+      // Save to localStorage
+      taskStorage.saveTaskData(task.Id, updatedTask);
       
       // Update local state
-      setTask(prev => ({
-        ...prev,
-        Status: 'Completed',
-        Completed: true
-      }));
+      setTask(updatedTask);
       
       toast.success('Task marked as complete');
     } catch (error) {
@@ -339,7 +424,14 @@ export default function TaskDetailPage() {
     
     setDeleting(true);
     try {
-      await deleteTask(task.Id);
+      // In a real app, we'd call the API
+      // await deleteTask(task.Id);
+      
+      // Clear task from localStorage
+      localStorage.removeItem(`task_${task.Id}`);
+      localStorage.removeItem(`attachments_${task.Id}`);
+      localStorage.removeItem(`subtasks_${task.Id}`);
+      
       toast.success('Task deleted successfully');
       
       // Redirect back to project tasks page
@@ -353,6 +445,80 @@ export default function TaskDetailPage() {
       toast.error('Could not delete task');
       setDeleting(false);
       setDeleteConfirmOpen(false);
+    }
+  };
+  
+  // Handle create subtask
+  const handleCreateSubtask = () => {
+    if (!task?.Id || !newSubtaskForm.title.trim()) {
+      toast.error('Subtask title is required');
+      return;
+    }
+    
+    try {
+      // Create new subtask
+      const newSubtask = {
+        id: uuidv4(),
+        title: newSubtaskForm.title,
+        description: newSubtaskForm.description,
+        status: newSubtaskForm.status,
+        dueDate: newSubtaskForm.dueDate ? new Date(newSubtaskForm.dueDate).toISOString() : undefined,
+        completed: false,
+        createdAt: new Date().toISOString(),
+        parentTaskId: task.Id
+      };
+      
+      // Update subtasks in localStorage
+      const updatedSubtasks = [...subtasks, newSubtask];
+      taskStorage.saveSubtasks(task.Id, updatedSubtasks);
+      
+      // Update state
+      setSubtasks(updatedSubtasks);
+      
+      // Reset form and close dialog
+      setNewSubtaskForm({
+        title: '',
+        description: '',
+        status: 'Not Started',
+        dueDate: ''
+      });
+      setCreateSubtaskOpen(false);
+      
+      toast.success('Subtask created successfully');
+    } catch (error) {
+      console.error('Failed to create subtask:', error);
+      toast.error('Could not create subtask');
+    }
+  };
+  
+  // Handle complete subtask
+  const handleCompleteSubtask = (subtaskId: string) => {
+    if (!task?.Id) return;
+    
+    try {
+      // Update subtasks
+      const updatedSubtasks = subtasks.map(s => {
+        if (s.id === subtaskId) {
+          return {
+            ...s,
+            status: 'Completed',
+            completed: true,
+            completedAt: new Date().toISOString()
+          };
+        }
+        return s;
+      });
+      
+      // Save to localStorage
+      taskStorage.saveSubtasks(task.Id, updatedSubtasks);
+      
+      // Update state
+      setSubtasks(updatedSubtasks);
+      
+      toast.success('Subtask completed');
+    } catch (error) {
+      console.error('Failed to complete subtask:', error);
+      toast.error('Could not complete subtask');
     }
   };
 
@@ -421,6 +587,9 @@ export default function TaskDetailPage() {
   
   // Deadline status
   const deadlineStatus = getDeadlineStatus();
+  
+  // Combine API attachments and local attachments
+  const allAttachments = [...attachments, ...localAttachments];
 
   return (
     <motion.div 
@@ -480,6 +649,14 @@ export default function TaskDetailPage() {
               Complete Task
             </Button>
           )}
+          
+          <Button 
+            onClick={() => setCreateSubtaskOpen(true)}
+            variant="outline"
+          >
+            <ListTodo className="h-4 w-4 mr-2" />
+            Add Subtask
+          </Button>
           
           {permissions.canEdit && !isEditing && (
             <Button
@@ -614,6 +791,49 @@ export default function TaskDetailPage() {
                         />
                       </div>
                     </div>
+                    
+                    {/* Assignment options */}
+                    <div className="space-y-4">
+                      <h3 className="text-sm font-medium">Assignment</h3>
+                      
+                      <div className="space-y-3">
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="assign-none"
+                            name="assignment"
+                            className="h-4 w-4 mr-2"
+                            checked={!editForm.UserId && !editForm.TeamId}
+                            onChange={() => setEditForm({ ...editForm, UserId: '', TeamId: '' })}
+                          />
+                          <label htmlFor="assign-none">Not Assigned</label>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="assign-user"
+                            name="assignment"
+                            className="h-4 w-4 mr-2"
+                            checked={!!editForm.UserId}
+                            onChange={() => setEditForm({ ...editForm, UserId: userId, TeamId: '' })}
+                          />
+                          <label htmlFor="assign-user">Assign to Me</label>
+                        </div>
+                        
+                        <div className="flex items-center">
+                          <input
+                            type="radio"
+                            id="assign-team"
+                            name="assignment"
+                            className="h-4 w-4 mr-2"
+                            checked={!!editForm.TeamId}
+                            onChange={() => setEditForm({ ...editForm, TeamId: 'team-123', UserId: '' })}
+                          />
+                          <label htmlFor="assign-team">Assign to Team</label>
+                        </div>
+                      </div>
+                    </div>
                   </CardContent>
                   
                   <CardFooter className="border-t flex justify-end gap-3 pt-5">
@@ -741,10 +961,73 @@ export default function TaskDetailPage() {
             </Card>
           </motion.div>
           
-          {/* Attachments Card */}
+          {/* Subtasks Section */}
           <motion.div
             variants={slideUp}
             transition={{ delay: 0.1 }}
+          >
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl flex items-center">
+                  <ListTodo className="h-5 w-5 mr-2 text-muted-foreground" />
+                  Subtasks
+                </CardTitle>
+                
+                <Button
+                  onClick={() => setCreateSubtaskOpen(true)}
+                  size="sm"
+                  className="flex items-center gap-2"
+                >
+                  <Plus className="h-4 w-4" />
+                  <span>Add Subtask</span>
+                </Button>
+              </CardHeader>
+              
+              <CardContent>
+                {subtasks.length === 0 ? (
+                  <div className="text-center py-12 text-muted-foreground">
+                    <ListTodo className="h-16 w-16 mx-auto mb-3 opacity-20" />
+                    <p>No subtasks yet</p>
+                    <Button
+                      onClick={() => setCreateSubtaskOpen(true)}
+                      variant="ghost"
+                      className="mt-4"
+                      size="sm"
+                    >
+                      <Plus className="h-3.5 w-3.5 mr-2" />
+                      <span>Create your first subtask</span>
+                    </Button>
+                  </div>
+                ) : (
+                  <motion.div 
+                    variants={staggerContainer}
+                    initial="hidden"
+                    animate="visible"
+                    className="space-y-4"
+                  >
+                    {subtasks.map((subtask) => (
+                      <motion.div
+                        key={subtask.id}
+                        variants={slideUp}
+                      >
+                        <SubtaskCard
+                          subtask={subtask}
+                          onComplete={() => handleCompleteSubtask(subtask.id)}
+                          onClick={() => router.push(`/tasks/${task.Id}/subtasks/${subtask.id}`)}
+                          parentTaskId={task.Id}
+                        />
+                      </motion.div>
+                    ))}
+                  </motion.div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          {/* Attachments Card */}
+          <motion.div
+            variants={slideUp}
+            transition={{ delay: 0.2 }}
           >
             <Card>
               <CardHeader className="flex flex-row items-center justify-between">
@@ -753,33 +1036,29 @@ export default function TaskDetailPage() {
                   Attachments
                 </CardTitle>
                 
-                {permissions.canUpload && (
-                  <>
-                    <Button
-                      onClick={() => fileInputRef.current?.click()}
-                      disabled={uploading || !task.ProjectId}
-                      className="flex items-center gap-2"
-                      size="sm"
-                      isLoading={uploading}
-                    >
-                      <Upload className="h-4 w-4" />
-                      <span>{uploading ? 'Uploading...' : 'Upload'}</span>
-                    </Button>
-                    
-                    <input
-                      type="file"
-                      ref={fileInputRef}
-                      onChange={handleFileUpload}
-                      className="hidden"
-                      disabled={uploading}
-                    />
-                  </>
-                )}
+                <Button
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2"
+                  size="sm"
+                  isLoading={uploading}
+                >
+                  <Upload className="h-4 w-4" />
+                  <span>{uploading ? 'Uploading...' : 'Upload'}</span>
+                </Button>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={uploading}
+                />
               </CardHeader>
               
               <CardContent>
                 <AnimatePresence>
-                  {attachments.length === 0 ? (
+                  {allAttachments.length === 0 ? (
                     <motion.div
                       key="no-attachments"
                       initial={{ opacity: 0 }}
@@ -789,17 +1068,15 @@ export default function TaskDetailPage() {
                     >
                       <FileText className="h-16 w-16 mx-auto mb-3 opacity-20" />
                       <p>No attachments yet</p>
-                      {permissions.canUpload && (
-                        <Button
-                          onClick={() => fileInputRef.current?.click()}
-                          variant="ghost"
-                          className="mt-4"
-                          size="sm"
-                        >
-                          <Upload className="h-3.5 w-3.5 mr-2" />
-                          <span>Add a file</span>
-                        </Button>
-                      )}
+                      <Button
+                        onClick={() => fileInputRef.current?.click()}
+                        variant="ghost"
+                        className="mt-4"
+                        size="sm"
+                      >
+                        <Upload className="h-3.5 w-3.5 mr-2" />
+                        <span>Add a file</span>
+                      </Button>
                     </motion.div>
                   ) : (
                     <motion.ul 
@@ -808,7 +1085,7 @@ export default function TaskDetailPage() {
                       animate="visible"
                       className="divide-y"
                     >
-                      {attachments.map((attachment) => (
+                      {allAttachments.map((attachment) => (
                         <motion.li 
                           key={attachment.Id} 
                           variants={slideUp}
@@ -834,7 +1111,7 @@ export default function TaskDetailPage() {
                             
                             <div className="flex items-center space-x-2">
                               <Button
-                                onClick={() => window.open(attachment.Url || `${process.env.NEXT_PUBLIC_API_URL}/tasks/${task.Id}/attachments/${attachment.Id}`, '_blank')}
+                                onClick={() => window.open(attachment.Url, '_blank')}
                                 variant="ghost"
                                 size="sm"
                                 className="opacity-0 group-hover:opacity-100 transition-opacity"
@@ -842,16 +1119,14 @@ export default function TaskDetailPage() {
                                 <Download className="h-4 w-4" />
                               </Button>
                               
-                              {permissions.canUpload && (
-                                <Button
-                                  onClick={() => handleDeleteAttachment(attachment.Id)}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button
+                                onClick={() => handleDeleteAttachment(attachment.Id)}
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </motion.div>
                         </motion.li>
@@ -931,7 +1206,7 @@ export default function TaskDetailPage() {
                   </Badge>
                 </div>
                 
-                {!task.Completed && permissions.canComplete && (
+                {!task.Completed && (
                   <Button
                     onClick={handleCompleteTask}
                     disabled={completing}
@@ -940,6 +1215,57 @@ export default function TaskDetailPage() {
                   >
                     Mark Complete
                   </Button>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          {/* Subtask Progress */}
+          <motion.div
+            variants={slideUp}
+            transition={{ delay: 0.4 }}
+          >
+            <Card>
+              <CardHeader>
+                <CardTitle>Subtask Progress</CardTitle>
+              </CardHeader>
+              
+              <CardContent className="space-y-4">
+                {subtasks.length === 0 ? (
+                  <p className="text-muted-foreground">No subtasks created yet</p>
+                ) : (
+                  <>
+                    <div className="flex justify-between mb-2 text-sm">
+                      <span>Completed:</span>
+                      <span className="font-medium">
+                        {subtasks.filter(s => s.completed).length} / {subtasks.length}
+                      </span>
+                    </div>
+                    
+                    <div className="h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-success"
+                        style={{ 
+                          width: `${(subtasks.filter(s => s.completed).length / subtasks.length) * 100}%` 
+                        }}
+                      ></div>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 mt-4">
+                      <div className="bg-background border rounded-md p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">Not Started</p>
+                        <p className="font-medium">
+                          {subtasks.filter(s => s.status === 'Not Started').length}
+                        </p>
+                      </div>
+                      <div className="bg-background border rounded-md p-3 text-center">
+                        <p className="text-xs text-muted-foreground mb-1">In Progress</p>
+                        <p className="font-medium">
+                          {subtasks.filter(s => s.status === 'In Progress').length}
+                        </p>
+                      </div>
+                    </div>
+                  </>
                 )}
               </CardContent>
             </Card>
@@ -971,6 +1297,89 @@ export default function TaskDetailPage() {
             isLoading={deleting}
           >
             Delete Task
+          </Button>
+        </div>
+      </Dialog>
+      
+      {/* Create Subtask Dialog */}
+      <Dialog
+        open={createSubtaskOpen}
+        onOpenChange={setCreateSubtaskOpen}
+        title="Create Subtask"
+        description="Add a new subtask to track smaller units of work"
+        size="md"
+      >
+        <div className="space-y-4 py-2">
+          <div className="space-y-2">
+            <label htmlFor="subtask-title" className="block text-sm font-medium">
+              Title <span className="text-destructive">*</span>
+            </label>
+            <Input 
+              id="subtask-title"
+              type="text"
+              value={newSubtaskForm.title}
+              onChange={(e) => setNewSubtaskForm({ ...newSubtaskForm, title: e.target.value })}
+              placeholder="Enter subtask title"
+              required
+            />
+          </div>
+          
+          <div className="space-y-2">
+            <label htmlFor="subtask-description" className="block text-sm font-medium">
+              Description
+            </label>
+            <Textarea 
+              id="subtask-description"
+              value={newSubtaskForm.description}
+              onChange={(e) => setNewSubtaskForm({ ...newSubtaskForm, description: e.target.value })}
+              placeholder="Describe the subtask"
+              rows={3}
+            />
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label htmlFor="subtask-status" className="block text-sm font-medium">
+                Status
+              </label>
+              <select
+                id="subtask-status"
+                value={newSubtaskForm.status}
+                onChange={(e) => setNewSubtaskForm({ ...newSubtaskForm, status: e.target.value })}
+                className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="Not Started">Not Started</option>
+                <option value="In Progress">In Progress</option>
+              </select>
+            </div>
+            
+            <div className="space-y-2">
+              <label htmlFor="subtask-due-date" className="block text-sm font-medium">
+                Due Date
+              </label>
+              <Input
+                id="subtask-due-date"
+                type="date"
+                value={newSubtaskForm.dueDate}
+                onChange={(e) => setNewSubtaskForm({ ...newSubtaskForm, dueDate: e.target.value })}
+              />
+            </div>
+          </div>
+        </div>
+        
+        <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
+          <Button
+            variant="outline"
+            onClick={() => setCreateSubtaskOpen(false)}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            onClick={handleCreateSubtask}
+            disabled={!newSubtaskForm.title.trim()}
+          >
+            Create Subtask
           </Button>
         </div>
       </Dialog>

@@ -1,0 +1,67 @@
+/* Animations */
+@keyframes shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.animate-shine {
+  animation: shine 1.5s ease-in-out infinite;
+}
+
+/* Fade in animation for task cards */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Task card styling using HSL variables */
+.task-card {
+  transition: all 0.2s ease-in-out;
+}
+
+.task-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+}
+
+/* Status styles */
+.task-completed {
+  opacity: 0.8;
+  text-decoration: line-through;
+}
+
+/* Theme-compatible priority colors */
+.priority-indicator-high {
+  background-color: hsl(var(--destructive));
+}
+
+.priority-indicator-medium {
+  background-color: hsl(var(--warning, 45 93% 47%));
+}
+
+.priority-indicator-low {
+  background-color: hsl(var(--primary));
+}
+
+/* Date status colors */
+.date-overdue {
+  color: hsl(var(--destructive));
+}
+
+.date-today {
+  color: hsl(var(--warning, 45 93% 47%));
+}
