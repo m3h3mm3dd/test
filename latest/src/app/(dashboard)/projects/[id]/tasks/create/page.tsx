@@ -2,7 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
+
+// UI components
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { FormInput } from '@/components/ui/FormInput';
+import { GlassPanel } from '@/components/ui/GlassPanel';
+import { Spinner } from '@/components/ui/spinner';
+import { Badge } from '@/components/ui/badge'; // Added missing import for Badge component
+
+// Icons
 import { 
   ArrowLeft, 
   Calendar, 
@@ -13,17 +27,52 @@ import {
   Plus, 
   CheckCircle2, 
   Loader2, 
-  AlertCircle
+  AlertCircle,
+  InfoIcon,
+  X,
+  HelpCircle
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
 
 // API
 import { getProjectById, getProjectTeams, getProjectMembers } from '@/api/ProjectAPI';
 import { createTask } from '@/api/TaskAPI';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils';
 
-// Styles
-import './createTask.css';
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.4 } }
+};
+
+const slideUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+const formVariants = {
+  hidden: { opacity: 0, y: 30 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { 
+      duration: 0.5,
+      type: "spring",
+      stiffness: 300,
+      damping: 25
+    }
+  }
+};
+
+const staggerFormItems = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.07
+    }
+  }
+};
 
 export default function CreateTaskPage() {
   const { id } = useParams();
@@ -53,6 +102,7 @@ export default function CreateTaskPage() {
   
   // Validation state
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [showHelp, setShowHelp] = useState(false);
   
   // Get user ID from JWT token
   useEffect(() => {
@@ -208,41 +258,45 @@ export default function CreateTaskPage() {
     }
   };
 
-  // If not the project owner, redirect
+  // Loading state
   if (loading) {
     return (
-      <div className="create-task-container flex items-center justify-center min-h-[60vh]">
+      <div className="flex items-center justify-center min-h-[60vh] p-6">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading project data...</p>
+          <Spinner size="xl" className="mx-auto mb-4" />
+          <h3 className="text-xl font-medium mb-2">Loading Project</h3>
+          <p className="text-muted-foreground">
+            Getting ready to create a new task...
+          </p>
         </div>
       </div>
     );
   }
 
+  // Error state
   if (error) {
     return (
-      <div className="create-task-container flex items-center justify-center min-h-[60vh]">
-        <div className="bg-card rounded-xl p-8 max-w-md w-full text-center space-y-4 border shadow-sm">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-bold">Error Loading Project</h2>
-          <p className="text-muted-foreground">{error}</p>
-          <div className="flex justify-center gap-4 mt-6">
-            <button 
+      <EmptyState
+        icon={<AlertCircle className="h-8 w-8" />}
+        title="Error Loading Project"
+        description={error}
+        action={
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button 
+              variant="outline"
               onClick={() => router.push(`/projects/${id}/tasks`)}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
             >
               Back to Tasks
-            </button>
-            <button 
+            </Button>
+            <Button 
               onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
             >
               Try Again
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+        className="max-w-md mx-auto my-12"
+      />
     );
   }
 
@@ -251,266 +305,371 @@ export default function CreateTaskPage() {
   }
 
   return (
-    <div className="create-task-container">
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={fadeIn}
+      className="p-4 md:p-6 max-w-3xl mx-auto"
+    >
       {/* Header */}
-      <div className="mb-8">
+      <motion.div
+        variants={slideUp}
+        className="mb-8"
+      >
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => router.push(`/projects/${id}/tasks`)}
-            className="h-10 w-10 rounded-full flex items-center justify-center bg-muted hover:bg-muted/80 transition-colors"
+            className="h-10 w-10 rounded-full"
             aria-label="Back to tasks"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
-          </button>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           
           <div>
-            <h1 className="text-2xl font-bold">Create New Task</h1>
-            <p className="text-muted-foreground mt-1">
+            <motion.h1 
+              variants={slideUp}
+              className="text-2xl font-bold"
+            >
+              Create New Task
+            </motion.h1>
+            <motion.p 
+              variants={slideUp}
+              transition={{ delay: 0.1 }}
+              className="text-muted-foreground mt-1"
+            >
               Add a new task to {project?.Name || 'this project'}
-            </p>
+            </motion.p>
           </div>
         </div>
-      </div>
+      </motion.div>
+      
+      {/* Help button */}
+      <motion.button
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ delay: 0.5 }}
+        onClick={() => setShowHelp(!showHelp)}
+        className="fixed bottom-6 right-6 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-10"
+      >
+        <HelpCircle className="h-6 w-6" />
+      </motion.button>
+      
+      {/* Help panel */}
+      <AnimatePresence>
+        {showHelp && (
+          <motion.div
+            initial={{ opacity: 0, y: 50, scale: 0.9 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 50, scale: 0.9 }}
+            transition={{ type: "spring", damping: 25 }}
+            className="fixed right-6 bottom-20 z-10"
+          >
+            <GlassPanel className="w-80 p-5">
+              <div className="flex justify-between items-center mb-3">
+                <h3 className="font-bold">Task Creation Tips</h3>
+                <Button
+                  onClick={() => setShowHelp(false)}
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="space-y-3 text-sm">
+                <p><span className="font-semibold text-primary">Priority</span>: Choose based on urgency and importance</p>
+                <p><span className="font-semibold text-primary">Status</span>: Most new tasks start as "Not Started"</p>
+                <p><span className="font-semibold text-primary">Assignment</span>: You can assign to a team member or an entire team</p>
+                <p><span className="font-semibold text-primary">Deadlines</span>: Add clear deadlines to help with tracking</p>
+              </div>
+            </GlassPanel>
+          </motion.div>
+        )}
+      </AnimatePresence>
       
       {/* Form */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="bg-card rounded-xl border shadow-sm overflow-hidden"
+        variants={formVariants}
       >
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Title */}
-          <div className="space-y-2">
-            <label htmlFor="Title" className="block text-sm font-medium">
-              Task Title <span className="text-destructive">*</span>
-            </label>
-            <input
-              type="text"
-              id="Title"
-              name="Title"
-              value={form.Title}
-              onChange={handleInputChange}
-              placeholder="Enter task title"
-              className={`w-full px-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.Title ? 'border-destructive' : 'border-input'}`}
-            />
-            {errors.Title && <p className="text-destructive text-sm">{errors.Title}</p>}
-          </div>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create Task</CardTitle>
+            <CardDescription>
+              Fill in the details below to create a new task
+            </CardDescription>
+          </CardHeader>
           
-          {/* Description */}
-          <div className="space-y-2">
-            <label htmlFor="Description" className="block text-sm font-medium">
-              Description
-            </label>
-            <textarea
-              id="Description"
-              name="Description"
-              value={form.Description}
-              onChange={handleInputChange}
-              placeholder="Describe the task details, requirements, or any additional information"
-              rows={4}
-              className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-            ></textarea>
-          </div>
-          
-          {/* Two columns for Status and Priority */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <label htmlFor="Status" className="block text-sm font-medium">
-                Status
-              </label>
-              <select
-                id="Status"
-                name="Status"
-                value={form.Status}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-              >
-                <option value="Not Started">Not Started</option>
-                <option value="In Progress">In Progress</option>
-                <option value="Completed">Completed</option>
-              </select>
-            </div>
-            
-            <div className="space-y-2">
-              <label htmlFor="Priority" className="block text-sm font-medium">
-                Priority
-              </label>
-              <select
-                id="Priority"
-                name="Priority"
-                value={form.Priority}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-              >
-                <option value="LOW">Low</option>
-                <option value="MEDIUM">Medium</option>
-                <option value="HIGH">High</option>
-              </select>
-            </div>
-          </div>
-          
-          {/* Deadline */}
-          <div className="space-y-2">
-            <label htmlFor="Deadline" className="block text-sm font-medium">
-              Deadline
-            </label>
-            <div className="relative">
-              <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <input
-                type="date"
-                id="Deadline"
-                name="Deadline"
-                value={form.Deadline}
-                onChange={handleInputChange}
-                className="w-full pl-10 pr-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-              />
-            </div>
-          </div>
-          
-          {/* Assignment */}
-          <div className="space-y-4">
-            <label className="block text-sm font-medium">
-              Assignment
-            </label>
-            
-            <div className="space-y-2">
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="assignNone"
-                  name="AssignmentType"
-                  value="none"
-                  checked={form.AssignmentType === 'none'}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
+          <CardContent>
+            <motion.form 
+              onSubmit={handleSubmit} 
+              variants={staggerFormItems}
+              className="space-y-6"
+            >
+              {/* Title */}
+              <motion.div variants={slideUp}>
+                <FormInput
+                  label="Task Title"
+                  id="Title"
+                  inputProps={{
+                    name: "Title",
+                    value: form.Title,
+                    onChange: handleInputChange,
+                    placeholder: "Enter task title",
+                    required: true
+                  }}
+                  error={errors.Title}
                 />
-                <label htmlFor="assignNone">No Assignment</label>
-              </div>
+              </motion.div>
               
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="assignUser"
-                  name="AssignmentType"
-                  value="user"
-                  checked={form.AssignmentType === 'user'}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                />
-                <label htmlFor="assignUser">Assign to Team Member</label>
-              </div>
-              
-              <div className="flex items-center space-x-2">
-                <input
-                  type="radio"
-                  id="assignTeam"
-                  name="AssignmentType"
-                  value="team"
-                  checked={form.AssignmentType === 'team'}
-                  onChange={handleInputChange}
-                  className="h-4 w-4 border-gray-300 text-primary focus:ring-primary"
-                />
-                <label htmlFor="assignTeam">Assign to Team</label>
-              </div>
-            </div>
-            
-            {/* User selection */}
-            {form.AssignmentType === 'user' && (
-              <div className="space-y-2 pl-6 border-l-2 border-muted">
-                <label htmlFor="UserId" className="block text-sm font-medium">
-                  Select Team Member <span className="text-destructive">*</span>
+              {/* Description */}
+              <motion.div variants={slideUp}>
+                <label className="block text-sm font-medium mb-2">
+                  Description
                 </label>
-                <div className="relative">
-                  <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Textarea
+                  name="Description"
+                  value={form.Description}
+                  onChange={handleInputChange}
+                  placeholder="Describe the task details, requirements, or any additional information"
+                  rows={4}
+                />
+              </motion.div>
+              
+              {/* Two columns for Status and Priority */}
+              <motion.div variants={slideUp} className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label htmlFor="Status" className="block text-sm font-medium mb-2">
+                    Status
+                  </label>
                   <select
-                    id="UserId"
-                    name="UserId"
-                    value={form.UserId}
+                    id="Status"
+                    name="Status"
+                    value={form.Status}
                     onChange={handleInputChange}
-                    className={`w-full pl-10 pr-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.UserId ? 'border-destructive' : 'border-input'}`}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="">Select a team member...</option>
-                    {members.length === 0 ? (
-                      <option value="" disabled>No members available</option>
-                    ) : (
-                      members.map(member => (
-                        <option key={member.UserId} value={member.UserId}>
-                          {member.User?.FirstName 
-                            ? `${member.User.FirstName} ${member.User.LastName || ''}` 
-                            : `User ${member.UserId.substring(0, 8)}`}
-                        </option>
-                      ))
-                    )}
+                    <option value="Not Started">Not Started</option>
+                    <option value="In Progress">In Progress</option>
+                    <option value="Completed">Completed</option>
                   </select>
                 </div>
-                {errors.UserId && <p className="text-destructive text-sm">{errors.UserId}</p>}
-              </div>
-            )}
-            
-            {/* Team selection */}
-            {form.AssignmentType === 'team' && (
-              <div className="space-y-2 pl-6 border-l-2 border-muted">
-                <label htmlFor="TeamId" className="block text-sm font-medium">
-                  Select Team <span className="text-destructive">*</span>
-                </label>
-                <div className="relative">
-                  <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                
+                <div>
+                  <label htmlFor="Priority" className="block text-sm font-medium mb-2">
+                    Priority
+                  </label>
                   <select
-                    id="TeamId"
-                    name="TeamId"
-                    value={form.TeamId}
+                    id="Priority"
+                    name="Priority"
+                    value={form.Priority}
                     onChange={handleInputChange}
-                    className={`w-full pl-10 pr-4 py-2 bg-background border rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all ${errors.TeamId ? 'border-destructive' : 'border-input'}`}
+                    className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
                   >
-                    <option value="">Select a team...</option>
-                    {teams.length === 0 ? (
-                      <option value="" disabled>No teams available</option>
-                    ) : (
-                      teams.map(team => (
-                        <option key={team.Id} value={team.Id}>
-                          {team.Name}
-                        </option>
-                      ))
-                    )}
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High</option>
                   </select>
                 </div>
-                {errors.TeamId && <p className="text-destructive text-sm">{errors.TeamId}</p>}
-              </div>
-            )}
-          </div>
-          
-          {/* Form actions */}
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <button
-              type="button"
-              onClick={() => router.push(`/projects/${id}/tasks`)}
-              disabled={submitting}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
-            >
-              Cancel
-            </button>
-            
-            <button
-              type="submit"
-              disabled={submitting}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
-            >
-              {submitting ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="h-4 w-4" />
-                  <span>Create Task</span>
-                </>
-              )}
-            </button>
-          </div>
-        </form>
+              </motion.div>
+              
+              {/* Deadline */}
+              <motion.div variants={slideUp}>
+                <label htmlFor="Deadline" className="block text-sm font-medium mb-2">
+                  Deadline
+                </label>
+                <FormInput
+                  icon={<Calendar className="h-4 w-4" />}
+                  inputProps={{
+                    type: "date",
+                    name: "Deadline",
+                    id: "Deadline",
+                    value: form.Deadline,
+                    onChange: handleInputChange
+                  }}
+                />
+              </motion.div>
+              
+              {/* Assignment */}
+              <motion.div variants={slideUp}>
+                <Card>
+                  <CardHeader className="pb-3">
+                    <div className="flex justify-between items-center">
+                      <CardTitle className="text-base">Assignment</CardTitle>
+                      <Badge variant="outline">Optional</Badge>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-4">
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="assignNone"
+                          name="AssignmentType"
+                          value="none"
+                          checked={form.AssignmentType === 'none'}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="assignNone" className="text-sm font-medium">
+                          No Assignment
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="assignUser"
+                          name="AssignmentType"
+                          value="user"
+                          checked={form.AssignmentType === 'user'}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="assignUser" className="text-sm font-medium">
+                          Assign to Team Member
+                        </label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <input
+                          type="radio"
+                          id="assignTeam"
+                          name="AssignmentType"
+                          value="team"
+                          checked={form.AssignmentType === 'team'}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-primary focus:ring-primary"
+                        />
+                        <label htmlFor="assignTeam" className="text-sm font-medium">
+                          Assign to Team
+                        </label>
+                      </div>
+                    </div>
+                    
+                    <AnimatePresence>
+                      {/* User selection */}
+                      {form.AssignmentType === 'user' && (
+                        <motion.div 
+                          key="user-select"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 border-l-2 border-primary/20 pl-4 py-2">
+                            <label htmlFor="UserId" className="block text-sm font-medium mb-2">
+                              Select Team Member <span className="text-destructive">*</span>
+                            </label>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
+                              <select
+                                id="UserId"
+                                name="UserId"
+                                value={form.UserId}
+                                onChange={handleInputChange}
+                                className={cn(
+                                  "w-full h-10 rounded-md border pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring",
+                                  errors.UserId ? 'border-destructive focus:ring-destructive' : 'border-input'
+                                )}
+                              >
+                                <option value="">Select a team member...</option>
+                                {members.length === 0 ? (
+                                  <option value="" disabled>No members available</option>
+                                ) : (
+                                  members.map(member => (
+                                    <option key={member.UserId} value={member.UserId}>
+                                      {member.User?.FirstName 
+                                        ? `${member.User.FirstName} ${member.User.LastName || ''}` 
+                                        : `User ${member.UserId.substring(0, 8)}`}
+                                    </option>
+                                  ))
+                                )}
+                              </select>
+                            </div>
+                            {errors.UserId && (
+                              <p className="text-xs text-destructive mt-1">{errors.UserId}</p>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                      
+                      {/* Team selection */}
+                      {form.AssignmentType === 'team' && (
+                        <motion.div 
+                          key="team-select"
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: 'auto' }}
+                          exit={{ opacity: 0, height: 0 }}
+                          transition={{ duration: 0.3 }}
+                          className="overflow-hidden"
+                        >
+                          <div className="mt-3 border-l-2 border-primary/20 pl-4 py-2">
+                            <label htmlFor="TeamId" className="block text-sm font-medium mb-2">
+                              Select Team <span className="text-destructive">*</span>
+                            </label>
+                            <div className="relative">
+                              <Users className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground pointer-events-none h-4 w-4" />
+                              <select
+                                id="TeamId"
+                                name="TeamId"
+                                value={form.TeamId}
+                                onChange={handleInputChange}
+                                className={cn(
+                                  "w-full h-10 rounded-md border pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring",
+                                  errors.TeamId ? 'border-destructive focus:ring-destructive' : 'border-input'
+                                )}
+                              >
+                                <option value="">Select a team...</option>
+                                {teams.length === 0 ? (
+                                  <option value="" disabled>No teams available</option>
+                                ) : (
+                                  teams.map(team => (
+                                    <option key={team.Id} value={team.Id}>
+                                      {team.Name}
+                                    </option>
+                                  ))
+                                )}
+                              </select>
+                            </div>
+                            {errors.TeamId && (
+                              <p className="text-xs text-destructive mt-1">{errors.TeamId}</p>
+                            )}
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </CardContent>
+                </Card>
+              </motion.div>
+              
+              {/* Form actions */}
+              <motion.div variants={slideUp} className="flex justify-end gap-3 pt-4 border-t">
+                <Button
+                  type="button"
+                  onClick={() => router.push(`/projects/${id}/tasks`)}
+                  disabled={submitting}
+                  variant="outline"
+                >
+                  Cancel
+                </Button>
+                
+                <Button
+                  type="submit"
+                  disabled={submitting}
+                  isLoading={submitting}
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Create Task
+                </Button>
+              </motion.div>
+            </motion.form>
+          </CardContent>
+        </Card>
       </motion.div>
-    </div>
+    </motion.div>
   );
 }

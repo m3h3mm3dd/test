@@ -33,6 +33,7 @@ import {
   AlertCircle,
   ExternalLink,
   Trash2,
+  Package,
 } from 'lucide-react';
 
 // Components
@@ -193,6 +194,7 @@ export default function ProjectDetailPage() {
     { id: 'stakeholders', label: 'Stakeholders', icon: <Users2 className="w-4 h-4" /> },
     { id: 'scope', label: 'Scope', icon: <Shapes className="w-4 h-4" /> },
     { id: 'risks', label: 'Risks', icon: <Shield className="w-4 h-4" /> },
+    { id: 'resource', label: 'Resources', icon: <Package className="w-4 h-4" /> }, // Changed to Package icon
     { id: 'attachments', label: 'Files', icon: <FileText className="w-4 h-4" /> },
     { id: 'activity', label: 'Activity', icon: <BarChart3 className="w-4 h-4" /> },
   ];

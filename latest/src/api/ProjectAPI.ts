@@ -108,15 +108,11 @@ export async function updateProject(projectId: string, data: ProjectUpdateData):
 }
 
 export async function deleteProject(projectId: string): Promise<string> {
-  const headers = {
-    ...getAuthHeaders(),
-    'Content-Type': 'application/json',
-  };
+  const headers = getAuthHeaders();
 
   const response = await fetch(`${API_BASE_URL}/projects/${projectId}/delete`, {
     method: 'DELETE',
-    headers,
-    body: JSON.stringify({ IsDeleted: true }),  
+    headers
   });
 
   if (!response.ok) {
@@ -124,9 +120,9 @@ export async function deleteProject(projectId: string): Promise<string> {
     throw new Error(`Failed to delete project: ${response.status} - ${errorText}`);
   }
 
-  return response.json(); 
+  // API returns a string, not JSON
+  return response.text();
 }
-
 
 
 

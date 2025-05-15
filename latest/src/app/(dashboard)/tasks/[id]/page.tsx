@@ -1,9 +1,3 @@
-// Fixed task detail page
-// Key changes:
-// 1. Fixed getTaskAttachments call to pass projectId
-// 2. Improved error handling
-// 3. Added null checks
-
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,7 +5,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { format, parseISO, isPast, isToday } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// UI components and icons
+// UI components
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { EmptyState } from '@/components/ui/EmptyState';
+import { Dialog } from '@/components/ui/dialog';
+import { DatePicker } from '@/components/ui/DatePicker';
+import { CardSection } from '@/components/ui/CardSection';
+import { Spinner } from '@/components/ui/spinner';
+
+// Icons
 import {
   ArrowLeft,
   Calendar,
@@ -28,12 +34,11 @@ import {
   X,
   Loader2,
   MoreHorizontal,
-  Eye,
   Download,
   ExternalLink,
 } from 'lucide-react';
 
-// API imports
+// API and utilities
 import { 
   getTaskById, 
   updateTask, 
@@ -47,8 +52,44 @@ import { getProjectById } from '@/api/ProjectAPI';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
 
-// CSS for the page
-import './taskDetail.css';
+// Animation variants
+const fadeIn = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: 0.4 } }
+};
+
+const slideUp = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.4 } }
+};
+
+const staggerContainer = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1
+    }
+  }
+};
+
+const modalVariants = {
+  hidden: { opacity: 0, scale: 0.9 },
+  visible: { 
+    opacity: 1, 
+    scale: 1,
+    transition: { 
+      type: "spring",
+      stiffness: 500, 
+      damping: 30 
+    } 
+  },
+  exit: { 
+    opacity: 0, 
+    scale: 0.9,
+    transition: { duration: 0.2 } 
+  }
+};
 
 export default function TaskDetailPage() {
   const { id } = useParams();
@@ -164,7 +205,7 @@ export default function TaskDetailPage() {
             canUpload: isOwner || isLeader || isAssigned
           });
           
-          // Fetch attachments - Now passing the projectId as needed
+          // Fetch attachments
           try {
             const attachmentsData = await getTaskAttachments(id as string, taskData.ProjectId);
             setAttachments(attachmentsData || []);
@@ -314,16 +355,6 @@ export default function TaskDetailPage() {
       setDeleteConfirmOpen(false);
     }
   };
-  
-  // Helper for priority color
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'HIGH': return 'var(--destructive)';
-      case 'MEDIUM': return 'var(--warning)';
-      case 'LOW': return 'var(--success)';
-      default: return 'var(--muted-foreground)';
-    }
-  };
 
   // Helper for deadline status
   const getDeadlineStatus = () => {
@@ -333,15 +364,15 @@ export default function TaskDetailPage() {
       const deadline = parseISO(task.Deadline);
       
       if (task.Completed) {
-        return { label: 'Task completed', color: 'text-success' };
+        return { label: 'Completed on time', variant: 'success' };
       }
       
       if (isPast(deadline) && !isToday(deadline)) {
-        return { label: 'Overdue', color: 'text-destructive' };
+        return { label: 'Overdue', variant: 'danger' };
       }
       
       if (isToday(deadline)) {
-        return { label: 'Due today', color: 'text-warning' };
+        return { label: 'Due today', variant: 'warning' };
       }
       
       return null;
@@ -354,10 +385,13 @@ export default function TaskDetailPage() {
   // Loading state
   if (loading) {
     return (
-      <div className="task-detail-container flex items-center justify-center min-h-[60vh]">
+      <div className="min-h-[60vh] flex items-center justify-center p-4">
         <div className="text-center">
-          <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
-          <p className="text-muted-foreground">Loading task details...</p>
+          <Spinner size="xl" className="mx-auto mb-4" />
+          <h3 className="text-xl font-medium mb-2">Loading Task</h3>
+          <p className="text-muted-foreground">
+            Preparing task details...
+          </p>
         </div>
       </div>
     );
@@ -366,27 +400,22 @@ export default function TaskDetailPage() {
   // Error state
   if (error || !task) {
     return (
-      <div className="task-detail-container flex items-center justify-center min-h-[60vh]">
-        <div className="bg-card rounded-xl p-8 max-w-md w-full text-center space-y-4 border shadow-sm">
-          <AlertCircle className="h-12 w-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-bold">Error Loading Task</h2>
-          <p className="text-muted-foreground">{error || 'Task not found'}</p>
-          <div className="flex justify-center gap-4 mt-6">
-            <button 
-              onClick={() => router.back()}
-              className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
-            >
+      <EmptyState
+        icon={<AlertCircle className="h-8 w-8" />}
+        title="Error Loading Task"
+        description={error || 'Task not found'}
+        action={
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <Button variant="outline" onClick={() => router.back()}>
               Go Back
-            </button>
-            <button 
-              onClick={() => window.location.reload()}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors"
-            >
+            </Button>
+            <Button onClick={() => window.location.reload()}>
               Try Again
-            </button>
+            </Button>
           </div>
-        </div>
-      </div>
+        }
+        className="max-w-md mx-auto my-12"
+      />
     );
   }
   
@@ -394,63 +423,86 @@ export default function TaskDetailPage() {
   const deadlineStatus = getDeadlineStatus();
 
   return (
-    <div className="task-detail-container">
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={fadeIn}
+      className="p-4 md:p-6 max-w-7xl mx-auto"
+    >
       {/* Header */}
-      <div className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <motion.div 
+        variants={slideUp}
+        className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+      >
         <div className="flex items-center gap-4">
-          <button
+          <Button
+            variant="ghost"
+            size="icon"
             onClick={() => router.back()}
-            className="h-10 w-10 rounded-full flex items-center justify-center bg-muted hover:bg-muted/80 transition-colors"
+            className="h-10 w-10 rounded-full"
             aria-label="Back"
           >
-            <ArrowLeft className="h-5 w-5 text-foreground" />
-          </button>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
           
           <div>
-            <h1 className="text-2xl font-bold">Task Details</h1>
-            <p className="text-muted-foreground mt-1">
+            <motion.h1 
+              variants={slideUp}
+              className="text-2xl font-bold"
+            >
+              Task Details
+            </motion.h1>
+            <motion.p 
+              variants={slideUp}
+              className="text-muted-foreground mt-1"
+            >
               {project?.Name && `Project: ${project.Name}`}
-            </p>
+            </motion.p>
           </div>
         </div>
         
-        <div className="flex items-center gap-2">
+        <motion.div 
+          variants={slideUp}
+          className="flex flex-wrap items-center gap-3"
+        >
           {!task.Completed && permissions.canComplete && (
-            <button
+            <Button
               onClick={handleCompleteTask}
               disabled={completing}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success/90 transition-colors disabled:opacity-70"
+              variant="default"
+              className="bg-success text-success-foreground hover:bg-success/90"
             >
               {completing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
-                <CheckCircle2 className="h-4 w-4" />
+                <CheckCircle2 className="h-4 w-4 mr-2" />
               )}
-              Mark Complete
-            </button>
+              Complete Task
+            </Button>
           )}
           
           {permissions.canEdit && !isEditing && (
-            <button
+            <Button
               onClick={() => setIsEditing(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              variant="outline"
             >
-              <Edit className="h-4 w-4" />
+              <Edit className="h-4 w-4 mr-2" />
               Edit
-            </button>
+            </Button>
           )}
           
           {permissions.canDelete && (
-            <button
+            <Button
               onClick={() => setDeleteConfirmOpen(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors"
+              variant="outline"
+              className="text-destructive hover:bg-destructive/10"
             >
-              <Trash2 className="h-4 w-4" />
+              <Trash2 className="h-4 w-4 mr-2" />
               Delete
-            </button>
+            </Button>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
       
       {/* Task Content */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -458,342 +510,357 @@ export default function TaskDetailPage() {
         <div className="md:col-span-2 space-y-6">
           {/* Task Details Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4 }}
-            className="bg-card rounded-xl border shadow-sm overflow-hidden"
+            variants={slideUp}
           >
-            {isEditing ? (
-              /* Edit Form */
-              <div className="p-6 space-y-6">
-                <h2 className="text-xl font-semibold">Edit Task</h2>
-                
-                <div className="space-y-4">
-                  {/* Title */}
-                  <div className="space-y-2">
-                    <label htmlFor="edit-title" className="block text-sm font-medium">
-                      Title <span className="text-destructive">*</span>
-                    </label>
-                    <input 
-                      id="edit-title"
-                      type="text"
-                      value={editForm.Title}
-                      onChange={(e) => setEditForm({ ...editForm, Title: e.target.value })}
-                      className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-                      required
-                    />
-                  </div>
+            <Card>
+              {isEditing ? (
+                /* Edit Form */
+                <motion.div 
+                  key="edit-form"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <CardHeader>
+                    <CardTitle>Edit Task</CardTitle>
+                  </CardHeader>
                   
-                  {/* Description */}
-                  <div className="space-y-2">
-                    <label htmlFor="edit-description" className="block text-sm font-medium">
-                      Description
-                    </label>
-                    <textarea 
-                      id="edit-description"
-                      value={editForm.Description || ''}
-                      onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })}
-                      rows={4}
-                      className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-                    />
-                  </div>
-                  
-                  {/* Priority and Status */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <CardContent className="space-y-5">
+                    {/* Title */}
                     <div className="space-y-2">
-                      <label htmlFor="edit-priority" className="block text-sm font-medium">
-                        Priority
+                      <label htmlFor="edit-title" className="block text-sm font-medium">
+                        Title <span className="text-destructive">*</span>
                       </label>
-                      <select 
-                        id="edit-priority"
-                        value={editForm.Priority}
-                        onChange={(e) => setEditForm({ ...editForm, Priority: e.target.value })}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-                      >
-                        <option value="LOW">Low</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="HIGH">High</option>
-                      </select>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <label htmlFor="edit-status" className="block text-sm font-medium">
-                        Status
-                      </label>
-                      <select 
-                        id="edit-status"
-                        value={editForm.Status}
-                        onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
-                      >
-                        <option value="Not Started">Not Started</option>
-                        <option value="In Progress">In Progress</option>
-                        <option value="Completed">Completed</option>
-                      </select>
-                    </div>
-                  </div>
-                  
-                  {/* Deadline and Cost */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label htmlFor="edit-deadline" className="block text-sm font-medium">
-                        Deadline
-                      </label>
-                      <input 
-                        id="edit-deadline"
-                        type="date"
-                        value={editForm.Deadline || ''}
-                        onChange={(e) => setEditForm({ ...editForm, Deadline: e.target.value })}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
+                      <Input 
+                        id="edit-title"
+                        type="text"
+                        value={editForm.Title}
+                        onChange={(e) => setEditForm({ ...editForm, Title: e.target.value })}
+                        required
                       />
                     </div>
                     
+                    {/* Description */}
                     <div className="space-y-2">
-                      <label htmlFor="edit-cost" className="block text-sm font-medium">
-                        Cost
+                      <label htmlFor="edit-description" className="block text-sm font-medium">
+                        Description
                       </label>
-                      <input 
-                        id="edit-cost"
-                        type="number"
-                        value={editForm.Cost || 0}
-                        onChange={(e) => setEditForm({ ...editForm, Cost: parseFloat(e.target.value) })}
-                        className="w-full px-4 py-2 bg-background border border-input rounded-md focus:ring-2 focus:ring-primary/30 focus:border-primary focus:outline-none transition-all"
+                      <Textarea 
+                        id="edit-description"
+                        value={editForm.Description || ''}
+                        onChange={(e) => setEditForm({ ...editForm, Description: e.target.value })}
+                        rows={4}
                       />
                     </div>
-                  </div>
-                </div>
-                
-                {/* Form Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <button
-                    type="button"
-                    onClick={() => setIsEditing(false)}
-                    disabled={saving}
-                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:bg-secondary/90 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  
-                  <button
-                    type="button"
-                    onClick={handleSaveEdit}
-                    disabled={saving || !editForm.Title}
-                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors flex items-center gap-2"
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Saving...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Save Changes</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              /* Task Details View */
-              <div className="p-6">
-                <div className="flex flex-wrap items-start justify-between gap-4 mb-4">
-                  <h2 className="text-2xl font-semibold">{task.Title}</h2>
-                  
-                  <div className="flex gap-2">
-                    <span
-                      className={cn(
-                        "px-3 py-1 text-xs font-medium rounded-full",
-                        task.Priority === 'HIGH' && "bg-destructive/10 text-destructive",
-                        task.Priority === 'MEDIUM' && "bg-warning/10 text-warning",
-                        task.Priority === 'LOW' && "bg-success/10 text-success",
-                      )}
-                    >
-                      {task.Priority} Priority
-                    </span>
                     
-                    <span
-                      className={cn(
-                        "px-3 py-1 text-xs font-medium rounded-full",
-                        task.Status === 'Completed' || task.Completed
-                          ? "bg-success/10 text-success"
-                          : task.Status === 'In Progress'
-                          ? "bg-primary/10 text-primary"
-                          : "bg-muted text-muted-foreground"
-                      )}
-                    >
-                      {task.Status || (task.Completed ? 'Completed' : 'Not Started')}
-                    </span>
-                  </div>
-                </div>
-                
-                {task.Description ? (
-                  <div className="mb-6">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Description</h3>
-                    <p className="text-foreground whitespace-pre-wrap">{task.Description}</p>
-                  </div>
-                ) : (
-                  <div className="mb-6">
-                    <p className="text-muted-foreground text-sm italic">No description provided</p>
-                  </div>
-                )}
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Deadline */}
-                  {task.Deadline && (
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-medium text-muted-foreground flex items-center">
-                        <Calendar className="h-4 w-4 mr-2" />
-                        Deadline
-                      </h3>
-                      <p className="text-foreground">
-                        {format(parseISO(task.Deadline), 'MMM d, yyyy')}
-                      </p>
-                      {deadlineStatus && (
-                        <p className={cn("text-sm", deadlineStatus.color)}>
-                          {deadlineStatus.label}
-                        </p>
-                      )}
+                    {/* Priority and Status */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label htmlFor="edit-priority" className="block text-sm font-medium">
+                          Priority
+                        </label>
+                        <select
+                          id="edit-priority"
+                          value={editForm.Priority}
+                          onChange={(e) => setEditForm({ ...editForm, Priority: e.target.value })}
+                          className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="LOW">Low</option>
+                          <option value="MEDIUM">Medium</option>
+                          <option value="HIGH">High</option>
+                        </select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="edit-status" className="block text-sm font-medium">
+                          Status
+                        </label>
+                        <select
+                          id="edit-status"
+                          value={editForm.Status}
+                          onChange={(e) => setEditForm({ ...editForm, Status: e.target.value })}
+                          className="w-full h-10 px-3 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                          <option value="Not Started">Not Started</option>
+                          <option value="In Progress">In Progress</option>
+                          <option value="Completed">Completed</option>
+                        </select>
+                      </div>
                     </div>
-                  )}
+                    
+                    {/* Deadline and Cost */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                      <div className="space-y-2">
+                        <label htmlFor="edit-deadline" className="block text-sm font-medium">
+                          Deadline
+                        </label>
+                        <Input
+                          id="edit-deadline"
+                          type="date"
+                          value={editForm.Deadline || ''}
+                          onChange={(e) => setEditForm({ ...editForm, Deadline: e.target.value })}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <label htmlFor="edit-cost" className="block text-sm font-medium">
+                          Cost
+                        </label>
+                        <Input
+                          id="edit-cost"
+                          type="number"
+                          value={editForm.Cost || 0}
+                          onChange={(e) => setEditForm({ ...editForm, Cost: parseFloat(e.target.value) })}
+                        />
+                      </div>
+                    </div>
+                  </CardContent>
                   
-                  {/* Assignment */}
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
-                      {task.TeamId ? (
-                        <Users className="h-4 w-4 mr-2" />
+                  <CardFooter className="border-t flex justify-end gap-3 pt-5">
+                    <Button
+                      variant="outline"
+                      onClick={() => setIsEditing(false)}
+                      disabled={saving}
+                    >
+                      Cancel
+                    </Button>
+                    
+                    <Button
+                      onClick={handleSaveEdit}
+                      disabled={saving || !editForm.Title}
+                      isLoading={saving}
+                    >
+                      Save Changes
+                    </Button>
+                  </CardFooter>
+                </motion.div>
+              ) : (
+                /* Task Details View */
+                <motion.div 
+                  key="view-details"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                >
+                  <CardHeader className={cn(
+                    "border-t-4",
+                    task.Priority === 'HIGH' && "border-destructive",
+                    task.Priority === 'MEDIUM' && "border-warning",
+                    task.Priority === 'LOW' && "border-primary"
+                  )}>
+                    <div className="flex flex-wrap items-start justify-between gap-4">
+                      <CardTitle className={cn(
+                        "text-xl",
+                        task.Completed && "line-through opacity-70"
+                      )}>
+                        {task.Title}
+                      </CardTitle>
+                      
+                      <div className="flex flex-wrap gap-2">
+                        <Badge variant={task.Priority === 'HIGH' ? 'danger' : task.Priority === 'MEDIUM' ? 'warning' : 'info'}>
+                          {task.Priority} Priority
+                        </Badge>
+                        
+                        <Badge variant={task.Completed ? 'success' : task.Status === 'In Progress' ? 'info' : 'default'}>
+                          {task.Status || (task.Completed ? 'Completed' : 'Not Started')}
+                        </Badge>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    <CardSection title="Description">
+                      {task.Description ? (
+                        <p className="whitespace-pre-wrap">{task.Description}</p>
                       ) : (
-                        <User className="h-4 w-4 mr-2" />
+                        <p className="text-muted-foreground italic">No description provided</p>
                       )}
-                      Assigned To
-                    </h3>
-                    <p className="text-foreground">
-                      {task.TeamId 
-                        ? 'Team'
-                        : task.UserId
-                        ? (task.UserId === userId ? 'You' : 'User')
-                        : 'Not assigned'}
-                    </p>
-                  </div>
-                  
-                  {/* Creation Info */}
-                  <div className="space-y-1">
-                    <h3 className="text-sm font-medium text-muted-foreground flex items-center">
-                      <Clock className="h-4 w-4 mr-2" />
-                      Created
-                    </h3>
-                    <p className="text-foreground">
-                      {format(parseISO(task.CreatedAt), 'MMM d, yyyy')}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      By {task.CreatedBy === userId ? 'you' : 'another user'}
-                    </p>
-                  </div>
-                  
-                  {/* Cost if available */}
-                  {task.Cost > 0 && (
-                    <div className="space-y-1">
-                      <h3 className="text-sm font-medium text-muted-foreground">Cost</h3>
-                      <p className="text-foreground">${task.Cost.toFixed(2)}</p>
+                    </CardSection>
+                    
+                    <div className="border-t pt-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                        {/* Deadline */}
+                        {task.Deadline && (
+                          <CardSection title="Deadline" tight>
+                            <div className="flex items-center gap-2">
+                              <Calendar className="h-4 w-4 text-muted-foreground" />
+                              <p className="font-medium">
+                                {format(parseISO(task.Deadline), 'MMMM d, yyyy')}
+                              </p>
+                            </div>
+                            {deadlineStatus && (
+                              <Badge variant={deadlineStatus.variant as any}>
+                                {deadlineStatus.label}
+                              </Badge>
+                            )}
+                          </CardSection>
+                        )}
+                        
+                        {/* Assignment */}
+                        <CardSection title="Assigned To" tight>
+                          <div className="flex items-center gap-2">
+                            {task.TeamId ? (
+                              <Users className="h-4 w-4 text-muted-foreground" />
+                            ) : (
+                              <User className="h-4 w-4 text-muted-foreground" />
+                            )}
+                            <p className="font-medium">
+                              {task.TeamId 
+                                ? 'Team'
+                                : task.UserId
+                                ? (task.UserId === userId ? 'You' : 'User')
+                                : 'Not assigned'}
+                            </p>
+                          </div>
+                        </CardSection>
+                        
+                        {/* Creation Info */}
+                        <CardSection title="Created" tight>
+                          <div className="flex items-center gap-2">
+                            <Clock className="h-4 w-4 text-muted-foreground" />
+                            <p className="font-medium">
+                              {format(parseISO(task.CreatedAt), 'MMMM d, yyyy')}
+                            </p>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            By {task.CreatedBy === userId ? 'you' : 'another user'}
+                          </p>
+                        </CardSection>
+                        
+                        {/* Cost if available */}
+                        {task.Cost > 0 && (
+                          <CardSection title="Cost" tight>
+                            <p className="font-medium">${task.Cost.toFixed(2)}</p>
+                          </CardSection>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
+                  </CardContent>
+                </motion.div>
+              )}
+            </Card>
           </motion.div>
           
           {/* Attachments Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.1 }}
-            className="bg-card rounded-xl border shadow-sm overflow-hidden"
+            variants={slideUp}
+            transition={{ delay: 0.1 }}
           >
-            <div className="flex items-center justify-between p-4 border-b">
-              <h2 className="text-lg font-semibold flex items-center">
-                <Paperclip className="h-4 w-4 mr-2" />
-                Attachments
-              </h2>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-xl flex items-center">
+                  <Paperclip className="h-5 w-5 mr-2 text-muted-foreground" />
+                  Attachments
+                </CardTitle>
+                
+                {permissions.canUpload && (
+                  <>
+                    <Button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading || !task.ProjectId}
+                      className="flex items-center gap-2"
+                      size="sm"
+                      isLoading={uploading}
+                    >
+                      <Upload className="h-4 w-4" />
+                      <span>{uploading ? 'Uploading...' : 'Upload'}</span>
+                    </Button>
+                    
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </>
+                )}
+              </CardHeader>
               
-              {permissions.canUpload && (
-                <>
-                  <button
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={uploading || !task.ProjectId}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 text-sm bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-70"
-                  >
-                    {uploading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        <span>Uploading...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-3.5 w-3.5" />
-                        <span>Upload</span>
-                      </>
-                    )}
-                  </button>
-                  
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileUpload}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </>
-              )}
-            </div>
-            
-            <div className="p-4">
-              {attachments.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="h-12 w-12 mx-auto mb-3 opacity-20" />
-                  <p>No attachments yet</p>
-                </div>
-              ) : (
-                <ul className="divide-y">
-                  {attachments.map((attachment) => (
-                    <li key={attachment.Id} className="py-3 flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <div className="p-2 bg-muted rounded">
-                          <FileText className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-sm">{attachment.FileName}</p>
-                          {attachment.FileSize && (
-                            <p className="text-xs text-muted-foreground">
-                              {(attachment.FileSize / 1024).toFixed(2)} KB
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <button
-                          onClick={() => window.open(attachment.Url || `${process.env.NEXT_PUBLIC_API_URL}/tasks/${task.Id}/attachments/${attachment.Id}`, '_blank')}
-                          className="p-1.5 hover:bg-muted rounded-md transition-colors"
-                          aria-label="Download file"
+              <CardContent>
+                <AnimatePresence>
+                  {attachments.length === 0 ? (
+                    <motion.div
+                      key="no-attachments"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="text-center py-12 text-muted-foreground"
+                    >
+                      <FileText className="h-16 w-16 mx-auto mb-3 opacity-20" />
+                      <p>No attachments yet</p>
+                      {permissions.canUpload && (
+                        <Button
+                          onClick={() => fileInputRef.current?.click()}
+                          variant="ghost"
+                          className="mt-4"
+                          size="sm"
                         >
-                          <Download className="h-4 w-4 text-muted-foreground" />
-                        </button>
-                        
-                        {permissions.canUpload && (
-                          <button
-                            onClick={() => handleDeleteAttachment(attachment.Id)}
-                            className="p-1.5 hover:bg-destructive/10 hover:text-destructive rounded-md transition-colors"
-                            aria-label="Delete file"
+                          <Upload className="h-3.5 w-3.5 mr-2" />
+                          <span>Add a file</span>
+                        </Button>
+                      )}
+                    </motion.div>
+                  ) : (
+                    <motion.ul 
+                      variants={staggerContainer}
+                      initial="hidden"
+                      animate="visible"
+                      className="divide-y"
+                    >
+                      {attachments.map((attachment) => (
+                        <motion.li 
+                          key={attachment.Id} 
+                          variants={slideUp}
+                          className="py-4 first:pt-0 last:pb-0"
+                        >
+                          <motion.div 
+                            whileHover={{ scale: 1.01 }}
+                            className="flex items-center justify-between group"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        )}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
+                            <div className="flex items-center space-x-3">
+                              <div className="p-2 bg-muted rounded-lg">
+                                <FileText className="h-6 w-6 text-muted-foreground" />
+                              </div>
+                              <div>
+                                <p className="font-medium">{attachment.FileName}</p>
+                                {attachment.FileSize && (
+                                  <p className="text-xs text-muted-foreground">
+                                    {(attachment.FileSize / 1024).toFixed(2)} KB
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                onClick={() => window.open(attachment.Url || `${process.env.NEXT_PUBLIC_API_URL}/tasks/${task.Id}/attachments/${attachment.Id}`, '_blank')}
+                                variant="ghost"
+                                size="sm"
+                                className="opacity-0 group-hover:opacity-100 transition-opacity"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              
+                              {permissions.canUpload && (
+                                <Button
+                                  onClick={() => handleDeleteAttachment(attachment.Id)}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="opacity-0 group-hover:opacity-100 transition-opacity text-destructive hover:text-destructive hover:bg-destructive/10"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </div>
+                          </motion.div>
+                        </motion.li>
+                      ))}
+                    </motion.ul>
+                  )}
+                </AnimatePresence>
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
         
@@ -801,157 +868,112 @@ export default function TaskDetailPage() {
         <div className="space-y-6">
           {/* Project Info Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="bg-card rounded-xl border shadow-sm overflow-hidden"
+            variants={slideUp}
+            transition={{ delay: 0.2 }}
           >
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold">Project Info</h2>
-            </div>
-            
-            <div className="p-4">
-              {project ? (
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="text-sm font-medium text-muted-foreground mb-1">Project</h3>
-                    <p className="font-medium">{project.Name}</p>
+            <Card>
+              <CardHeader>
+                <CardTitle>Project Info</CardTitle>
+              </CardHeader>
+              
+              <CardContent>
+                {project ? (
+                  <div className="space-y-4">
+                    <div>
+                      <h3 className="text-sm font-medium text-muted-foreground mb-1">Project</h3>
+                      <p className="font-medium">{project.Name}</p>
+                    </div>
+                    
+                    <Button
+                      onClick={() => router.push(`/projects/${project.Id}`)}
+                      variant="outline"
+                      className="flex items-center gap-2 w-full justify-center"
+                    >
+                      <ExternalLink className="h-4 w-4" />
+                      <span>View Project</span>
+                    </Button>
                   </div>
-                  
-                  <button
-                    onClick={() => router.push(`/projects/${project.Id}`)}
-                    className="inline-flex items-center gap-2 text-primary hover:text-primary/80 transition-colors"
-                  >
-                    <ExternalLink className="h-4 w-4" />
-                    <span>View Project</span>
-                  </button>
-                </div>
-              ) : (
-                <p className="text-muted-foreground">Project information not available</p>
-              )}
-            </div>
+                ) : (
+                  <p className="text-muted-foreground">Project information not available</p>
+                )}
+              </CardContent>
+            </Card>
           </motion.div>
           
           {/* Task Status Card */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.3 }}
-            className="bg-card rounded-xl border shadow-sm overflow-hidden"
+            variants={slideUp}
+            transition={{ delay: 0.3 }}
           >
-            <div className="p-4 border-b">
-              <h2 className="text-lg font-semibold">Task Status</h2>
-            </div>
-            
-            <div className="p-4">
-              <div className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Task Status</CardTitle>
+              </CardHeader>
+              
+              <CardContent className="space-y-6">
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Current Status</h3>
-                  <div
-                    className={cn(
-                      "px-3 py-1.5 text-sm font-medium rounded-md inline-flex",
-                      task.Status === 'Completed' || task.Completed
-                        ? "bg-success/10 text-success"
-                        : task.Status === 'In Progress'
-                        ? "bg-primary/10 text-primary"
-                        : "bg-muted text-muted-foreground"
-                    )}
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Current Status</h3>
+                  <Badge
+                    variant={task.Completed ? 'success' : task.Status === 'In Progress' ? 'info' : 'default'}
+                    className="px-4 py-2 text-sm"
                   >
                     {task.Status || (task.Completed ? 'Completed' : 'Not Started')}
-                  </div>
+                  </Badge>
                 </div>
                 
                 <div>
-                  <h3 className="text-sm font-medium text-muted-foreground mb-1">Priority</h3>
-                  <div
-                    className={cn(
-                      "px-3 py-1.5 text-sm font-medium rounded-md inline-flex",
-                      task.Priority === 'HIGH' && "bg-destructive/10 text-destructive",
-                      task.Priority === 'MEDIUM' && "bg-warning/10 text-warning",
-                      task.Priority === 'LOW' && "bg-success/10 text-success",
-                    )}
+                  <h3 className="text-sm font-medium text-muted-foreground mb-2">Priority</h3>
+                  <Badge
+                    variant={task.Priority === 'HIGH' ? 'danger' : task.Priority === 'MEDIUM' ? 'warning' : 'info'}
+                    className="px-4 py-2 text-sm"
                   >
                     {task.Priority} Priority
-                  </div>
+                  </Badge>
                 </div>
                 
                 {!task.Completed && permissions.canComplete && (
-                  <button
+                  <Button
                     onClick={handleCompleteTask}
                     disabled={completing}
-                    className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 bg-success text-success-foreground rounded-lg hover:bg-success/90 transition-colors disabled:opacity-70 mt-4"
+                    className="w-full bg-success text-success-foreground hover:bg-success/90 mt-4"
+                    isLoading={completing}
                   >
-                    {completing ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" />
-                        <span>Updating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-4 w-4" />
-                        <span>Mark Complete</span>
-                      </>
-                    )}
-                  </button>
+                    Mark Complete
+                  </Button>
                 )}
-              </div>
-            </div>
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
       </div>
       
       {/* Delete Confirmation Dialog */}
-      <AnimatePresence>
-        {deleteConfirmOpen && (
-          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
-              className="bg-card rounded-xl border shadow-lg max-w-md w-full p-6"
-            >
-              <div className="mb-6 text-center">
-                <div className="mx-auto w-12 h-12 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
-                  <AlertCircle className="h-6 w-6 text-destructive" />
-                </div>
-                <h2 className="text-xl font-bold mb-2">Delete Task</h2>
-                <p className="text-muted-foreground">
-                  Are you sure you want to delete this task? This action cannot be undone.
-                </p>
-              </div>
-              
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={() => setDeleteConfirmOpen(false)}
-                  disabled={deleting}
-                  className="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/90 transition-colors"
-                >
-                  Cancel
-                </button>
-                
-                <button
-                  onClick={handleDeleteTask}
-                  disabled={deleting}
-                  className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors flex items-center gap-2"
-                >
-                  {deleting ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Deleting...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Trash2 className="h-4 w-4" />
-                      <span>Delete Task</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-    </div>
+      <Dialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="Delete Task"
+        description="Are you sure you want to delete this task? This action cannot be undone."
+        size="sm"
+      >
+        <div className="flex justify-end gap-3">
+          <Button
+            variant="outline"
+            onClick={() => setDeleteConfirmOpen(false)}
+            disabled={deleting}
+          >
+            Cancel
+          </Button>
+          
+          <Button
+            variant="destructive"
+            onClick={handleDeleteTask}
+            disabled={deleting}
+            isLoading={deleting}
+          >
+            Delete Task
+          </Button>
+        </div>
+      </Dialog>
+    </motion.div>
   );
 }
